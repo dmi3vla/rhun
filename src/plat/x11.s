@@ -2,11 +2,11 @@
 .include "rhun.inc"
 
 .equ XOUT, 65536
-.equ XIN, 262144
+.equ XIN, 2097152
 .equ PEND_MAX, 256              # keys waiting for a new keymap
 .equ AUTH_FAMILY_LOCAL, 256
 .equ AUTH_FAMILY_WILD, 65535
-.equ EVMASK, 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040 | 0x8000 | 0x20000 | 0x200000
+.equ EVMASK, 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040 | 0x8000 | 0x20000 | 0x200000 | 0x400000
 # KeyPress KeyRelease ButtonPress ButtonRelease EnterWindow LeaveWindow PointerMotion Exposure StructureNotify FocusChange
 
 .bss
@@ -48,6 +48,18 @@ a_net_active: .long 0
 a_utf8: .long 0
 a_clipboard: .long 0
 a_targets: .long 0
+a_uri: .long 0
+a_png: .long 0
+a_jpeg: .long 0
+a_incr: .long 0
+paste_kind: .long 0
+paste_stage: .long 0            # 1 targets, 2 value, 3 INCR chunks
+paste_atom: .long 0
+paste_active: .long 0
+.p2align 3
+paste_data: .zero SB_SIZE
+paste_token: .quad 0
+paste_deadline: .quad 0
 a_sel_prop: .long 0
 a_net_wm_state: .long 0
 a_max_h: .long 0
@@ -239,6 +251,8 @@ x_message:
     je .Lxm_selreq
     cmp eax, 31
     je .Lxm_selnotify
+    cmp eax, 28
+    je .Lxm_property
     cmp eax, 33
     je .Lxm_client
     cmp eax, 34
@@ -271,9 +285,9 @@ x_message:
     je .Lxm_ret
     mov dword ptr [rip + paste_wait], 0
     mov dword ptr [rip + want_seq], -1
-    mov rdi, [rip + reply_extra]
-    mov esi, [rbx + 16]         # value length in format units (format 8)
-    call app_on_paste
+    mov rdi, rbx
+    mov esi, r12d
+    call x_paste_reply
     jmp .Lxm_ret
 .Lxm_key:
     movzx eax, word ptr [rbx + 28]
@@ -372,11 +386,47 @@ x_message:
     mov rdi, rbx
     call x_serve_selection
     jmp .Lxm_ret
+.Lxm_property:
+    cmp dword ptr [rip + paste_stage], 3
+    jne .Lxm_ret
+    cmp byte ptr [rbx + 16], 0
+    jne .Lxm_ret
+    mov eax, [rbx + 8]
+    cmp eax, [rip + a_sel_prop]
+    jne .Lxm_ret
+    mov eax, [rbx + 4]
+    cmp eax, [rip + win]
+    jne .Lxm_ret
+    cmp dword ptr [rip + paste_wait], 0
+    jne .Lxm_ret
+    call x_get_paste
+    jmp .Lxm_ret
 .Lxm_selnotify:
-    # property with the pasted text is ready: fetch it
-    mov eax, [rbx + 20]
-    test eax, eax
-    jz .Lxm_ret
+    cmp dword ptr [rip + paste_active], 0
+    je .Lxm_ret
+    mov eax, [rbx + 8]
+    cmp eax, [rip + win]
+    jne .Lxm_ret
+    mov eax, [rbx + 12]
+    cmp eax, [rip + a_clipboard]
+    jne .Lxm_ret
+    mov eax, [rbx + 16]
+    cmp eax, [rip + paste_atom]
+    jne .Lxm_ret
+    cmp dword ptr [rbx + 20], 0
+    jne 1f
+    cmp dword ptr [rip + paste_stage], 1
+    jne 2f
+    mov dword ptr [rip + paste_kind], 0
+    mov dword ptr [rip + paste_stage], 2
+    mov eax, [rip + a_utf8]
+    call x_paste_convert
+    jmp .Lxm_ret
+2:  call x_paste_reset
+    jmp .Lxm_ret
+1:  mov eax, [rbx + 20]
+    cmp eax, [rip + a_sel_prop]
+    jne .Lxm_ret
     call x_get_paste
     jmp .Lxm_ret
 .Lxm_client:
@@ -1192,6 +1242,18 @@ FN x_open_window
     lea rdi, [rip + .La_targets]
     call x_intern
     mov [rip + a_targets], eax
+    lea rdi, [rip + .La_uri]
+    call x_intern
+    mov [rip + a_uri], eax
+    lea rdi, [rip + .La_png]
+    call x_intern
+    mov [rip + a_png], eax
+    lea rdi, [rip + .La_jpeg]
+    call x_intern
+    mov [rip + a_jpeg], eax
+    lea rdi, [rip + .La_incr]
+    call x_intern
+    mov [rip + a_incr], eax
     lea rdi, [rip + .La_sel_prop]
     call x_intern
     mov [rip + a_sel_prop], eax
@@ -1318,9 +1380,22 @@ x_timeout:
     cmp dword ptr [rip + g_dirty], 0
     jne 1f
     mov eax, -1
+    cmp dword ptr [rip + paste_active], 0
+    je 1f
+    mov eax, 1000
 1:  ret
 
 x_tick:
+    sub rsp, 8
+    cmp dword ptr [rip + paste_active], 0
+    je 1f
+    call time_ms
+    cmp rax, [rip + paste_deadline]
+    jb 1f
+    call x_paste_reset
+    lea rdi, [rip + .Lpaste_error]
+    call app_toast
+1:  add rsp, 8
     cmp dword ptr [rip + keymap_stale], 0
     jne x_keymap_refresh
     ret
@@ -1545,14 +1620,40 @@ x_clip_get:
     mov rdi, [rip + xclip + SB_ptr]
     mov rsi, [rip + xclip + SB_len]
     jmp app_on_paste
-1:  sub rsp, 40
-    mov byte ptr [rsp], 24      # ConvertSelection
+1:  cmp dword ptr [rip + paste_active], 0
+    jne 9f
+    sub rsp, 8
+    call agents_chat_clipboard_token
+    mov [rip + paste_token], rax
+    mov dword ptr [rip + paste_stage], 2
+    mov dword ptr [rip + paste_kind], 0
+    test eax, eax
+    jz 2f
+    mov dword ptr [rip + paste_stage], 1
+    mov eax, [rip + a_targets]
+    jmp 3f
+2:  mov eax, [rip + a_utf8]
+3:  push rax
+    call time_ms
+    add rax, 5000
+    mov [rip + paste_deadline], rax
+    pop rax
+    mov dword ptr [rip + paste_active], 1
+    call x_paste_convert
+    add rsp, 8
+9:  ret
+
+# eax target atom; all conversions use our single owned selection property.
+x_paste_convert:
+    mov [rip + paste_atom], eax
+    sub rsp, 40
+    mov byte ptr [rsp], 24
     mov word ptr [rsp + 2], 6
     mov eax, [rip + win]
     mov [rsp + 4], eax
     mov eax, [rip + a_clipboard]
     mov [rsp + 8], eax
-    mov eax, [rip + a_utf8]
+    mov eax, [rip + paste_atom]
     mov [rsp + 12], eax
     mov eax, [rip + a_sel_prop]
     mov [rsp + 16], eax
@@ -1562,6 +1663,115 @@ x_clip_get:
     call x_req
     add rsp, 40
     ret
+
+x_paste_reset:
+    mov dword ptr [rip + paste_active], 0
+    mov dword ptr [rip + paste_stage], 0
+    mov dword ptr [rip + paste_wait], 0
+    lea rdi, [rip + paste_data]
+    jmp sb_clear
+
+# reply, packet length. TARGETS first, then bounded direct or INCR data.
+x_paste_reply:
+    PROLOGUE
+    mov r12, rdi
+    mov r13d, esi
+    call time_ms
+    add rax, 5000
+    mov [rip + paste_deadline], rax
+    cmp dword ptr [r12 + 12], 0       # bytes_after: reject oversized properties
+    jne .Lxp_bad
+    cmp dword ptr [rip + paste_stage], 1
+    jne .Lxp_value
+    cmp byte ptr [r12 + 1], 32
+    jne .Lxp_bad
+    mov ecx, [r12 + 16]
+    mov eax, ecx
+    shl rax, 2
+    add rax, 32
+    cmp rax, r13
+    ja .Lxp_bad
+    xor ebx, ebx                     # kind priority URI > PNG > JPEG
+    xor edx, edx
+1:  cmp edx, ecx
+    jae 4f
+    mov eax, [r12 + rdx*4 + 32]
+    cmp eax, [rip + a_uri]
+    jne 2f
+    mov ebx, 1
+    jmp 4f
+2:  cmp eax, [rip + a_png]
+    jne 3f
+    mov ebx, 2
+3:  cmp eax, [rip + a_jpeg]
+    jne 31f
+    test ebx, ebx
+    jnz 31f
+    mov ebx, 3
+31: inc edx
+    jmp 1b
+4:  mov [rip + paste_kind], ebx
+    mov dword ptr [rip + paste_stage], 2
+    mov eax, [rip + a_utf8]
+    cmp ebx, 1
+    jne 5f
+    mov eax, [rip + a_uri]
+5:  cmp ebx, 2
+    jne 6f
+    mov eax, [rip + a_png]
+6:  cmp ebx, 3
+    jne 7f
+    mov eax, [rip + a_jpeg]
+7:  call x_paste_convert
+    EPILOGUE
+.Lxp_value:
+    mov eax, [r12 + 8]
+    cmp eax, [rip + a_incr]
+    jne 8f
+    cmp dword ptr [rip + paste_stage], 2
+    jne .Lxp_bad
+    lea rdi, [rip + paste_data]
+    call sb_clear
+    mov dword ptr [rip + paste_stage], 3
+    EPILOGUE
+8:  cmp byte ptr [r12 + 1], 8
+    jne .Lxp_bad
+    cmp eax, [rip + paste_atom]
+    jne .Lxp_bad
+    mov r14d, [r12 + 16]
+    lea rax, [r14 + 32]
+    cmp rax, r13
+    ja .Lxp_bad
+    mov rax, [rip + paste_data + SB_len]
+    add rax, r14
+    mov ecx, 65536
+    cmp dword ptr [rip + paste_kind], 2
+    jb 9f
+    mov ecx, 1 << 20
+9:  cmp rax, rcx
+    ja .Lxp_bad
+    lea rdi, [rip + paste_data]
+    lea rsi, [r12 + 32]
+    mov rdx, r14
+    call sb_push
+    cmp dword ptr [rip + paste_stage], 3
+    jne .Lxp_deliver
+    test r14, r14
+    jnz .Lxp_done
+.Lxp_deliver:
+    mov rdi, [rip + paste_data + SB_ptr]
+    mov rsi, [rip + paste_data + SB_len]
+    mov edx, [rip + paste_kind]
+    mov rcx, [rip + paste_token]
+    call app_on_clipboard_delivery
+    call x_paste_reset
+.Lxp_done:
+    EPILOGUE
+.Lxp_bad:
+    lea rdi, [rip + .Lpaste_error]
+    call app_toast
+    call x_paste_reset
+    EPILOGUE
 
 # SelectionNotify arrived: GetProperty (delete) and deliver the reply asynchronously
 x_get_paste:
@@ -1575,7 +1785,7 @@ x_get_paste:
     mov [rsp + 8], eax
     mov dword ptr [rsp + 12], 0         # AnyPropertyType
     mov dword ptr [rsp + 16], 0
-    mov dword ptr [rsp + 20], 0x1000000 # up to 64 MiB
+    mov dword ptr [rsp + 20], 262145    # 1 MiB + detect overflow
     mov rdi, rsp
     mov esi, 24
     call x_req
@@ -1765,3 +1975,10 @@ xkb_event: .long 0              # first event code of XKEYBOARD, 0 without it
 xfd: .long -1
 cur_shape: .long -1
 want_seq: .long -1
+
+.section .rodata
+.La_uri: .asciz "text/uri-list"
+.La_png: .asciz "image/png"
+.La_jpeg: .asciz "image/jpeg"
+.La_incr: .asciz "INCR"
+.Lpaste_error: .asciz "Clipboard transfer unsupported or too large."

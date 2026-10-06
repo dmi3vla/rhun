@@ -1312,6 +1312,7 @@ on_client:
 .Ldigits: .ascii "0123456789abcdefghijk"
 .p2align 3
 ctl_table:
+    .quad .Lc_paste_file, c_paste_file
     .quad .Lc_key, c_key, .Lc_type, c_type, .Lc_move, c_move, .Lc_click, c_click, .Lc_tap, c_tap
     .quad .Lc_down, c_down, .Lc_up, c_up, .Lc_scroll, c_scroll, .Lc_open, c_open
     .quad .Lc_cmd, c_cmd, .Lc_shot, c_shot, .Lc_wait, c_wait, .Lc_resize, c_resize
@@ -1340,3 +1341,32 @@ click_mods: .long 0             # c_click: the modifiers its press and release c
 pp_buf: .zero 4096
 
 CSTR .Lwindows_control, "rhun: --control is unavailable on Windows; use --script FILE"
+
+.text
+# paste-file kind path: deterministic MIME payload injection for regression tests.
+c_paste_file:
+    call next_int
+    mov r14d, eax
+    call next_arg
+    mov rdi, rax
+    mov rsi, rdx
+    call mem_dup
+    mov r15, rax
+    mov rdi, rax
+    mov ecx, 1 << 20
+    call file_read_limited
+    mov r13, rax
+    test rax, rax
+    jz 1f
+    mov rdi, rax
+    mov rsi, rdx
+    mov edx, r14d
+    call app_on_clipboard
+    mov rdi, r13
+    call mem_free
+1:  mov rdi, r15
+    call mem_free
+    xor eax, eax
+    ret
+.section .rodata
+.Lc_paste_file: .asciz "paste-file"

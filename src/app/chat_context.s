@@ -7,6 +7,8 @@ image_path: .zero SB_SIZE
 image_bytes: .quad 0
 image_length: .quad 0
 image_mime: .quad 0
+prepared_images: .zero VEC_SIZE
+prepared_total: .quad 0
 .text
 FN chat_attach_file
     lea rdi, [rip + attach_picked_file]
@@ -248,6 +250,7 @@ FN chat_context_prepare
     call chat_text_valid
     test eax, eax
     jnz 8f
+    call context_images_clear
     mov rdi, [rip + image_bytes]
     call mem_free
     mov qword ptr [rip + image_bytes], 0
@@ -274,8 +277,10 @@ FN chat_context_prepare
     call str_starts
     test eax, eax
     jz 7f
-    cmp qword ptr [rip + image_path + SB_len], 0
-    jne 8f
+    cmp qword ptr [rip + prepared_images + VEC_len], 8
+    jae 8f
+    lea rdi, [rip + image_path]
+    call sb_clear
     lea rdi, [r12 + r14 + 8]
     mov rsi, r15
     sub rsi, r14
@@ -310,6 +315,11 @@ FN chat_context_prepare
     jz 8f
     mov [rip + image_bytes], rax
     mov [rip + image_length], rdx
+    add rdx, [rip + prepared_total]
+    cmp rdx, 1 << 20
+    ja 8f
+    mov [rip + prepared_total], rdx
+    mov rdx, [rip + image_length]
     cmp rdx, 8
     jb 8f
     mov rcx, 0x0a1a0a0d474e5089
@@ -325,9 +335,24 @@ FN chat_context_prepare
     cmp dword ptr [rip + chat_provider], 3
     je 8f
     cmp dword ptr [rip + chat_provider], 0
-    je 7f
+    je 6f
     cmp dword ptr [rip + chat_acp_image_supported], 0
     je 8f
+6:  lea rdi, [rip + prepared_images]
+    mov esi, 32
+    call vec_push
+    mov rbx, rax
+    mov rdi, [rip + image_path + SB_ptr]
+    mov rsi, [rip + image_path + SB_len]
+    call mem_dup
+    mov [rbx], rax
+    mov rax, [rip + image_bytes]
+    mov [rbx + 8], rax
+    mov rax, [rip + image_length]
+    mov [rbx + 16], rax
+    mov rax, [rip + image_mime]
+    mov [rbx + 24], rax
+    mov qword ptr [rip + image_bytes], 0
 7:  lea r14, [r15 + 1]
     jmp 1b
 8:  lea rdi, [rip + .Limage_error]
@@ -339,29 +364,37 @@ FN chat_context_prepare
 
 FN chat_context_images
     PROLOGUE
-    cmp qword ptr [rip + image_path + SB_len], 0
-    je 9f
+    xor r12d, r12d
+.Limages_next:
+    cmp r12, [rip + prepared_images + VEC_len]
+    jae 9f
+    mov rbx, r12
+    shl rbx, 5
+    add rbx, [rip + prepared_images + VEC_ptr]
     cmp dword ptr [rip + chat_provider], 0
     jne 1f
     lea rdi, [rip + .Llocal_image]
     call chat_runtime_append
-    mov rdi, [rip + image_path + SB_ptr]
+    mov rdi, [rbx]
     call chat_runtime_quote
     lea rdi, [rip + .Lclose_image]
     call chat_runtime_append
-    jmp 9f
+    jmp .Limages_advance
 1:  lea rdi, [rip + .Lacp_image]
     call chat_runtime_append
     lea rdi, [rip + chat_runtime_request]
-    mov rsi, [rip + image_bytes]
-    mov rdx, [rip + image_length]
+    mov rsi, [rbx + 8]
+    mov rdx, [rbx + 16]
     call chat_base64
     lea rdi, [rip + .Lmime_prefix]
     call chat_runtime_append
-    mov rdi, [rip + image_mime]
+    mov rdi, [rbx + 24]
     call chat_runtime_quote
     lea rdi, [rip + .Lclose_image]
     call chat_runtime_append
+.Limages_advance:
+    inc r12
+    jmp .Limages_next
 9:  EPILOGUE
 
 # Base64 into a string builder; no shell, subprocess, or credential handling.
@@ -438,7 +471,7 @@ FN chat_base64
 .Lbase64: .asciz "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 .Llarge_text: .asciz "Text attachments are limited to 32 KiB"
 .Lread_error: .asciz "Could not read the selected file (limit: 1 MiB)"
-.Limage_error: .asciz "Attach one PNG/JPEG up to 1 MiB; the agent must advertise image support"
+.Limage_error: .asciz "Attach up to 8 PNG/JPEG images, 1 MiB total; agent image support required"
 .Lno_document: .asciz "Open a text document to attach its current buffer"
 .Lno_selection: .asciz "Select up to 32 KiB of text to attach"
 .Lselection: .asciz "Editor selection"
@@ -509,3 +542,22 @@ insert_prompt_file:
 
 .section .rodata
 .Lfile_reference: .asciz "@file: "
+
+.text
+context_images_clear:
+    PROLOGUE
+    xor r12d, r12d
+1:  cmp r12, [rip + prepared_images + VEC_len]
+    jae 2f
+    mov rbx, r12
+    shl rbx, 5
+    add rbx, [rip + prepared_images + VEC_ptr]
+    mov rdi, [rbx]
+    call mem_free
+    mov rdi, [rbx + 8]
+    call mem_free
+    inc r12
+    jmp 1b
+2:  mov qword ptr [rip + prepared_images + VEC_len], 0
+    mov qword ptr [rip + prepared_total], 0
+    EPILOGUE

@@ -95,9 +95,13 @@ sel_offer: .long 0
 sel_offer_text: .long 0
 id_source: .long 0
 clip_mime_sel: .long 0
+paste_kind: .long 0
+paste_rejected: .long 0
 .p2align 3
 clip_sb: .zero SB_SIZE
 paste_sb: .zero SB_SIZE
+paste_token: .quad 0
+paste_deadline: .quad 0
 
 .text
 
@@ -699,10 +703,8 @@ wl_dispatch:
     lea rdi, [r13 + 4]
     mov esi, [r13]
     dec esi
-    call mime_is_text
-    test eax, eax
-    jz .Ld_ret
-    mov dword ptr [rip + offer_new_text], 1
+    call clipboard_mime_bit
+    or [rip + offer_new_text], eax
     jmp .Ld_ret
 
 .Ld_source:
@@ -1579,11 +1581,35 @@ wl_timeout:
     jns 2f
     xor ecx, ecx
 2:  mov eax, ecx
-    ret
+    cmp dword ptr [rip + paste_fd], -1
+    je 3f
+    cmp eax, 1000
+    jbe 3f
+    mov eax, 1000
+3:  ret
 1:  mov eax, -1
+    cmp dword ptr [rip + paste_fd], -1
+    je 3b
+    mov eax, 1000
     ret
 
 wl_tick:
+    sub rsp, 8
+    cmp dword ptr [rip + paste_fd], -1
+    je 8f
+    call time_ms
+    cmp rax, [rip + paste_deadline]
+    jb 8f
+    mov edi, [rip + paste_fd]
+    call watch_remove
+    mov edi, [rip + paste_fd]
+    SYS SYS_close
+    mov dword ptr [rip + paste_fd], -1
+    lea rdi, [rip + paste_sb]
+    call sb_clear
+    lea rdi, [rip + .Lpaste_error]
+    call app_toast
+8:  add rsp, 8
     cmp dword ptr [rip + rep_key], 0
     je 1f
     cmp dword ptr [rip + rep_rate], 0
@@ -1760,13 +1786,47 @@ wl_clip_get:
     je 9f
     cmp dword ptr [rip + paste_fd], -1
     jne 9f
+    call agents_chat_clipboard_token
+    mov [rip + paste_token], rax
+    mov dword ptr [rip + paste_kind], 0
+    mov dword ptr [rip + paste_rejected], 0
+    lea rbx, [rip + .Lmime_utf8]
+    mov ecx, [rip + sel_offer_text]
+    test eax, eax
+    jz .Lwc_text
+    test ecx, 8
+    jz 11f
+    lea rbx, [rip + .Lmime_uri]
+    mov dword ptr [rip + paste_kind], 1
+    jmp .Lwc_request
+11: test ecx, 16
+    jz 12f
+    lea rbx, [rip + .Lmime_png]
+    mov dword ptr [rip + paste_kind], 2
+    jmp .Lwc_request
+12: test ecx, 32
+    jz .Lwc_text
+    lea rbx, [rip + .Lmime_jpeg]
+    mov dword ptr [rip + paste_kind], 3
+    jmp .Lwc_request
+.Lwc_text:
+    test ecx, 1
+    jnz .Lwc_request
+    lea rbx, [rip + .Lmime_plain]
+    test ecx, 2
+    jnz .Lwc_request
+    lea rbx, [rip + .Lmime_utf8str]
+    test ecx, 4
+    jz 9f
+.Lwc_request:
     mov rdi, rsp
     mov esi, O_CLOEXEC
     SYS SYS_pipe2
     test rax, rax
     js 9f
-    MSG [rip + sel_offer], 1      # receive(mime, fd)
-    SARG .Lmime_utf8
+    MSG [rip + sel_offer], 1      # receive the exact offered MIME
+    mov rdi, rbx
+    call wl_put_str
     END
     mov edi, [rsp + 4]
     call wl_flush_fd
@@ -1774,6 +1834,9 @@ wl_clip_get:
     SYS SYS_close
     mov edi, [rsp]
     mov [rip + paste_fd], edi
+    mov esi, 4 # F_SETFL
+    mov edx, O_NONBLOCK
+    SYS SYS_fcntl
     lea rdi, [rip + paste_sb]
     call sb_clear
     mov edi, [rip + paste_fd]
@@ -1781,6 +1844,9 @@ wl_clip_get:
     lea rdx, [rip + on_paste_readable]
     xor ecx, ecx
     call watch_add
+    call time_ms
+    add rax, 5000
+    mov [rip + paste_deadline], rax
 9:  add rsp, 16
     pop rbx
     ret
@@ -1795,19 +1861,47 @@ on_paste_readable:
     mov rsi, rax
     mov edx, 65536
     SYS SYS_read
+    cmp rax, -EINTR
+    je 9f
+    cmp rax, -11
+    je 9f
     test rax, rax
     jle 1f
     add [rip + paste_sb + SB_len], rax
-    pop rbx
+    mov ecx, 65536
+    cmp dword ptr [rip + paste_kind], 2
+    jb 2f
+    mov ecx, 1 << 20
+2:  cmp [rip + paste_sb + SB_len], rcx
+    ja 21f
+    call time_ms
+    add rax, 5000
+    mov [rip + paste_deadline], rax
+    jmp 9f
+21: mov dword ptr [rip + paste_rejected], 1
+    jmp 1f
+9:  pop rbx
     ret
-1:  mov edi, ebx
+1:  test rax, rax
+    jns 3f
+    mov dword ptr [rip + paste_rejected], 1
+3:  mov edi, ebx
     call watch_remove
     mov edi, ebx
     SYS SYS_close
     mov dword ptr [rip + paste_fd], -1
+    cmp dword ptr [rip + paste_rejected], 0
+    jne 4f
     mov rdi, [rip + paste_sb + SB_ptr]
     mov rsi, [rip + paste_sb + SB_len]
-    call app_on_paste
+    mov edx, [rip + paste_kind]
+    mov rcx, [rip + paste_token]
+    call app_on_clipboard_delivery
+    jmp 5f
+4:  lea rdi, [rip + .Lpaste_error]
+    call app_toast
+5:  lea rdi, [rip + paste_sb]
+    call sb_clear
     pop rbx
     ret
 
@@ -2090,3 +2184,34 @@ cur_hy: .zero 4 * 7
 xcur: .zero XC_SIZE
 deco_mode: .long 0
 g_dpi_scale: .float 1.0
+
+.text
+clipboard_mime_bit:
+    PROLOGUE
+    mov r12, rdi
+    mov r13, rsi
+    xor ebx, ebx
+    lea r14, [rip + clipboard_mimes]
+1:  cmp ebx, 6
+    jae 3f
+    mov rdi, r12
+    mov rsi, r13
+    mov rdx, [r14 + rbx*8]
+    call str_eq_cstr
+    test eax, eax
+    jnz 2f
+    inc ebx
+    jmp 1b
+2:  mov ecx, ebx
+    mov eax, 1
+    shl eax, cl
+    EPILOGUE
+3:  xor eax, eax
+    EPILOGUE
+.section .rodata
+.Lmime_uri: .asciz "text/uri-list"
+.Lmime_png: .asciz "image/png"
+.Lmime_jpeg: .asciz "image/jpeg"
+.p2align 3
+clipboard_mimes: .quad .Lmime_utf8, .Lmime_plain, .Lmime_utf8str, .Lmime_uri, .Lmime_png, .Lmime_jpeg
+.Lpaste_error: .asciz "Clipboard transfer unsupported or too large."

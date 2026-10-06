@@ -53,6 +53,7 @@ th_content: .long 0
 last_poll: .quad 0
 last_scan: .quad 0
 panel_rect: .zero 16
+clipboard_epoch: .quad 0
 tmp: .zero SB_SIZE
 line: .zero SB_SIZE
 buf: .zero 96
@@ -1728,6 +1729,7 @@ FN cmd_chat_new
     lea rax, [rip + .Lpi_chat_title]
     mov dword ptr [rip + chat_session + AS_kind], 5
 12:
+    inc qword ptr [rip + clipboard_epoch]
     mov [rip + chat_session + AS_title], rax
     lea rdi, [rip + chat_input]
     call tf_clear
@@ -1775,15 +1777,31 @@ FN agents_chat_send
 9:  EPILOGUE
 
 FN agents_chat_paste
+    PROLOGUE
+    mov r12, rdi
+    mov r13, rsi
     cmp qword ptr [rip + view], -2
-    jne 1f
-    mov rdx, rsi
-    mov rsi, rdi
+    jne 9f
+    cmp rsi, 65536
+    ja 8f
+    call chat_text_valid
+    test eax, eax
+    jnz 8f
     call agents_chat_field
-    mov rdi, rax
+    mov rbx, rax
+    mov rcx, [rbx + TF_sb + SB_len]
+    add rcx, r13
+    cmp rcx, 65536
+    ja 8f
+    mov rdi, rbx
+    mov rsi, r12
+    mov rdx, r13
     call ta_insert
-    jmp chat_store_dirty
-1:  ret
+    call chat_store_dirty
+9:  EPILOGUE
+8:  lea rdi, [rip + .Lcontext_draft_limit]
+    call app_toast
+    EPILOGUE
 
 # This helper and chat_pending_kind preserve argument registers for tail calls.
 agents_chat_field:
@@ -1923,6 +1941,7 @@ FN agents_chat_append
 
 FN agents_chat_reset
     PROLOGUE
+    inc qword ptr [rip + clipboard_epoch]
     lea rdi, [rip + chat_session]
     call session_clear_msgs
     mov qword ptr [rip + chat_session + AS_title], 0
@@ -2117,7 +2136,8 @@ FN agents_chat_import
     jnz 8f
     inc rbx
     jmp 1b
-2:  lea rdi, [rip + chat_session]
+2:  inc qword ptr [rip + clipboard_epoch]
+    lea rdi, [rip + chat_session]
     call session_clear_msgs
     lea rdi, [rip + chat_reply_input]
     call tf_clear
@@ -3554,3 +3574,26 @@ FN agents_drop_feedback
     EPILOGUE
 .section .rodata
 .Ldrop_hint: .asciz "Drop files to attach to chat"
+.text
+FN agents_chat_accept_objects
+    xor eax, eax
+    cmp dword ptr [rip + g_focus], FOCUS_AGENTS
+    jne 9f
+    cmp qword ptr [rip + view], -2
+    jne 9f
+    call chat_pending_kind
+    test eax, eax
+    sete al
+    movzx eax, al
+9:  ret
+
+.text
+FN agents_chat_clipboard_token
+    sub rsp, 8
+    call agents_chat_accept_objects
+    add rsp, 8
+    test eax, eax
+    jz 1f
+    mov rax, [rip + clipboard_epoch]
+    inc rax
+1:  ret
