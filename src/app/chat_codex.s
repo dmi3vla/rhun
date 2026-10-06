@@ -6,7 +6,12 @@ channel: .zero CP_SIZE
 partial: .zero SB_SIZE
 request: .zero SB_SIZE
 answer: .zero SB_SIZE
+model_text: .zero SB_SIZE
 thread_id: .quad 0
+turn_id: .quad 0
+stop_requested: .long 0
+restart_requested: .long 0
+stop_deadline: .quad 0
 cli: .quad 0
 state: .long 0                # 0 closed, 1 init, 2 thread, 3 ready, 4 turn
 deadline: .quad 0
@@ -22,6 +27,16 @@ FN chat_init
     ret
 
 FN chat_status
+    call chat_pending_kind
+    test eax, eax
+    jz 1f
+    cmp eax, 2
+    jne 2f
+    lea rax, [rip + .Lanswer_wait]
+    ret
+2:
+    jmp chat_pending_label
+1:
     mov rax, [rip + status]
     ret
 
@@ -46,9 +61,12 @@ FN chat_timeout
 # Explicitly close owned process on project change / application exit.
 FN chat_shutdown
     PROLOGUE
+    call chat_interactions_clear
     lea rdi, [rip + channel]
     call chat_pipe_close
     mov dword ptr [rip + state], 0
+    mov dword ptr [rip + stop_requested], 0
+    mov dword ptr [rip + restart_requested], 0
     lea rax, [rip + .Lclosed]
     mov [rip + status], rax
     EPILOGUE
@@ -59,10 +77,22 @@ FN chat_start
     cmp qword ptr [rip + g_project], 0
     je .Lstart_no_project
     cmp dword ptr [rip + channel + CP_pid], 0
+    je .Lstart_idle
+    cmp dword ptr [rip + state], 3
     jne .Lstart_busy
+    call chat_shutdown
+    mov dword ptr [rip + restart_requested], 1
+    xor eax, eax
+    EPILOGUE
+.Lstart_idle:
     mov rdi, [rip + cli]
     call mem_free
     lea rdi, [rip + .Lcodex]
+    mov rax, [rip + cfg_chat_cli]
+    cmp byte ptr [rax], 0
+    je 1f
+    mov rdi, rax
+1:
     call proc_which
     mov [rip + cli], rax
     test rax, rax
@@ -78,6 +108,9 @@ FN chat_start
     mov rdi, [rip + thread_id]
     call mem_free
     mov qword ptr [rip + thread_id], 0
+    mov rdi, [rip + turn_id]
+    call mem_free
+    mov qword ptr [rip + turn_id], 0
     lea rdi, [rip + partial]
     call sb_clear
     lea rdi, [rip + answer]
@@ -160,12 +193,31 @@ FN chat_send
     jz 8f
     cmp rsi, 65536
     ja 8f
+    call chat_pending_kind
+    test eax, eax
+    jnz 8f
     lea rdi, [rip + request]
     call sb_clear
     lea rdi, [rip + .Lturn_prefix]
     call append
     mov rdi, [rip + thread_id]
     call quote_cstr
+    mov rdi, [rip + cfg_chat_model]
+    cmp byte ptr [rdi], 0
+    je 1f
+    lea rdi, [rip + .Lmodel_prefix]
+    call append
+    mov rdi, [rip + cfg_chat_model]
+    call quote_cstr
+1:
+    mov rdi, [rip + cfg_chat_effort]
+    cmp byte ptr [rdi], 0
+    je 2f
+    lea rdi, [rip + .Leffort_prefix]
+    call append
+    mov rdi, [rip + cfg_chat_effort]
+    call quote_cstr
+2:
     lea rdi, [rip + .Linput_prefix]
     call append
     lea rdi, [rip + request]
@@ -179,6 +231,10 @@ FN chat_send
     js 8f
     lea rdi, [rip + answer]
     call sb_clear
+    mov rdi, [rip + turn_id]
+    call mem_free
+    mov qword ptr [rip + turn_id], 0
+    mov dword ptr [rip + stop_requested], 0
     mov dword ptr [rip + state], 4
     lea rax, [rip + .Lworking]
     mov [rip + status], rax
@@ -191,17 +247,94 @@ FN chat_send
 8:  xor eax, eax
     EPILOGUE
 
-# Stop closes the runtime for this MVP. Native interrupt/resume comes next.
+# Cancel a native turn, including a click before its ID has arrived.
 FN chat_stop
-    call chat_shutdown
-    lea rax, [rip + .Lstopped]
+    PROLOGUE
+    cmp dword ptr [rip + state], 4
+    jne 9f
+    cmp dword ptr [rip + stop_requested], 0
+    jne 9f
+    mov dword ptr [rip + stop_requested], 1
+    call time_ms
+    add rax, 10000
+    mov [rip + stop_deadline], rax
+    lea rax, [rip + .Lstopping]
     mov [rip + status], rax
+    cmp qword ptr [rip + turn_id], 0
+    je 9f
+    call interrupt_turn
+9:
     mov dword ptr [rip + g_dirty], 1
-    ret
+    EPILOGUE
+
+FN chat_disconnect
+    jmp chat_shutdown
+
+FN chat_list_models
+    cmp dword ptr [rip + state], 3
+    jne 1f
+    lea rdi, [rip + .Lmodels_request]
+    jmp send_cstr
+1:  ret
+
+# Send already framed protocol bytes, used by the interaction queue.
+FN chat_send_packet
+    mov rdx, rsi
+    mov rsi, rdi
+    lea rdi, [rip + channel]
+    jmp chat_pipe_queue
+
+interrupt_turn:
+    PROLOGUE
+    lea rdi, [rip + request]
+    call sb_clear
+    lea rdi, [rip + .Linterrupt_prefix]
+    call append
+    mov rdi, [rip + thread_id]
+    call quote_cstr
+    lea rdi, [rip + .Lturn_id_prefix]
+    call append
+    mov rdi, [rip + turn_id]
+    call quote_cstr
+    lea rdi, [rip + .Lobject_suffix]
+    call append
+    call send_request
+    test rax, rax
+    jns 1f
+    call chat_shutdown
+    jmp 2f
+1:  mov dword ptr [rip + stop_requested], 2
+2:  EPILOGUE
+
+# result/params contains {turn:{id:...}}; keep a copied ID, never an arena pointer.
+capture_turn:
+    PROLOGUE
+    lea rsi, [rip + .Lturn]
+    call json_get
+    mov rdi, rax
+    lea rsi, [rip + .Lid]
+    call json_get
+    mov rdi, rax
+    call json_str
+    test rdx, rdx
+    jz 9f
+    mov rdi, rax
+    mov rsi, rdx
+    call mem_dup
+    mov rbx, rax
+    mov rdi, [rip + turn_id]
+    call mem_free
+    mov [rip + turn_id], rbx
+    cmp dword ptr [rip + stop_requested], 1
+    jne 9f
+    call interrupt_turn
+9:  EPILOGUE
 
 # Consume one protocol line. The JSON arena cannot survive another json_parse.
 on_record:
     PROLOGUE
+    mov r14, rdi
+    mov r15, rsi
     call json_parse_complete
     test rax, rax
     jz .Lbad_record
@@ -231,6 +364,55 @@ on_record:
     call json_get
     mov r13, rax
     mov rdi, r12
+    lea rsi, [rip + .Lmodels_id]
+    call json_is
+    test eax, eax
+    jz 2f
+    mov rdi, r13
+    lea rsi, [rip + .Ldata]
+    call json_get
+    mov r12, rax
+    lea rdi, [rip + model_text]
+    call sb_clear
+    xor r13d, r13d
+.Lmodel_loop:
+    mov rdi, r12
+    call json_len
+    cmp r13, rax
+    jae .Lmodels_done
+    cmp r13, 100
+    jae .Lmodels_done
+    mov rdi, r12
+    mov rsi, r13
+    call json_at
+    mov rdi, rax
+    lea rsi, [rip + .Lmodel_key]
+    call json_get
+    mov rdi, rax
+    call json_str
+    lea rdi, [rip + model_text]
+    mov rsi, rax
+    call sb_push
+    lea rdi, [rip + model_text]
+    mov esi, 10
+    call sb_push_byte
+    inc r13
+    jmp .Lmodel_loop
+.Lmodels_done:
+    mov edi, 3
+    mov rsi, [rip + model_text + SB_ptr]
+    mov rdx, [rip + model_text + SB_len]
+    call agents_chat_event
+    jmp .Lrecord_done
+2:  mov rdi, r12
+    lea rsi, [rip + .Lturn_id]
+    call json_is
+    test eax, eax
+    jz 1f
+    mov rdi, r13
+    call capture_turn
+    jmp .Lrecord_done
+1:  mov rdi, r12
     lea rsi, [rip + .Linit_id]
     call json_is
     test eax, eax
@@ -284,12 +466,40 @@ on_record:
     lea rsi, [rip + .Lid]
     call json_get
     test rax, rax
-    jnz .Lunsupported_request
+    jz 1f
+    mov rdi, r14
+    mov rsi, r15
+    call chat_interaction_receive
+    test eax, eax
+    js .Lbad_record
+    jmp .Lrecord_done
+1:
     mov rdi, rbx
     lea rsi, [rip + .Lparams]
     call json_get
     mov r13, rax
+    mov rdi, rax
+    lea rsi, [rip + .Lthread_id_key]
+    call json_get
+    test rax, rax
+    jz 2f
+    mov rdi, rax
+    mov rsi, [rip + thread_id]
+    test rsi, rsi
+    jz .Lrecord_done
+    call json_is
+    test eax, eax
+    jz .Lrecord_done
+2:
     mov rdi, r12
+    lea rsi, [rip + .Lstarted_method]
+    call json_is
+    test eax, eax
+    jz 3f
+    mov rdi, r13
+    call capture_turn
+    jmp .Lrecord_done
+3:  mov rdi, r12
     lea rsi, [rip + .Ldelta_method]
     call json_is
     test eax, eax
@@ -345,18 +555,53 @@ on_record:
     lea rax, [rip + .Lready]
     jmp .Lturn_finished
 .Lturn_failed:
+    mov rdi, r13
+    lea rsi, [rip + .Lstatus_key]
+    call json_get
+    mov rdi, rax
+    lea rsi, [rip + .Linterrupted_value]
+    call json_is
+    test eax, eax
     lea rax, [rip + .Lfailed]
+    jz .Lturn_finished
+    lea rax, [rip + .Lstopped]
 .Lturn_finished:
     mov [rip + status], rax
     mov dword ptr [rip + state], 3
+    mov dword ptr [rip + stop_requested], 0
+    call chat_interactions_clear
     jmp .Lrecord_done
-.Lunsupported_request:
-    # MVP cannot display interactive questions/approvals yet. Surface it and
-    # abort the owned runtime rather than auto-approve or hang the turn.
-    lea rdi, [rip + .Lunsupported]
-    jmp .Lprotocol_error
 .Lrpc_error:
-    lea rdi, [rip + .Lrpc_failed]
+    mov rdi, rbx
+    lea rsi, [rip + .Lerror]
+    call json_get
+    test rax, rax
+    jnz 1f
+    mov rdi, rbx
+    lea rsi, [rip + .Lparams]
+    call json_get
+    mov rdi, rax
+    lea rsi, [rip + .Lerror]
+    call json_get
+1:  mov rdi, rax
+    lea rsi, [rip + .Lmessage]
+    call json_get
+    mov rdi, rax
+    call json_str
+    test rdx, rdx
+    jz 2f
+    mov rsi, rax
+    mov edi, 3
+    call agents_chat_event
+2:  cmp dword ptr [rip + state], 4
+    jne 3f
+    mov dword ptr [rip + state], 3
+    mov dword ptr [rip + stop_requested], 0
+    call chat_interactions_clear
+    lea rax, [rip + .Lrpc_failed]
+    mov [rip + status], rax
+    jmp .Lrecord_done
+3:  lea rdi, [rip + .Lrpc_failed]
     jmp .Lprotocol_error
 .Lbad_record:
     lea rdi, [rip + .Lprotocol_failed]
@@ -417,6 +662,12 @@ FN chat_tick
     lea rsi, [rip + readbuf]
     mov edx, 16384
     SYS SYS_read
+    cmp dword ptr [rip + stop_requested], 0
+    je 1f
+    call time_ms
+    cmp rax, [rip + stop_deadline]
+    jae .Ltick_failed
+1:
     # Diagnostics stay separate from JSON; UI exposes protocol failures.
     cmp dword ptr [rip + state], 2
     ja .Ltick_done
@@ -436,6 +687,10 @@ FN chat_tick
     cmp eax, -1
     je .Ltick_done
     mov dword ptr [rip + channel + CP_pid], 0
+    cmp dword ptr [rip + restart_requested], 0
+    je .Ltick_done
+    mov dword ptr [rip + restart_requested], 0
+    call chat_start
 .Ltick_done:
     EPILOGUE
 
@@ -448,7 +703,9 @@ FN chat_tick
 .Lconnecting: .asciz "Connecting to Codex..."
 .Lready: .asciz "Codex ready"
 .Lworking: .asciz "Codex is working..."
-.Lstopped: .asciz "Stopped. Start a new chat to reconnect."
+.Lanswer_wait: .asciz "Waiting for your answer to the question above"
+.Lstopping: .asciz "Stopping current turn..."
+.Lstopped: .asciz "Turn stopped. You can continue this conversation."
 .Lfailed: .asciz "Turn failed or interrupted"
 .Lclosing: .asciz "Previous chat is closing. Try again shortly."
 .Lmissing: .asciz "Codex CLI not found in PATH"
@@ -457,14 +714,21 @@ FN chat_tick
 .Lrpc_failed: .asciz "Codex returned an error. Check CLI sign-in/configuration."
 .Lprotocol_failed: .asciz "Invalid or oversized Codex protocol message"
 .Lconnection_lost: .asciz "Codex connection closed or initialization timed out"
-.Lunsupported: .asciz "This action needs an approval/question UI. Chat stopped."
 .Lmethod: .asciz "method"
 .Lparams: .asciz "params"
 .Lresult: .asciz "result"
 .Lerror: .asciz "error"
 .Lid: .asciz "id"
+.Lmessage: .asciz "message"
+.Lmodel_key: .asciz "model"
+.Ldata: .asciz "data"
+.Lmodels_id: .asciz "models"
 .Linit_id: .asciz "init"
 .Lthread_id: .asciz "thread"
+.Lturn_id: .asciz "turn"
+.Lthread_id_key: .asciz "threadId"
+.Lstarted_method: .asciz "turn/started"
+.Linterrupted_value: .asciz "interrupted"
 .Lthread: .asciz "thread"
 .Lturn: .asciz "turn"
 .Lstatus_key: .asciz "status"
@@ -479,3 +743,9 @@ FN chat_tick
 .Lturn_prefix: .asciz "{\"id\":\"turn\",\"method\":\"turn/start\",\"params\":{\"threadId\":"
 .Linput_prefix: .asciz ",\"input\":[{\"type\":\"text\",\"text\":"
 .Lturn_suffix: .asciz "}]}}\n"
+.Lmodel_prefix: .asciz ",\"model\":"
+.Leffort_prefix: .asciz ",\"effort\":"
+.Lmodels_request: .asciz "{\"id\":\"models\",\"method\":\"model/list\",\"params\":{\"limit\":100}}\n"
+.Linterrupt_prefix: .asciz "{\"id\":\"interrupt\",\"method\":\"turn/interrupt\",\"params\":{\"threadId\":"
+.Lturn_id_prefix: .asciz ",\"turnId\":"
+.Lobject_suffix: .asciz "}}\n"

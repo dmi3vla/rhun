@@ -19,15 +19,32 @@ def emit(data):
     for pos in range(0, len(raw), 7):
         os.write(1, raw[pos:pos+7])
 os.write(2, b'diagnostic-not-json\\n')
+pending_ids = set()
+def completed(status='completed'):
+    emit({'method': 'turn/completed', 'params': {
+        'threadId': 'thread-fixture', 'turn': {'id': 'turn-fixture', 'status': status}}})
 for line in sys.stdin:
     msg = json.loads(line)
     with open(os.environ['CHAT_TRACE'], 'a') as trace:
         trace.write(json.dumps(msg) + '\\n')
-    method = msg['method']
+    method = msg.get('method')
+    if method is None:
+        assert msg['id'] in pending_ids
+        pending_ids.remove(msg['id'])
+        if not pending_ids:
+            value = msg.get('result', msg.get('error'))
+            emit({'method': 'item/agentMessage/delta', 'params': {
+                'threadId': 'thread-fixture', 'turnId': 'turn-fixture',
+                'itemId': 'answer', 'delta': 'Decision: ' + json.dumps(value)}})
+            completed()
+        continue
     if method == 'initialize':
         emit({'id': msg['id'], 'result': {'userAgent': 'fixture'}})
     elif method == 'initialized':
         pass
+    elif method == 'model/list':
+        emit({'id': msg['id'], 'result': {'data': [
+            {'model': 'fixture-small'}, {'model': 'fixture-large'}], 'nextCursor': None}})
     elif method == 'thread/start':
         assert msg['params']['cwd'] == os.getcwd()
         assert msg['params']['sandbox'] == 'workspace-write'
@@ -37,12 +54,41 @@ for line in sys.stdin:
         text = msg['params']['input'][0]['text']
         assert msg['params']['threadId'] == 'thread-fixture'
         emit({'id': msg['id'], 'result': {'turn': {'id': 'turn-fixture'}}})
-        if text == 'approval':
+        if text in ('approval', 'queued'):
+            pending_ids.add(99)
             emit({'id': 99, 'method': 'item/commandExecution/requestApproval',
-                  'params': {'command': 'echo test'}})
+                  'params': {'command': 'echo test', 'cwd': os.getcwd(),
+                             'reason': 'Run a test command', 'threadId': 'thread-fixture'}})
+            if text == 'approval':
+                continue
+        if text in ('fileapproval', 'queued'):
+            pending_ids.add('file"\\\\')
+            emit({'id': 'file"\\\\', 'method': 'item/fileChange/requestApproval',
+                  'params': {'reason': 'Modify fixture.txt', 'grantRoot': os.getcwd(),
+                             'threadId': 'thread-fixture'}})
+            continue
+        if text in ('questions', 'secret'):
+            pending_ids.add('questions')
+            emit({'id': 'questions', 'method': 'item/tool/requestUserInput',
+                  'params': {'threadId': 'thread-fixture', 'questions': [
+                      {'id': 'language', 'question': 'Choose a language', 'header': 'Language',
+                       'isSecret': text == 'secret', 'options': [
+                           {'label': 'Assembly', 'description': 'Native implementation'}]},
+                      {'id': 'name', 'question': 'What name?', 'header': 'Name'}]}})
+            continue
+        if text == 'unknown':
+            pending_ids.add(200)
+            emit({'id': 200, 'method': 'item/newProtocol/request', 'params': {}})
+            continue
+        if text == 'waiting':
+            emit({'method': 'turn/started', 'params': {
+                'threadId': 'thread-fixture', 'turn': {'id': 'turn-fixture'}}})
             continue
         if text == 'invalid':
             os.write(1, b'not json\\n')
+            continue
+        if text == 'rpcerror':
+            emit({'id': msg['id'], 'error': {'code': -32000, 'message': 'Model unavailable'}})
             continue
         if text == 'trailing':
             os.write(1, b'{"method":"ignored","params":{}}garbage\\n')
@@ -51,9 +97,12 @@ for line in sys.stdin:
             emit({'method': 'item/agentMessage/delta', 'params': {
                 'threadId': 'thread-fixture', 'turnId': 'turn-fixture',
                 'itemId': 'answer', 'delta': chunk}})
-        emit({'method': 'turn/completed', 'params': {
-            'threadId': 'thread-fixture', 'turn': {'id': 'turn-fixture',
-            'status': 'completed'}}})
+        completed()
+    elif method == 'turn/interrupt':
+        assert msg['params'] == {'threadId': 'thread-fixture', 'turnId': 'turn-fixture'}
+        emit({'id': msg['id'], 'result': {}})
+        pending_ids.clear()
+        completed('interrupted')
 '''
 
 
@@ -106,11 +155,91 @@ class CodexChat(unittest.TestCase):
         trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
         self.assertEqual(trace[-1]['params']['input'][0]['text'], 'first\nsecond')
 
-    def test_unimplemented_approval_is_visible_and_never_accepted(self):
+    def test_approval_waits_for_explicit_decision(self):
         output = self.run_script('type approval\nkey enter\nwait 400\nprint-agents')
-        self.assertIn('needs an approval/question UI', output)
+        self.assertIn('Approve command?', output)
         trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
         self.assertFalse(any(m.get('id') == 99 for m in trace))
+
+    def test_approve_once_then_continue(self):
+        output = self.run_script('type approval\nkey enter\nwait 300\ncmd chat_approve\n'
+                                 'wait 300\ntype Continue\nkey enter\nwait 300\nprint-agents')
+        self.assertIn('agent Reply: Continue', output)
+        trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        reply = next(m for m in trace if m.get('id') == 99)
+        self.assertEqual(reply['result'], {'decision': 'accept'})
+
+    def test_queued_command_and_file_decisions_preserve_ids(self):
+        self.run_script('type queued\nkey enter\nwait 300\ncmd chat_decline\n'
+                        'cmd chat_approve\nwait 300')
+        trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        replies = [m for m in trace if 'method' not in m]
+        self.assertEqual(len(replies), 2)
+        self.assertEqual(replies[0], {'id': 99, 'result': {'decision': 'decline'}})
+        self.assertEqual(replies[1]['result'], {'decision': 'accept'})
+        self.assertTrue(replies[1]['id'].startswith('file"'))
+
+    def test_two_questions_are_answered_in_one_correlated_response(self):
+        self.run_script('type questions\nkey enter\nwait 300\ntype Assembly\nkey enter\n'
+                        'type Demo "café"\nkey enter\nwait 300')
+        trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        reply = next(m for m in trace if m.get('id') == 'questions')
+        self.assertEqual(reply['result']['answers'], {
+            'language': {'answers': ['Assembly']}, 'name': {'answers': ['Demo "café"']}})
+
+    def test_unknown_and_secret_requests_are_rejected_without_stopping_chat(self):
+        for text in ('unknown', 'secret'):
+            with self.subTest(text=text):
+                self.trace.unlink(missing_ok=True)
+                output = self.run_script(f'type {text}\nkey enter\nwait 300\n'
+                                         'type Continue\nkey enter\nwait 300\nprint-agents')
+                self.assertIn('Unsupported provider interaction', output)
+                self.assertIn('agent Reply: Continue', output)
+                trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+                reply = next(m for m in trace if 'method' not in m)
+                self.assertEqual(reply['error']['code'], -32601)
+
+    def test_interrupt_keeps_same_thread_and_process(self):
+        output = self.run_script('type waiting\nkey enter\nwait 300\ncmd chat_stop\n'
+                                 'wait 300\ntype Continue\nkey enter\nwait 300\nprint-agents')
+        self.assertIn('agent Reply: Continue', output)
+        trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        methods = [m['method'] for m in trace if 'method' in m]
+        self.assertEqual(methods.count('thread/start'), 1)
+        self.assertEqual(methods.count('turn/interrupt'), 1)
+
+    def test_stop_before_turn_id_arrives(self):
+        self.run_script('type waiting\nkey enter\ncmd chat_stop\nwait 400\n'
+                        'type Continue\nkey enter\nwait 300')
+        trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        self.assertEqual(sum(m.get('method') == 'turn/interrupt' for m in trace), 1)
+        self.assertEqual(sum(m.get('method') == 'thread/start' for m in trace), 1)
+
+    def test_question_answer_keeps_normal_draft_separate(self):
+        self.run_script('type questions\nkey enter\ntype Keep this draft\nwait 300\n'
+                        'type Assembly\nkey enter\ntype Demo\nkey enter\nwait 300\n'
+                        'key enter\nwait 300')
+        trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        turns = [m for m in trace if m.get('method') == 'turn/start']
+        self.assertEqual(turns[-1]['params']['input'][0]['text'], 'Keep this draft')
+
+    def test_configured_model_effort_and_explicit_cli_path(self):
+        config = self.home / 'config/rhun/config'
+        config.write_text(config.read_text() + '[agents]\nmodel = fixture-large\n'
+                          f'effort = high\ncodex_cli = {self.bin / "codex"}\n')
+        self.env['PATH'] = '/nonexistent'
+        self.run_script('type Custom model\nkey enter\nwait 300')
+        trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        turn = next(m for m in trace if m.get('method') == 'turn/start')
+        self.assertEqual(turn['params']['model'], 'fixture-large')
+        self.assertEqual(turn['params']['effort'], 'high')
+
+    def test_available_models_and_recoverable_turn_error(self):
+        output = self.run_script('cmd chat_models\nwait 300\ntype rpcerror\nkey enter\n'
+                                 'wait 300\ntype Continue\nkey enter\nwait 300\nprint-agents')
+        self.assertIn('fixture-small', output)
+        self.assertIn('Model unavailable', output)
+        self.assertIn('agent Reply: Continue', output)
 
     def test_invalid_protocol_is_visible(self):
         output = self.run_script('type invalid\nkey enter\nwait 400\nprint-agents')
@@ -127,7 +256,8 @@ class CodexChat(unittest.TestCase):
 
     def test_preview(self):
         preview = self.home / 'chat.ppm'
-        self.run_script('type Hello from the new chat\nkey enter\nwait 400\n'
+        message = os.environ.get('RHUN_CHAT_PREVIEW_MESSAGE', 'Hello from the new chat')
+        self.run_script(f'type {message}\nkey enter\nwait 400\n'
                         f'type Follow-up draft\nshot {preview}')
         self.assertTrue(preview.is_file())
         # Optional artifact for visual QA; normal CI stays in the temp directory.

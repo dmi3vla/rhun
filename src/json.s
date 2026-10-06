@@ -460,6 +460,17 @@ FN json_get
     ret
 
 # json_str(jv) -> rax ptr, rdx len (0,0 unless a string)
+FN json_number_text
+    xor eax, eax
+    xor edx, edx
+    test rdi, rdi
+    jz 1f
+    cmp dword ptr [rdi + JV_type], JT_NUM
+    jne 1f
+    mov rax, [rdi + JV_ptr]
+    mov edx, [rdi + JV_n]
+1:  ret
+
 FN json_str
     xor eax, eax
     xor edx, edx

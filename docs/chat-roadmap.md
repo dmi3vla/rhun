@@ -81,9 +81,13 @@ missing interactive permission implementation.
   AArch64 translation passes; native macOS execution remains unverified.
 - Phase 2: initial Codex chat implemented on Linux, with composer, streamed text,
   follow-up turns and stop/reconnect via a new conversation. Eight mock-runtime
-  UI/protocol tests pass. Claude and interactive permission cards are pending.
-  Stop currently closes the runtime; native turn interruption comes next.
-- Phases 3–8: pending. This is not yet full Claudian parity.
+  UI/protocol tests passed at the initial milestone. Claude remains pending.
+- Phase 3, Codex milestone: explicit command/file approvals, queued requests,
+  sequential questions with a separate draft, native turn interruption, optional
+  executable/model/effort settings, model catalog and recoverable turn errors.
+  Seventeen mock-runtime tests cover these interactions. Secret input, tool/diff
+  rendering and equivalent Claude behavior remain acceptance gates.
+- Phases 4–8: pending. This is not yet full Claudian parity.
 - Local Git author was resolved through gh: dmi3vla, with GitHub's ID-based
   noreply address. No remote is configured. Specification, Unix transport and
   the initial Codex interface are recorded as separate commits; remaining gates

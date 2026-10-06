@@ -332,14 +332,20 @@ its sign-in already configured. The chat uses the installed `codex app-server`;
 the project folder is its working directory.
 
 Enter sends a message; Shift+Enter inserts a newline. The arrow button sends and
-the cross button stops the owned process. **Chat: Focus Conversation** reopens
+the cross button interrupts the current turn while keeping the conversation.
+**Chat: Focus Conversation** reopens
 the current chat; the original Agents list still displays native session history.
 
-This initial implementation supports streamed text and follow-up turns. Stopping
-closes the runtime, and a new conversation is required to reconnect. Interactive
-approval/question cards, models, saved chat tabs, other providers and native
-Windows transport are still pending. If a server requests an interaction that
-is not implemented, rhun displays the reason and stops instead of approving it.
+Command and file permission requests require **Approve once** or **Reject**;
+Enter does not grant permission. Questions use a separate reply field, preserving
+your message draft. Multiple questions are answered in sequence. Secret questions
+and unsupported interactions receive an explicit error without granting access.
+**Chat: Close Runtime** disconnects the owned process.
+
+Settings under Agents accept an optional Codex executable path, model and
+reasoning effort. **Chat: List Available Models** displays the installed server's
+model catalog. Saved chat tabs, file diffs, other interactive providers and native
+Windows transport remain pending.
 
 Implementation phases and protocol validation are tracked in
 [chat-roadmap.md](chat-roadmap.md).

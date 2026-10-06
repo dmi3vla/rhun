@@ -45,6 +45,8 @@ STRINGS = {
     ('ui', 'font'): 'missing font café.ttf', ('editor', 'font'): 'missing mono café.ttf',
     ('files', 'exclude'): '.git hidden café', ('agents', 'sources'): 'claude codex',
     ('terminal', 'shell'): 'missing shell café', ('git', 'commit_model'): 'model:café',
+    ('agents', 'model'): 'chat-model:café', ('agents', 'effort'): 'high',
+    ('agents', 'codex_cli'): '/tmp/cli path café',
 }
 CHOICES = {('ui', 'decorations'): ('auto', 'client', 'server'),
            ('git', 'commit_ai'): ('off', 'claude', 'codex', 'ollama')}
@@ -75,7 +77,7 @@ class SettingsUI(unittest.TestCase):
             k + ' = ' + v + '\n' for k, v in values.items()) for s, values in data.items()),
             encoding='utf-8')
 
-    def run_editor(self, actions, height=3800, width=1400):
+    def run_editor(self, actions, height=4200, width=1400):
         script = self.work / 'actions.rsc'
         script.write_text('\n'.join(['cmd settings', *actions, 'quit']) + '\n', encoding='utf-8')
         result = subprocess.run([str(EXE), self.work.as_posix(), '--headless', f'{width}x{height}',

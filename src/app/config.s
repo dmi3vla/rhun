@@ -47,6 +47,7 @@ cfg_term_scrollback: .long 10000
 cfg_term_h: .long 260
 cfg_git: .long 1
 .globl cfg_commit_ai, cfg_commit_model
+.globl cfg_chat_model, cfg_chat_effort, cfg_chat_cli
 cfg_commit_ai: .long 0
 .globl cfg_update_check
 cfg_update_check: .long 1
@@ -58,6 +59,9 @@ cfg_exclude: .quad .Ldef_exclude
 cfg_agent_sources: .quad .Ldef_sources
 cfg_term_shell: .quad .Lempty
 cfg_commit_model: .quad .Ldefault_model
+cfg_chat_model: .quad .Lempty
+cfg_chat_effort: .quad .Lempty
+cfg_chat_cli: .quad .Lempty
 .Lcfg_strings_end:
 
 .bss
@@ -687,6 +691,9 @@ g_settings:
     SETTING .Ls_files, restore_project, ST_BOOL, cfg_restore_project, 0, 1, 1, 0, "Reopen last project", "Reopen the project you closed with when no file or folder is given."
     SETTING .Ls_files, exclude, ST_STR, cfg_exclude, 0, 0, 0, 0, "Hidden in explorer", "Space separated names the explorer skips."
     SETTING .Ls_agents, sources, ST_STR, cfg_agent_sources, 0, 0, 0, 0, "Agent sources", "Which agents to show: claude, codex."
+    SETTING .Ls_agents, model, ST_STR, cfg_chat_model, 0, 0, 0, 0, "Chat model", "Codex model for new turns. Empty uses the CLI default."
+    SETTING .Ls_agents, effort, ST_STR, cfg_chat_effort, 0, 0, 0, 0, "Chat reasoning effort", "Use an effort advertised by the selected model. Empty uses the CLI default."
+    SETTING .Ls_agents, codex_cli, ST_STR, cfg_chat_cli, 0, 0, 0, 0, "Codex CLI path", "Optional executable path. Empty searches PATH."
     SETTING .Ls_terminal, shell, ST_STR, cfg_term_shell, 0, 0, 0, 0, "Shell", "Program the terminal runs. Empty uses $SHELL."
     SETTING .Ls_terminal, font_size, ST_INT, cfg_term_font_size, 8, 40, 1, 0, "Terminal font size", "Font size of the terminal panel."
     SETTING .Ls_terminal, scrollback, ST_INT, cfg_term_scrollback, 0, 100000, 1000, 0, "Scrollback", "Lines each terminal keeps above its screen."

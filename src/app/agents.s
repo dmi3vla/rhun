@@ -60,12 +60,14 @@ codex_budget: .long 0
 .p2align 3
 chat_session: .zero AS_SIZE
 chat_input: .zero TF_SIZE
+chat_reply_input: .zero TF_SIZE
 chat_answer_index: .quad 0
 
 .text
 
 FN agents_init
     mov dword ptr [rip + chat_input + TF_id], ID_AG_INPUT
+    mov dword ptr [rip + chat_reply_input + TF_id], ID_AG_INPUT
     jmp chat_init
 
 # ---------- discovery ----------
@@ -100,6 +102,8 @@ FN agents_set_project
     lea rdi, [rip + chat_session]
     call session_clear_msgs
     lea rdi, [rip + chat_input]
+    call tf_clear
+    lea rdi, [rip + chat_reply_input]
     call tf_clear
     # drop current sessions
     xor ebx, ebx
@@ -1582,7 +1586,8 @@ FN agents_key
     mov ecx, edx
     mov edx, esi
     mov esi, edi
-    lea rdi, [rip + chat_input]
+    call agents_chat_field
+    mov rdi, rax
     jmp ta_key
 .Lag_back:
     mov qword ptr [rip + view], -1
@@ -1633,14 +1638,26 @@ FN cmd_chat_focus
 
 FN agents_chat_send
     PROLOGUE
-    lea rdi, [rip + chat_input]
+    call chat_pending_kind
+    cmp eax, 1
+    je 9f
+    mov ebx, eax
+    call agents_chat_field
+    mov r12, rax
+    mov rdi, rax
     call tf_text
     mov rdi, rax
     mov rsi, rdx
+    cmp ebx, 2
+    jne 1f
+    call chat_interaction_answer
+    jmp 2f
+1:
     call chat_send
+2:
     test eax, eax
     jz 9f
-    lea rdi, [rip + chat_input]
+    mov rdi, r12
     call tf_clear
 9:  EPILOGUE
 
@@ -1649,13 +1666,29 @@ FN agents_chat_paste
     jne 1f
     mov rdx, rsi
     mov rsi, rdi
-    lea rdi, [rip + chat_input]
+    call agents_chat_field
+    mov rdi, rax
     jmp ta_insert
+1:  ret
+
+# This helper and chat_pending_kind preserve argument registers for tail calls.
+agents_chat_field:
+    call chat_pending_kind
+    cmp eax, 2
+    lea rax, [rip + chat_input]
+    jne 1f
+    lea rax, [rip + chat_reply_input]
 1:  ret
 
 # agents_chat_event(role, bytes, len): streamed answers replace one message.
 FN agents_chat_event
     PROLOGUE
+    # Interactive notices contain commands, directories and question options.
+    # Use the wrapped result card instead of the history tool's one-line summary.
+    cmp edi, R_TOOL
+    jne 8f
+    mov edi, R_RESULT
+8:
     mov r12d, edi
     mov r13, rsi
     mov r14, rdx
@@ -1702,6 +1735,9 @@ chat_composer_draw:
     mov ebx, edi
     mov r12d, esi
     mov r13d, edx
+    call chat_pending_kind
+    cmp eax, 1
+    je chat_approval_draw
     call chat_status
     mov r8, rax
     lea rdi, [rip + g_face_small]
@@ -1714,7 +1750,8 @@ chat_composer_draw:
     lea rax, [rip + .Lchat_placeholder]
     push rax
     push rax
-    lea rdi, [rip + chat_input]
+    call agents_chat_field
+    mov rdi, rax
     mov esi, ebx
     add esi, [rip + g_mt + 4*MI_8]
     mov edx, r12d
@@ -1756,6 +1793,60 @@ chat_composer_draw:
     test eax, UB_CLICK
     jz 9f
     call chat_stop
+9:  EPILOGUE
+
+# Explicit text labels for permission decisions; Enter never approves implicitly.
+chat_approval_draw:
+    call chat_status
+    mov r8, rax
+    lea rdi, [rip + g_face_small]
+    mov esi, ebx
+    add esi, [rip + g_mt + 4*MI_8]
+    mov edx, r12d
+    M ecx, MI_24
+    COLOR r9d, T_MUTED
+    call ui_text_c
+    xor r14d, r14d
+.Lapproval_button:
+    mov edi, ID_AG_SEND
+    add edi, r14d
+    mov esi, ebx
+    add esi, [rip + g_mt + 4*MI_8]
+    test r14d, r14d
+    jz 1f
+    add esi, [rip + g_mt + 4*MI_64]
+    add esi, [rip + g_mt + 4*MI_64]
+1:  mov [rsp + 4], esi
+    mov edx, r12d
+    add edx, [rip + g_mt + 4*MI_32]
+    mov ecx, [rip + g_mt + 4*MI_64]
+    add ecx, [rip + g_mt + 4*MI_48]
+    M r8d, MI_32
+    call ui_btn
+    mov [rsp], eax
+    lea rdi, [rip + g_face_ui]
+    mov esi, [rsp + 4]
+    add esi, [rip + g_mt + 4*MI_8]
+    mov edx, r12d
+    add edx, [rip + g_mt + 4*MI_32]
+    M ecx, MI_32
+    lea r8, [rip + .Lchat_approve]
+    test r14d, r14d
+    jz 2f
+    lea r8, [rip + .Lchat_reject]
+2:  COLOR r9d, T_FG
+    call ui_text_c
+    test dword ptr [rsp], UB_CLICK
+    jz 3f
+    test r14d, r14d
+    jnz 4f
+    call chat_approve
+    jmp 9f
+4:  call chat_decline
+    jmp 9f
+3:  inc r14d
+    cmp r14d, 2
+    jb .Lapproval_button
 9:  EPILOGUE
 
 # agent_badge(kind, x, y) -> right edge; 14 px icon and small text in a 20 px badge
@@ -2717,6 +2808,8 @@ draw_msg:
 .section .rodata
 .Lchat_title: .asciz "Codex chat"
 .Lchat_placeholder: .asciz "Message Codex (Shift+Enter for newline)"
+.Lchat_approve: .asciz "Approve once"
+.Lchat_reject: .asciz "Reject"
 .Lhome: .asciz "HOME"
 .Lr0: .asciz "?"
 .Lr1: .asciz "user"
