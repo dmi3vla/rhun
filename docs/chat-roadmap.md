@@ -1,0 +1,79 @@
+# Interactive agents in rhun
+
+Implementation baseline: 2026-10-07. Each completed phase gets a separate local
+Git commit. The upstream Git remote has been removed; existing history is kept.
+
+## Architecture and scope
+
+The application, provider adapters, transport and UI remain assembly. Installed
+agent CLIs are external runtimes; no application-side JavaScript SDK is required.
+The existing Agents session reader must remain usable throughout development.
+
+Providers targeted: Claude Code, Codex, Grok Build, OpenCode, Pi. Claude and Codex
+are the first release pair. Features are capability-driven; changing provider
+must never silently continue a conversation under a different runtime.
+
+Sources:
+- https://github.com/YishenTu/claudian (chat, context, inline edits and providers)
+- https://learn.chatgpt.com/docs/app-server (Codex protocol)
+- https://code.claude.com/docs/en/cli-reference (Claude CLI flags)
+
+## Protocol decisions
+
+| Provider | Proposed transport | Local validation | Remaining validation |
+| --- | --- | --- | --- |
+| Codex | app-server, newline-delimited JSON RPC over stdio | Installed 0.160.1; handshake probe | Turns, approvals, resume, cancellation |
+| Claude | CLI stream-json input/output | CLI absent | Control/permission protocol must be verified before enabling tools |
+| Grok Build | ACP | CLI absent | Version, handshake and capability matrix |
+| OpenCode | ACP / HTTP, selected after probe | CLI absent | Version, handshake and capability matrix |
+| Pi | RPC | CLI absent | Version, handshake and capability matrix |
+
+Codex initialization precedes initialized, thread/start and turn/start. Store the
+returned thread ID, use item/agentMessage/delta for streaming, and distinguish
+completed, interrupted and failed turns. Do not use exec as the interactive
+transport. Auth stays with the CLI; rhun does not read or copy credential files.
+
+Claude stream-json flags are documented, but that alone does not establish the
+permission handshake. Do not ship a bypass-permissions fallback to cover a
+missing interactive permission implementation.
+
+## Phases and acceptance gates
+
+0. **Specification and probes.** Record protocols and local availability. Probe
+   Codex initialization without creating a turn or sending project content.
+   Other providers remain explicitly unverified until installed.
+1. **Transport foundation.** Bounded queues, partial writes, separate stderr,
+   newline framing, EOF/error handling and child cleanup. Test fragmentation,
+   backpressure, closed input and oversized frames. Unix first; native Windows
+   transport and macOS runtime validation are explicit follow-up gates.
+2. **Interactive MVP.** New chat, provider discovery, multiline composer, send,
+   streamed response, follow-up and stop. First enable Codex, then verified Claude.
+   Keep the existing history browser. GUI and deterministic mock CLI tests.
+3. **Interactions.** Permission cards, questions, model selection, turn states.
+   Unknown requests receive an explicit unsupported response, never an approval.
+4. **Persistence.** Tabs, native session resume, local metadata, drafts, crash
+   recovery and deduplication between native history and live events.
+5. **Context and rendering.** File/selection attachments, @mentions, images where
+   supported, Markdown, code blocks, slash commands, skills and native MCP.
+6. **Editing workflows.** Inline changes with diff/undo, project diffs, side chat,
+   compact composer. Detect stale buffers before applying edits.
+7. **Other providers.** Shared ACP, Grok/OpenCode adapters and Pi RPC; run the same
+   acceptance scenarios for each provider.
+8. **Release validation.** Linux, Windows and macOS; real CLI workflows, resource
+   limits, compatibility documentation and regression suite.
+
+## Assembly invariants
+
+- JSON arena pointers expire on the next json_parse. Copy all retained strings.
+- Child argv is built as an array; prompts must never be shell source text.
+- Keep stdin, protocol stdout and diagnostic stderr separate.
+- UI ticks perform bounded I/O work. No blocking writes or waits in the UI path.
+- Queues and individual protocol records have documented limits.
+- Project changes close owned sessions before releasing project strings.
+- Continue external sessions only through the provider's native resume protocol.
+
+## Progress
+
+- Phase 0: specification recorded; Codex 0.160.1 initialize/initialized probe
+  passed without a model turn. Uninstalled provider probes remain explicit gates.
+- Phases 1–8: pending.
