@@ -11,6 +11,8 @@ partial: .zero SB_SIZE
 request: .zero SB_SIZE
 answer: .zero SB_SIZE
 model_text: .zero SB_SIZE
+model_picker: .long 0
+.p2align 3
 thread_id: .quad 0
 turn_id: .quad 0
 stop_requested: .long 0
@@ -309,6 +311,34 @@ FN chat_stop
 FN chat_disconnect
     jmp chat_shutdown
 
+FN chat_choose_model
+    cmp dword ptr [rip + state], 3
+    jne 1f
+    cmp dword ptr [rip + chat_provider], 1
+    je chat_acp_choose_model
+    mov dword ptr [rip + model_picker], 1
+    jmp chat_list_models
+1:  ret
+
+# Codex model is sent on the next native turn; no implicit provider switch.
+set_codex_model:
+    PROLOGUE
+    mov rbx, rdi
+    call strlen
+    mov rsi, rax
+    mov rdi, rbx
+    call mem_dup
+    mov rbx, rax
+    mov rdi, [rip + cfg_chat_model]
+    lea rax, [rip + .Lempty_model]
+    # Config strings may point into static defaults; use config's owned setter.
+    mov rdi, rbx
+    call chat_config_model
+    mov rdi, rbx
+    call mem_free
+    mov dword ptr [rip + g_focus], FOCUS_AGENTS
+    EPILOGUE
+
 FN chat_list_models
     cmp dword ptr [rip + chat_provider], 1
     je chat_acp_models
@@ -442,7 +472,17 @@ on_record:
     inc r13
     jmp .Lmodel_loop
 .Lmodels_done:
-    mov edi, 3
+    cmp dword ptr [rip + model_picker], 0
+    je 1f
+    mov dword ptr [rip + model_picker], 0
+    mov rdi, [rip + model_text + SB_ptr]
+    test rdi, rdi
+    jz .Lrecord_done
+    lea rsi, [rip + set_codex_model]
+    lea rdx, [rip + .Lmodel_picker_title]
+    call palette_choose
+    jmp .Lrecord_done
+1:  mov edi, 3
     mov rsi, [rip + model_text + SB_ptr]
     mov rdx, [rip + model_text + SB_len]
     call agents_chat_event
@@ -712,8 +752,11 @@ FN chat_tick
     jae .Ltick_failed
 1:
     # Diagnostics stay separate from JSON; UI exposes protocol failures.
+    cmp dword ptr [rip + state], 5
+    je 2f
     cmp dword ptr [rip + state], 2
     ja .Ltick_done
+2:
     call time_ms
     cmp rax, [rip + deadline]
     jae .Ltick_failed
@@ -808,3 +851,9 @@ FN chat_tick
 .set chat_runtime_append, append
 .set chat_runtime_quote, quote_cstr
 .set chat_runtime_send, send_request
+
+.Lmodel_picker_title: .asciz "Choose Codex model"
+.Lempty_model: .asciz ""
+
+.globl chat_runtime_deadline
+.set chat_runtime_deadline, deadline

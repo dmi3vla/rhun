@@ -254,6 +254,12 @@ class CodexChat(unittest.TestCase):
                                  'cmd chat_focus\nprint-agents')
         self.assertIn('agent Reply: Keep me', output)
 
+    def test_choose_model_sends_selected_model(self):
+        self.run_script('cmd chat_choose_model\nwait 300\nkey enter\ntype After model\nkey enter\nwait 300')
+        trace = [json.loads(line) for line in self.trace.read_text().splitlines()]
+        turn = next(m for m in trace if m.get('method') == 'turn/start')
+        self.assertTrue(turn['params'].get('model'))
+
     def test_preview(self):
         preview = self.home / 'chat.ppm'
         message = os.environ.get('RHUN_CHAT_PREVIEW_MESSAGE', 'Hello from the new chat')

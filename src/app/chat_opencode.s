@@ -3,6 +3,9 @@
 .bss
 .p2align 3
 models: .zero SB_SIZE
+model_config_id: .zero SB_SIZE
+model_legacy: .long 0
+.p2align 3
 catalog_count: .long 0
 .text
 
@@ -58,6 +61,58 @@ FN chat_acp_models
     mov edi, 3
     jmp agents_chat_event
 
+FN chat_acp_choose_model
+    mov rdi, [rip + models + SB_ptr]
+    test rdi, rdi
+    jz 1f
+    cmp byte ptr [rdi], 0
+    je 1f
+    lea rsi, [rip + set_acp_model]
+    lea rdx, [rip + .Lchoose_model]
+    jmp palette_choose
+1:  lea rdi, [rip + .Lno_models]
+    jmp app_toast
+
+set_acp_model:
+    PROLOGUE
+    mov r12, rdi
+    cmp dword ptr [rip + chat_runtime_state], 3
+    jne 9f
+    lea rdi, [rip + chat_runtime_request]
+    call sb_clear
+    lea rdi, [rip + .Lset_config_prefix]
+    cmp dword ptr [rip + model_legacy], 0
+    je 1f
+    lea rdi, [rip + .Lset_model_prefix]
+1:  call chat_runtime_append
+    mov rdi, [rip + chat_runtime_session]
+    call chat_runtime_quote
+    cmp dword ptr [rip + model_legacy], 0
+    jne 2f
+    lea rdi, [rip + .Lconfig_id_prefix]
+    call chat_runtime_append
+    mov rdi, [rip + model_config_id + SB_ptr]
+    call chat_runtime_quote
+    lea rdi, [rip + .Lvalue_prefix]
+    jmp 3f
+2:  lea rdi, [rip + .Lmodel_id_prefix]
+3:  call chat_runtime_append
+    mov rdi, r12
+    call chat_runtime_quote
+    lea rdi, [rip + .Lobject_suffix]
+    call chat_runtime_append
+    call chat_runtime_send
+    test rax, rax
+    js 9f
+    mov dword ptr [rip + chat_runtime_state], 5
+    call time_ms
+    add rax, 15000
+    mov [rip + chat_runtime_deadline], rax
+    lea rax, [rip + .Lsetting_model]
+    mov [rip + chat_runtime_status], rax
+    mov dword ptr [rip + g_focus], FOCUS_AGENTS
+9:  EPILOGUE
+
 # Preferred ACP model catalog: configOptions, including grouped select values.
 read_config_models:
     PROLOGUE
@@ -69,6 +124,9 @@ read_config_models:
     lea rdi, [rip + models]
     call sb_clear
     mov dword ptr [rip + catalog_count], 0
+    mov dword ptr [rip + model_legacy], 0
+    lea rdi, [rip + model_config_id]
+    call sb_clear
     xor r13d, r13d
 1:  mov rdi, r12
     call json_len
@@ -97,11 +155,20 @@ read_config_models:
     test eax, eax
     jz 3f
 2:  mov rdi, r14
+    lea rsi, [rip + .Lid]
+    call json_get
+    mov rdi, rax
+    call json_str
+    mov rsi, rax
+    lea rdi, [rip + model_config_id]
+    call sb_push
+    mov rdi, r14
     lea rsi, [rip + .Loptions]
     call json_get
     mov rdi, rax
     xor esi, esi
     call collect_model_values
+    jmp 9f
 3:  inc r13
     jmp 1b
 9:  EPILOGUE
@@ -185,6 +252,19 @@ FN chat_acp_record
     call json_get
     mov r13, rax
     mov rdi, r12
+    lea rsi, [rip + .Lsetmodel_id]
+    call json_is
+    test eax, eax
+    jz 1f
+    cmp dword ptr [rip + chat_runtime_state], 5
+    jne .Ldone
+    mov rdi, r13
+    call read_config_models
+    mov dword ptr [rip + chat_runtime_state], 3
+    lea rax, [rip + .Lready]
+    mov [rip + chat_runtime_status], rax
+    jmp .Ldone
+1:  mov rdi, r12
     lea rsi, [rip + .Linit]
     call json_is
     test eax, eax
@@ -259,6 +339,7 @@ FN chat_acp_record
     call read_config_models
     cmp qword ptr [rip + models + SB_len], 0
     jne .Lsession_ready
+    mov dword ptr [rip + model_legacy], 1
     mov rdi, r13
     lea rsi, [rip + .Lmodels]
     call json_get
@@ -394,8 +475,11 @@ FN chat_acp_record
     mov rsi, rax
     mov edi, 3
     call agents_chat_event
-1:  cmp dword ptr [rip + chat_runtime_state], 4
+1:  cmp dword ptr [rip + chat_runtime_state], 5
+    je 2f
+    cmp dword ptr [rip + chat_runtime_state], 4
     jne .Lbad
+2:
     mov dword ptr [rip + chat_runtime_state], 3
     mov dword ptr [rip + chat_runtime_stop], 0
     call chat_interactions_clear
@@ -453,3 +537,12 @@ acp_initialize_packet: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"init\",\"method\":\
 .Loptions: .asciz "options"
 .Lvalue: .asciz "value"
 .Lconfig_update: .asciz "config_option_update"
+
+.Lchoose_model: .asciz "Choose OpenCode model"
+.Lsetting_model: .asciz "Changing OpenCode model..."
+.Lsetmodel_id: .asciz "setmodel"
+.Lset_config_prefix: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"setmodel\",\"method\":\"session/set_config_option\",\"params\":{\"sessionId\":"
+.Lset_model_prefix: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"setmodel\",\"method\":\"session/set_model\",\"params\":{\"sessionId\":"
+.Lconfig_id_prefix: .asciz ",\"configId\":"
+.Lvalue_prefix: .asciz ",\"value\":"
+.Lmodel_id_prefix: .asciz ",\"modelId\":"

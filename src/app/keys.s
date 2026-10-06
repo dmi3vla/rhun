@@ -526,6 +526,7 @@ g_commands:
     COMMAND chat_disconnect, "Chat: Close Runtime", chat_disconnect, ""
     COMMAND chat_approve, "Chat: Approve Pending Action Once", chat_approve, ""
     COMMAND chat_decline, "Chat: Reject Pending Action", chat_decline, ""
+    COMMAND chat_choose_model, "Chat: Choose Model", chat_choose_model, ""
     COMMAND chat_models, "Chat: List Available Models", chat_list_models, ""
     COMMAND open_file, "Open File", cmd_open_file, "ctrl+o"
     COMMAND open_folder, "Open Folder", cmd_open_folder, "ctrl+shift+o"

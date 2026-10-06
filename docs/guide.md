@@ -344,7 +344,7 @@ and unsupported interactions receive an explicit error without granting access.
 
 Settings under Agents accept an optional Codex executable path, model and
 reasoning effort. **Chat: List Available Models** displays the installed server's
-model catalog. Saved chat tabs, file diffs and native Windows transport remain pending.
+model catalog. **Chat: Choose Model** opens a searchable selector. Saved chat tabs, file diffs and native Windows transport remain pending.
 
 Implementation phases and protocol validation are tracked in
 [chat-roadmap.md](chat-roadmap.md).
@@ -482,8 +482,10 @@ The composer supports streaming text, follow-up messages and stopping a turn
 without disconnecting. Permission requests show **Approve once** and **Reject**;
 only the provider's once-only options are used. Stopping a turn cancels pending
 permission requests. Unsupported client interactions receive an explicit error.
-**Chat: List Available Models** displays the advertised model catalog; selecting
-a model inside rhun and OpenCode-specific question forms are still pending.
+**Chat: List Available Models** displays the advertised model catalog.
+**Chat: Choose Model** selects a model through the native session configuration;
+the chat waits for acknowledgement before sending another turn. OpenCode-specific
+question forms are still pending.
 
 Creating a new conversation with the other provider replaces the current live
 chat. Switching providers during an active turn is rejected. The existing native

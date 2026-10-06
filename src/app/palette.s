@@ -11,6 +11,7 @@
 .equ PM_PROMPT, 6
 .equ PM_GREP, 7
 .equ PM_BROWSE, 8
+.equ PM_CUSTOM, 9
 
 .equ ID_PAL_ROW, 0x200000         # + row: a range of its own, as results run to MAXFILES
 .equ ID_PAL_FIELD, 0x3fff
@@ -48,6 +49,8 @@ ENDSTRUCT RS_SIZE
 
 .bss
 .p2align 3
+custom_text: .quad 0
+custom_callback: .quad 0
 pal_mode: .long 0
 pal_prompt: .long 0             # PROMPT_* when in PM_PROMPT
 pal_sel: .long 0
@@ -164,6 +167,56 @@ pal_return_focus:
     mov eax, FOCUS_TERMINAL
 1:  mov [rip + g_focus], eax
     ret
+
+# palette_choose(newline-delimited cstr, callback(label), placeholder).
+# Copy the inventory so asynchronous provider updates cannot invalidate rows.
+FN palette_choose
+    PROLOGUE
+    mov r12, rdi
+    mov r13, rsi
+    mov r14, rdx
+    mov edi, PM_CUSTOM
+    call palette_open
+    mov rdi, [rip + custom_text]
+    call mem_free
+    mov rdi, r12
+    call strlen
+    mov rsi, rax
+    mov rdi, r12
+    call mem_dup
+    mov [rip + custom_text], rax
+    mov [rip + custom_callback], r13
+    mov [rip + pal_label], r14
+    mov r12, rax
+1:  cmp byte ptr [r12], 0
+    je 9f
+    mov r13, r12
+2:  cmp byte ptr [r12], 0
+    je 3f
+    cmp byte ptr [r12], 10
+    je 3f
+    inc r12
+    jmp 2b
+3:  movzx ebx, byte ptr [r12]
+    mov byte ptr [r12], 0
+    cmp r12, r13
+    je 4f
+    lea rdi, [rip + items]
+    mov esi, IT_SIZE
+    call vec_push
+    mov [rax + IT_label], r13
+    mov rcx, r12
+    sub rcx, r13
+    mov [rax + IT_len], rcx
+    mov qword ptr [rax + IT_detail], 0
+    mov [rax + IT_data], r13
+4:  test ebx, ebx
+    jz 9f
+    inc r12
+    jmp 1b
+9:  call palette_filter
+    mov dword ptr [rip + g_dirty], 1
+    EPILOGUE
 
 FN cmd_quick_open
     mov edi, PM_FILES
@@ -1896,7 +1949,22 @@ palette_accept:
     test rax, rax
     jz .Lpa_close
     mov r12, rax
-    cmp ebx, PM_GREP
+    cmp ebx, PM_CUSTOM
+    jne 1f
+    mov rdi, [r12 + IT_label]
+    call strlen
+    mov rsi, rax
+    mov rdi, [r12 + IT_label]
+    call mem_dup
+    mov r13, rax
+    mov r14, [rip + custom_callback]
+    call palette_close
+    mov rdi, r13
+    call r14
+    mov rdi, r13
+    call mem_free
+    jmp .Lpa_ret
+1:  cmp ebx, PM_GREP
     je .Lpa_grep
     cmp ebx, PM_FILES
     jne 1f

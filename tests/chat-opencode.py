@@ -62,6 +62,9 @@ for line in sys.stdin:
             'availableModels':[{'modelId':'provider/model-fixture','name':'Fixture'}]},
             'configOptions':[{'id':'model','type':'select','options':[
                 {'group':'models','name':'Models','options':[{'value':'provider/model-fixture','name':'Fixture'}]}]}]}})
+    elif method=='session/set_config_option':
+        assert msg['params']=={'sessionId':'open-fixture','configId':'model','value':'provider/model-fixture'}
+        emit({'id':msg['id'],'result':{}})
     elif method=='session/prompt':
         assert not active
         active=True
@@ -159,6 +162,11 @@ class OpenCodeChat(unittest.TestCase):
         out=self.run_script('type Before\nkey enter\nwait 300\ncmd chat_opencode\nwait 600\ntype After\nkey enter\nwait 300\nprint-agents',initial='chat_new')
         self.assertIn('agent Reply: After',out);self.assertNotIn('agent Reply: Before',out)
         self.assertTrue(any(m.get('method')=='session/new' for m in self.messages()))
+    def test_choose_model_then_prompt(self):
+        out=self.run_script('cmd chat_choose_model\nprint-palette\nkey enter\nwait 300\ntype After model\nkey enter\nwait 300\nprint-agents')
+        self.assertIn('provider/model-fixture',out)
+        self.assertIn('agent Reply: After model',out)
+        self.assertTrue(any(m.get('method')=='session/set_config_option' for m in self.messages()))
     def test_preview(self):
         target=os.environ.get('RHUN_OPENCODE_PREVIEW')
         shot=Path(target) if target else self.home/'permission.ppm'

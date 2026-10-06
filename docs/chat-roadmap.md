@@ -109,3 +109,8 @@ missing interactive permission implementation.
   noreply address. No remote is configured. Specification, Unix transport and
   the initial Codex interface are recorded as separate commits; remaining gates
   above must be completed before declaring the full phases finished.
+
+- Phase 3 model selection milestone: searchable, copied model inventory; Codex
+  selection applies to the next turn, OpenCode uses native session configuration
+  with acknowledgement/error/timeout handling. 18 Codex and 12 OpenCode scenarios
+  pass. Native question forms and secret input remain explicit limitations.

@@ -599,6 +599,31 @@ dir_each_cb:
     call mem_free
 9:  EPILOGUE
 
+# Set Chat model through the same owned-string path as settings.
+FN chat_config_model
+    mov rsi, rdi
+    lea rdi, [rip + cfg_chat_model]
+    PROLOGUE
+    mov r14, rdi
+    mov r12, rsi
+    mov rdi, rsi
+    call strlen
+    mov rsi, rax
+    mov rdi, r12
+    call mem_dup
+    mov r15, rax
+    lea rax, [rip + cfg_theme]
+    mov rcx, r14
+    sub rcx, rax
+    lea r12, [rip + cfg_owned_strings]
+    add r12, rcx
+    mov rdi, [r12]
+    call mem_free
+    mov [r12], r15
+    mov [r14], r15
+    mov dword ptr [rip + g_settings_changed], 1
+    EPILOGUE
+
 .section .rodata
 .globl cfg_def_theme
 cfg_def_theme: .asciz "rhun-dark"
