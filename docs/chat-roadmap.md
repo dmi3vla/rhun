@@ -76,4 +76,15 @@ missing interactive permission implementation.
 
 - Phase 0: specification recorded; Codex 0.160.1 initialize/initialized probe
   passed without a model turn. Uninstalled provider probes remain explicit gates.
-- Phases 1–8: pending.
+- Phase 1: Unix nonblocking transport implemented; 5 deterministic transport
+  tests pass. Windows intentionally returns ENOSYS rather than blocking the UI.
+  AArch64 translation passes; native macOS execution remains unverified.
+- Phase 2: initial Codex chat implemented on Linux, with composer, streamed text,
+  follow-up turns and stop/reconnect via a new conversation. Eight mock-runtime
+  UI/protocol tests pass. Claude and interactive permission cards are pending.
+  Stop currently closes the runtime; native turn interruption comes next.
+- Phases 3–8: pending. This is not yet full Claudian parity.
+- Local Git author was resolved through gh: dmi3vla, with GitHub's ID-based
+  noreply address. No remote is configured. Specification, Unix transport and
+  the initial Codex interface are recorded as separate commits; remaining gates
+  above must be completed before declaring the full phases finished.

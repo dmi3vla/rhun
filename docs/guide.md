@@ -324,6 +324,26 @@ Registers, marks, macros, ranges and `:s`, visual block and replace mode are not
 
 ## Configuration
 
+### Interactive Codex chat (initial Linux implementation)
+
+Open a project folder, then use **Chat: New Codex Conversation** in the command
+palette. Codex must be installed and available in the application's PATH, with
+its sign-in already configured. The chat uses the installed `codex app-server`;
+the project folder is its working directory.
+
+Enter sends a message; Shift+Enter inserts a newline. The arrow button sends and
+the cross button stops the owned process. **Chat: Focus Conversation** reopens
+the current chat; the original Agents list still displays native session history.
+
+This initial implementation supports streamed text and follow-up turns. Stopping
+closes the runtime, and a new conversation is required to reconnect. Interactive
+approval/question cards, models, saved chat tabs, other providers and native
+Windows transport are still pending. If a server requests an interaction that
+is not implemented, rhun displays the reason and stops instead of approving it.
+
+Implementation phases and protocol validation are tracked in
+[chat-roadmap.md](chat-roadmap.md).
+
 `~/.config/rhun/config` is written when you change something in Settings; Open Settings File creates it. Edits to the file apply as soon as it is saved.
 
 ```ini

@@ -37,6 +37,10 @@ ENDSTRUCT AM_SIZE
 .equ ID_AG_SCROLL, 0x5f02
 .equ ID_AG_TSCROLL, 0x5f03
 .equ ID_AG_FOLLOW, 0x5f04
+.equ ID_AG_NEW, 0x5f05
+.equ ID_AG_SEND, 0x5f06
+.equ ID_AG_STOP, 0x5f07
+.equ ID_AG_INPUT, 0x5f08
 
 .bss
 .p2align 3
@@ -53,11 +57,16 @@ tmp: .zero SB_SIZE
 line: .zero SB_SIZE
 buf: .zero 96
 codex_budget: .long 0
+.p2align 3
+chat_session: .zero AS_SIZE
+chat_input: .zero TF_SIZE
+chat_answer_index: .quad 0
 
 .text
 
 FN agents_init
-    ret
+    mov dword ptr [rip + chat_input + TF_id], ID_AG_INPUT
+    jmp chat_init
 
 # ---------- discovery ----------
 
@@ -87,6 +96,11 @@ has_source:
 
 FN agents_set_project
     PROLOGUE
+    call chat_shutdown
+    lea rdi, [rip + chat_session]
+    call session_clear_msgs
+    lea rdi, [rip + chat_input]
+    call tf_clear
     # drop current sessions
     xor ebx, ebx
 1:  cmp rbx, [rip + sessions + VEC_len]
@@ -1392,6 +1406,10 @@ FN agents_on_change
     jmp agents_poll
 
 FN agents_timeout
+    # An owned chat must progress even when its panel is hidden.
+    call chat_timeout
+    cmp eax, -1
+    jne .Lag_timeout_return
     cmp qword ptr [rip + claude_dir], 0
     je 1f
     call time_ms
@@ -1403,10 +1421,12 @@ FN agents_timeout
 2:  mov eax, ecx
     ret
 1:  mov eax, -1
+.Lag_timeout_return:
     ret
 
 FN agents_tick
     push rbx
+    call chat_tick
     cmp qword ptr [rip + claude_dir], 0
     je 9f
     call time_ms
@@ -1479,10 +1499,16 @@ FN agents_dump
     inc rbx
     jmp 1b
 3:  mov rax, [rip + view]
+    cmp rax, -2
+    je .Ldump_chat
     test rax, rax
     js 9f
     mov rcx, [rip + sessions + VEC_ptr]
     mov r12, [rcx + rax*8]
+    jmp .Ldump_messages
+.Ldump_chat:
+    lea r12, [rip + chat_session]
+.Ldump_messages:
     xor ebx, ebx
 4:  cmp rbx, [r12 + AS_msgs + VEC_len]
     jae 9f
@@ -1538,6 +1564,32 @@ FN agents_open
 1:  ret
 
 FN agents_key
+    cmp qword ptr [rip + view], -2
+    jne .Lag_history_key
+    cmp edi, KEY_ESCAPE
+    je .Lag_back
+    cmp edi, KEY_RETURN
+    je .Lag_enter
+    cmp edi, KEY_KP_ENTER
+    jne .Lag_input_key
+.Lag_enter:
+    test edx, MOD_SHIFT | MOD_CTRL | MOD_ALT | MOD_SUPER
+    jnz .Lag_input_key
+    call agents_chat_send
+    mov eax, 1
+    ret
+.Lag_input_key:
+    mov ecx, edx
+    mov edx, esi
+    mov esi, edi
+    lea rdi, [rip + chat_input]
+    jmp ta_key
+.Lag_back:
+    mov qword ptr [rip + view], -1
+    mov dword ptr [rip + g_dirty], 1
+    mov eax, 1
+    ret
+.Lag_history_key:
     cmp edi, KEY_ESCAPE
     jne 1f
     cmp qword ptr [rip + view], 0
@@ -1551,7 +1603,160 @@ FN agents_key
 1:  xor eax, eax
     ret
 
+# New chat owns a synthetic session; external native histories remain separate.
+FN cmd_chat_new
+    PROLOGUE
+    call chat_start
+    test eax, eax
+    js 9f
+    lea rdi, [rip + chat_session]
+    call session_clear_msgs
+    mov dword ptr [rip + chat_session + AS_kind], 2
+    lea rax, [rip + .Lchat_title]
+    mov [rip + chat_session + AS_title], rax
+    mov qword ptr [rip + chat_answer_index], -1
+    mov qword ptr [rip + view], -2
+    mov dword ptr [rip + th_follow], 1
+    mov dword ptr [rip + cfg_agents], 1
+    mov dword ptr [rip + g_focus], FOCUS_AGENTS
+    mov dword ptr [rip + g_dirty], 1
+9:  EPILOGUE
+
+FN cmd_chat_focus
+    cmp qword ptr [rip + chat_session + AS_title], 0
+    je cmd_chat_new
+    mov qword ptr [rip + view], -2
+    mov dword ptr [rip + cfg_agents], 1
+    mov dword ptr [rip + g_focus], FOCUS_AGENTS
+    mov dword ptr [rip + g_dirty], 1
+    ret
+
+FN agents_chat_send
+    PROLOGUE
+    lea rdi, [rip + chat_input]
+    call tf_text
+    mov rdi, rax
+    mov rsi, rdx
+    call chat_send
+    test eax, eax
+    jz 9f
+    lea rdi, [rip + chat_input]
+    call tf_clear
+9:  EPILOGUE
+
+FN agents_chat_paste
+    cmp qword ptr [rip + view], -2
+    jne 1f
+    mov rdx, rsi
+    mov rsi, rdi
+    lea rdi, [rip + chat_input]
+    jmp ta_insert
+1:  ret
+
+# agents_chat_event(role, bytes, len): streamed answers replace one message.
+FN agents_chat_event
+    PROLOGUE
+    mov r12d, edi
+    mov r13, rsi
+    mov r14, rdx
+    cmp edi, R_USER
+    jne 1f
+    mov qword ptr [rip + chat_answer_index], -1
+1:  cmp r12d, R_ASSIST
+    jne 3f
+    mov rax, [rip + chat_answer_index]
+    test rax, rax
+    js 2f
+    imul rbx, rax, AM_SIZE
+    add rbx, [rip + chat_session + AS_msgs + VEC_ptr]
+    mov rdi, [rbx + AM_text]
+    call mem_free
+    mov rdi, r13
+    mov rsi, r14
+    call mem_dup
+    mov [rbx + AM_text], rax
+    mov [rbx + AM_len], r14
+    mov dword ptr [rbx + AM_w], 0
+    jmp 9f
+2:  mov rax, [rip + chat_session + AS_msgs + VEC_len]
+    mov [rip + chat_answer_index], rax
+3:  lea rdi, [rip + chat_session]
+    mov esi, r12d
+    mov rdx, r13
+    mov rcx, r14
+    xor r8d, r8d
+    call add_msg
+    cmp r12d, R_ASSIST
+    jne 9f
+    mov rax, [rip + chat_answer_index]
+    cmp rax, [rip + chat_session + AS_msgs + VEC_len]
+    jb 9f
+    mov qword ptr [rip + chat_answer_index], -1
+9:  mov dword ptr [rip + g_dirty], 1
+    EPILOGUE
+
 # ---------- drawing ----------
+
+chat_composer_draw:
+    PROLOGUE 16
+    mov ebx, edi
+    mov r12d, esi
+    mov r13d, edx
+    call chat_status
+    mov r8, rax
+    lea rdi, [rip + g_face_small]
+    mov esi, ebx
+    add esi, [rip + g_mt + 4*MI_8]
+    mov edx, r12d
+    M ecx, MI_24
+    COLOR r9d, T_MUTED
+    call ui_text_c
+    lea rax, [rip + .Lchat_placeholder]
+    push rax
+    push rax
+    lea rdi, [rip + chat_input]
+    mov esi, ebx
+    add esi, [rip + g_mt + 4*MI_8]
+    mov edx, r12d
+    add edx, [rip + g_mt + 4*MI_24]
+    mov ecx, r13d
+    sub ecx, [rip + g_mt + 4*MI_16]
+    M r8d, MI_64
+    xor r9d, r9d
+    cmp dword ptr [rip + g_focus], FOCUS_AGENTS
+    sete r9b
+    call ui_textarea
+    add rsp, 16
+    test eax, UB_PRESS
+    jz 1f
+    mov dword ptr [rip + g_focus], FOCUS_AGENTS
+1:  mov edi, ID_AG_SEND
+    mov esi, ebx
+    add esi, [rip + g_mt + 4*MI_8]
+    mov edx, r12d
+    add edx, [rip + g_mt + 4*MI_64]
+    add edx, [rip + g_mt + 4*MI_28]
+    M ecx, MI_28
+    mov r8d, ecx
+    mov r9d, IC_ARROW_UP
+    call ui_icon_btn
+    test eax, UB_CLICK
+    jz 2f
+    call agents_chat_send
+2:  mov edi, ID_AG_STOP
+    mov esi, ebx
+    add esi, [rip + g_mt + 4*MI_48]
+    mov edx, r12d
+    add edx, [rip + g_mt + 4*MI_64]
+    add edx, [rip + g_mt + 4*MI_28]
+    M ecx, MI_28
+    mov r8d, ecx
+    mov r9d, IC_CLOSE
+    call ui_icon_btn
+    test eax, UB_CLICK
+    jz 9f
+    call chat_stop
+9:  EPILOGUE
 
 # agent_badge(kind, x, y) -> right edge; 14 px icon and small text in a 20 px badge
 agent_badge:
@@ -1848,6 +2053,8 @@ FN agents_draw
     mov edx, [rsp + 8]
     mov ecx, [rsp + 12]
     call gfx_clip_push
+    cmp qword ptr [rip + view], -2
+    je .Lag_draw_chat
     cmp qword ptr [rip + view], 0
     jl 1f
     mov edi, [rsp]
@@ -1855,6 +2062,22 @@ FN agents_draw
     mov edx, [rsp + 8]
     mov ecx, [rsp + 12]
     call thread_draw
+    jmp 9f
+.Lag_draw_chat:
+    mov edi, [rsp]
+    mov esi, [rsp + 4]
+    mov edx, [rsp + 8]
+    mov ecx, [rsp + 12]
+    sub ecx, [rip + g_mt + 4*MI_64]
+    sub ecx, [rip + g_mt + 4*MI_64]
+    call thread_draw
+    mov edi, [rsp]
+    mov esi, [rsp + 4]
+    add esi, [rsp + 12]
+    sub esi, [rip + g_mt + 4*MI_64]
+    sub esi, [rip + g_mt + 4*MI_64]
+    mov edx, [rsp + 8]
+    call chat_composer_draw
     jmp 9f
 1:  mov edi, [rsp]
     mov esi, [rsp + 4]
@@ -1897,7 +2120,20 @@ list_draw:
     test eax, UB_CLICK
     jz 1f
     call agents_scan
-1:  cmp qword ptr [rip + sessions + VEC_len], 0
+1:  mov edi, ID_AG_NEW
+    mov esi, [rsp]
+    add esi, [rsp + 8]
+    sub esi, [rip + g_mt + 4*MI_64]
+    mov edx, [rsp + 4]
+    add edx, [rip + g_mt + 4*MI_6]
+    M ecx, MI_28
+    mov r8d, ecx
+    mov r9d, IC_PLUS
+    call ui_icon_btn
+    test eax, UB_CLICK
+    jz 12f
+    call cmd_chat_focus
+12: cmp qword ptr [rip + sessions + VEC_len], 0
     jne 2f
     lea rdi, [rip + g_face_small]
     mov esi, [rsp]
@@ -2089,8 +2325,12 @@ thread_draw:
     mov [rsp + 8], edx
     mov [rsp + 12], ecx
     mov rax, [rip + view]
+    lea rbx, [rip + chat_session]
+    cmp rax, -2
+    je .Ltd_session_ready
     mov rcx, [rip + sessions + VEC_ptr]
     mov rbx, [rcx + rax*8]      # session
+.Ltd_session_ready:
     # header: back + title
     M r15d, MI_40
     M r12d, MI_28
@@ -2475,6 +2715,8 @@ draw_msg:
     EPILOGUE
 
 .section .rodata
+.Lchat_title: .asciz "Codex chat"
+.Lchat_placeholder: .asciz "Message Codex (Shift+Enter for newline)"
 .Lhome: .asciz "HOME"
 .Lr0: .asciz "?"
 .Lr1: .asciz "user"

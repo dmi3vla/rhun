@@ -122,6 +122,22 @@ push_child:
     pop rbx
     ret
 
+# json_parse_complete(ptr,len) -> JV* or 0; reject trailing non-whitespace.
+# Streaming protocols must not accept a valid prefix of a malformed record.
+FN json_parse_complete
+    push rbx
+    call json_parse
+    mov rbx, rax
+    test rax, rax
+    jz 1f
+    call skip_ws
+    cmp rsi, rdi
+    je 1f
+    xor ebx, ebx
+1:  mov rax, rbx
+    pop rbx
+    ret
+
 # parse_value() -> JV*
 parse_value:
     PROLOGUE

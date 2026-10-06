@@ -1160,6 +1160,11 @@ FN app_on_paste
     PROLOGUE
     mov rbx, rdi
     mov r12, rsi
+    cmp dword ptr [rip + g_focus], FOCUS_AGENTS
+    jne 8f
+    call agents_chat_paste
+    jmp 9f
+8:
     call vim_paste
     test eax, eax
     jnz 9f
