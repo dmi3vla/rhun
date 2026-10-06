@@ -6,6 +6,10 @@
 .p2align 3
 records: .zero VEC_SIZE        # independently owned canonical JSON cstrs
 current: .quad 0
+.data
+side_main: .quad -1
+side_index: .quad -1
+.bss
 path: .zero SB_SIZE
 snapshot: .zero SB_SIZE
 output: .zero SB_SIZE
@@ -91,6 +95,8 @@ FN chat_store_before_new
     call chat_busy
     test eax, eax
     jnz 8f
+    cmp qword ptr [rip + side_index], -1
+    jne 8f
     cmp qword ptr [rip + records + VEC_len], CHAT_TABS_MAX
     jae 7f
     call chat_store_capture
@@ -134,12 +140,17 @@ FN chat_store_save
     call sb_push_cstr
     lea rdi, [rip + output]
     mov rsi, [rip + current]
-    call sb_push_u64
+    cmp qword ptr [rip + side_index], -1
+    je 11f
+    mov rsi, [rip + side_main]
+11: call sb_push_u64
     lea rdi, [rip + output]
     lea rsi, [rip + .Lfile_chats]
     call sb_push_cstr
     xor ebx, ebx
-1:  cmp rbx, [rip + records + VEC_len]
+1:  cmp rbx, [rip + side_index]
+    je 3f
+    cmp rbx, [rip + records + VEC_len]
     jae 3f
     test rbx, rbx
     jz 2f
@@ -183,6 +194,8 @@ FN chat_store_save
 # Called after the previous project's active snapshot was saved by app_set_project.
 FN chat_store_project
     PROLOGUE 16
+    mov qword ptr [rip + side_main], -1
+    mov qword ptr [rip + side_index], -1
     mov qword ptr [rsp], 0
     xor ebx, ebx
 1:  cmp rbx, [rip + records + VEC_len]
@@ -390,7 +403,11 @@ FN chat_tab_close
     test eax, eax
     jnz 8f
     call chat_store_save
-    call chat_shutdown
+    cmp r12, [rip + side_index]
+    jne 11f
+    mov qword ptr [rip + side_index], -1
+    mov qword ptr [rip + side_main], -1
+11: call chat_shutdown
     mov rax, [rip + records + VEC_ptr]
     mov rdi, [rax + r12*8]
     call mem_free
@@ -460,6 +477,8 @@ FN chat_tab_previous
 FN chat_store_switch
     PROLOGUE
     mov r12, rdi
+    cmp qword ptr [rip + side_index], -1
+    jne 8f
     cmp rdi, [rip + records + VEC_len]
     jae 9f
     call chat_busy
@@ -494,6 +513,46 @@ FN chat_store_switch
     jmp 9f
 8:  lea rdi, [rip + .Lswitch_busy]
     call app_toast
+9:  EPILOGUE
+
+# Temporary side conversation is excluded from project snapshots.
+FN chat_side_start
+    PROLOGUE
+    cmp qword ptr [rip + side_index], -1
+    jne 9f
+    mov r12, [rip + current]
+    test r12, r12
+    js 9f
+    call chat_busy
+    test eax, eax
+    jnz 9f
+    mov r13, [rip + records + VEC_len]
+    cmp dword ptr [rip + chat_provider], 1
+    je 1f
+    call cmd_chat_new
+    jmp 2f
+1:  call cmd_chat_new_opencode
+2:  cmp r13, [rip + records + VEC_len]
+    je 9f
+    mov [rip + side_main], r12
+    mov rax, [rip + current]
+    mov [rip + side_index], rax
+    call chat_store_save
+9:  EPILOGUE
+FN chat_side_return
+    PROLOGUE
+    cmp qword ptr [rip + side_index], -1
+    je 9f
+    call chat_busy
+    test eax, eax
+    jnz 9f
+    mov r12, [rip + side_main]
+    call chat_tab_close
+    # Close selects the previous tab; select the original main tab if different.
+    cmp r12, [rip + current]
+    je 9f
+    mov rdi, r12
+    call chat_store_switch
 9:  EPILOGUE
 
 .section .rodata

@@ -63,6 +63,8 @@ chat_input: .zero TF_SIZE
 chat_reply_input: .zero TF_SIZE
 chat_answer_index: .quad 0
 
+.p2align 2
+compact_chat: .long 0
 .text
 
 FN agents_init
@@ -2081,6 +2083,11 @@ FN agents_chat_import
 
 # ---------- drawing ----------
 
+FN chat_compact_toggle
+    xor dword ptr [rip + compact_chat], 1
+    mov dword ptr [rip + g_dirty], 1
+    ret
+
 chat_composer_draw:
     PROLOGUE 16
     mov ebx, edi
@@ -2110,7 +2117,10 @@ chat_composer_draw:
     mov ecx, r13d
     sub ecx, [rip + g_mt + 4*MI_16]
     M r8d, MI_64
-    xor r9d, r9d
+    cmp dword ptr [rip + compact_chat], 0
+    je 11f
+    M r8d, MI_32
+11: xor r9d, r9d
     cmp dword ptr [rip + g_focus], FOCUS_AGENTS
     sete r9b
     call ui_textarea
@@ -2123,7 +2133,10 @@ chat_composer_draw:
     add esi, [rip + g_mt + 4*MI_8]
     mov edx, r12d
     add edx, [rip + g_mt + 4*MI_64]
-    add edx, [rip + g_mt + 4*MI_28]
+    cmp dword ptr [rip + compact_chat], 0
+    je 12f
+    sub edx, [rip + g_mt + 4*MI_32]
+12: add edx, [rip + g_mt + 4*MI_28]
     M ecx, MI_28
     mov r8d, ecx
     mov r9d, IC_ARROW_UP
@@ -2136,7 +2149,10 @@ chat_composer_draw:
     add esi, [rip + g_mt + 4*MI_48]
     mov edx, r12d
     add edx, [rip + g_mt + 4*MI_64]
-    add edx, [rip + g_mt + 4*MI_28]
+    cmp dword ptr [rip + compact_chat], 0
+    je 12f
+    sub edx, [rip + g_mt + 4*MI_32]
+12: add edx, [rip + g_mt + 4*MI_28]
     M ecx, MI_28
     mov r8d, ecx
     mov r9d, IC_CLOSE
@@ -2585,13 +2601,19 @@ FN agents_draw
     mov ecx, [rsp + 12]
     sub ecx, [rip + g_mt + 4*MI_64]
     sub ecx, [rip + g_mt + 4*MI_64]
-    call thread_draw
+    cmp dword ptr [rip + compact_chat], 0
+    je 12f
+    add ecx, [rip + g_mt + 4*MI_32]
+12: call thread_draw
     mov edi, [rsp]
     mov esi, [rsp + 4]
     add esi, [rsp + 12]
     sub esi, [rip + g_mt + 4*MI_64]
     sub esi, [rip + g_mt + 4*MI_64]
-    mov edx, [rsp + 8]
+    cmp dword ptr [rip + compact_chat], 0
+    je 13f
+    add esi, [rip + g_mt + 4*MI_32]
+13: mov edx, [rsp + 8]
     call chat_composer_draw
     jmp 9f
 1:  mov edi, [rsp]

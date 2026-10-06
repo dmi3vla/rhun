@@ -38,6 +38,8 @@ FN doc_new
 FN doc_free
     push rbx
     mov rbx, rdi
+    call chat_edit_document_closed
+    mov rdi, rbx
     call git_doc_free
     mov rdi, rbx
     lea rsi, [rbx + DOC_undo]

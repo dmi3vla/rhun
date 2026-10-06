@@ -127,3 +127,10 @@ missing interactive permission implementation.
   appear in the transcript. Nine context scenarios pass. Native global skill
   catalogs, rich inline Markdown and HTTP-specific OpenCode forms remain gaps.
   MCP tools are managed by the provider CLI configuration.
+
+- Phase 6 milestone: prepare selected-buffer edits, explicit read-only before/after
+  preview, apply/discard commands, live-document and version checks, grouped Undo.
+  Temporary side chats preserve the main draft and are excluded from saved tabs.
+  Compact composer toggles available transcript space. Six workflow tests pass.
+  Existing project Git diff views remain available; word-level inline diff and
+  Claudian's editor-bottom Zen placement are still UI parity gaps.
