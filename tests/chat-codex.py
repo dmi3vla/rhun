@@ -241,6 +241,12 @@ class CodexChat(unittest.TestCase):
         self.assertIn('Model unavailable', output)
         self.assertIn('agent Reply: Continue', output)
 
+    def test_model_catalog_error_keeps_conversation_usable(self):
+        cli=self.bin/'codex'
+        cli.write_text(cli.read_text().replace("elif method == 'model/list':", "elif method == 'model/list':\n        emit({'id':msg['id'],'error':{'code':-32000,'message':'Catalog unavailable'}})\n        continue"))
+        out=self.run_script('cmd chat_choose_model\nwait 300\ntype Continue\nkey enter\nwait 300\nprint-agents')
+        self.assertIn('agent Reply: Continue',out)
+        self.assertEqual(sum(json.loads(line).get('method')=='initialize' for line in self.trace.read_text().splitlines()),1)
     def test_invalid_protocol_is_visible(self):
         output = self.run_script('type invalid\nkey enter\nwait 400\nprint-agents')
         self.assertIn('Invalid or oversized provider protocol', output)

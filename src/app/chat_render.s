@@ -15,6 +15,12 @@ field:
     cmp rdx, 16384
     jbe 1f
     mov edx, 16384
+2:  movzx ecx, byte ptr [rax + rdx]
+    and ecx, 0xc0
+    cmp ecx, 0x80
+    jne 1f
+    dec rdx
+    jmp 2b
 1:  lea rdi, [rip + notice]
     mov rsi, rax
     call sb_push

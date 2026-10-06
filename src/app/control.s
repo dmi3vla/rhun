@@ -967,6 +967,28 @@ c_print_syntax:
     xor eax, eax
     ret
 
+# Minimal runtime diagnostics for native smoke probes (no session IDs or credentials).
+c_print_chat_status:
+    PROLOGUE
+    lea rdi, [rip + out]
+    lea rsi, [rip + .Lc_chat_state]
+    call sb_push_cstr
+    lea rdi, [rip + out]
+    mov esi, [rip + chat_runtime_state]
+    call sb_push_u64
+    lea rdi, [rip + out]
+    mov esi, 10
+    call sb_push_byte
+    call chat_status
+    mov rsi, rax
+    lea rdi, [rip + out]
+    call sb_push_cstr
+    lea rdi, [rip + out]
+    mov esi, 10
+    call sb_push_byte
+    xor eax, eax
+    EPILOGUE
+
 # print-agents [open N]: sessions and the open thread
 c_print_agents:
     call next_int
@@ -1250,6 +1272,8 @@ on_client:
 .Lc_print_doc: .asciz "print-doc"
 .Lc_print_state: .asciz "print-state"
 .Lc_print_syntax: .asciz "print-syntax"
+.Lc_print_chat_status: .asciz "print-chat-status"
+.Lc_chat_state: .asciz "chat-state="
 .Lc_print_agents: .asciz "print-agents"
 .Lc_xkey: .asciz "xkey"
 .Lc_print_window: .asciz "print-window"
@@ -1288,6 +1312,7 @@ ctl_table:
     .quad .Lc_down, c_down, .Lc_up, c_up, .Lc_scroll, c_scroll, .Lc_open, c_open
     .quad .Lc_cmd, c_cmd, .Lc_shot, c_shot, .Lc_wait, c_wait, .Lc_resize, c_resize
     .quad .Lc_quit, c_quit, .Lc_echo, c_echo, .Lc_print_doc, c_print_doc
+    .quad .Lc_print_chat_status, c_print_chat_status
     .quad .Lc_print_state, c_print_state, .Lc_print_syntax, c_print_syntax, .Lc_print_agents, c_print_agents, .Lc_xkey, c_xkey
     .quad .Lc_print_window, c_print_window, .Lc_print_cursor, c_print_cursor, .Lc_print_term, c_print_term
     .quad .Lc_print_git, c_print_git, .Lc_wait_git, c_wait_git, .Lc_print_gitlog, c_print_gitlog

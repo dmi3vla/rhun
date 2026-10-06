@@ -42,6 +42,11 @@ attach_picked_file:
     jnz .Lattach_image
     cmp r14, 32768
     ja 7f
+    mov rdi, r13
+    mov rsi, r14
+    call chat_text_valid
+    test eax, eax
+    jnz .Lbad_attachment_text
     mov rdi, r12
     mov rsi, r13
     mov rdx, r14
@@ -68,6 +73,10 @@ attach_picked_file:
     mov rdi, r12
     call mem_free
     EPILOGUE
+.Lbad_attachment_text:
+    lea rdi, [rip + .Linvalid_text]
+    call app_toast
+    jmp 6b
 7:  lea rdi, [rip + .Llarge_text]
     call app_toast
     jmp 6b
@@ -169,6 +178,9 @@ FN chat_context_prepare
     PROLOGUE
     mov r12, rdi
     mov r13, rsi
+    call chat_text_valid
+    test eax, eax
+    jnz 8f
     mov rdi, [rip + image_bytes]
     call mem_free
     mov qword ptr [rip + image_bytes], 0
@@ -208,6 +220,19 @@ FN chat_context_prepare
     jz 8f
     cmp rdx, 4095
     ja 8f
+    mov rsi, rdx
+    mov rdi, rax
+    call chat_text_valid
+    test eax, eax
+    jnz 8f
+    # Re-read the parsed string: validation does not reset the JSON arena.
+    lea rdi, [r12 + r14 + 8]
+    mov rsi, r15
+    sub rsi, r14
+    sub rsi, 8
+    call json_parse_complete
+    mov rdi, rax
+    call json_str
     lea rdi, [rip + image_path]
     mov rsi, rax
     call sb_push
@@ -411,3 +436,6 @@ insert_prompt_file:
 .Lprompt_query_end:
 .Lchoose_skill: .asciz "Attach project SKILL.md"
 .Lskill_query: .asciz "SKILL.md"
+
+.section .rodata
+.Linvalid_text: .asciz "Attachment must contain valid UTF-8 text without NUL bytes"

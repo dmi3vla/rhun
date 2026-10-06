@@ -140,6 +140,19 @@ palette_open:
     mov dword ptr [rip + g_dirty], 1
     EPILOGUE
 
+# Close only an owned custom picker; preserve an unrelated command/file palette.
+FN palette_close_choose
+    PROLOGUE
+    cmp dword ptr [rip + pal_mode], PM_CUSTOM
+    jne 1f
+    cmp rdi, [rip + custom_callback]
+    jne 1f
+    call palette_close
+    mov eax, 1
+    EPILOGUE
+1:  xor eax, eax
+    EPILOGUE
+
 FN palette_close
     push rbx
     # themes: Esc restores the previous theme
@@ -160,7 +173,10 @@ FN palette_close
 # so a command from the palette acts where its shortcut would
 pal_return_focus:
     mov eax, FOCUS_EDITOR
-    cmp dword ptr [rip + pal_focus_before], FOCUS_TERMINAL
+    cmp dword ptr [rip + pal_focus_before], FOCUS_AGENTS
+    jne 11f
+    mov eax, FOCUS_AGENTS
+11: cmp dword ptr [rip + pal_focus_before], FOCUS_TERMINAL
     jne 1f
     cmp dword ptr [rip + g_term_open], 0
     je 1f

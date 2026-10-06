@@ -10,6 +10,10 @@ spec=importlib.util.spec_from_file_location('chat_store_fixture',ROOT/'tests/cha
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 class ChatContext(module.ChatStore):
     # Exercise context only, rather than inheriting the storage test inventory.
+    def test_cancelled_attachment_picker_returns_to_chat_input(self):
+        self.run_editor('cmd chat_new\nwait 500\ncmd chat_attach_file\nkey escape\ntype Still in chat\nkey enter\nwait 300')
+        turn=next(m for m in self.messages() if m.get('method')=='turn/start')
+        self.assertEqual(turn['params']['input'][0]['text'],'Still in chat')
     def test_file_picker_reads_selected_text(self):
         path=self.project/'context café.md';path.write_text('Context text café\n')
         out=self.run_editor('cmd chat_new\nwait 500\ncmd chat_attach_file\ntype context\nkey enter\nkey enter\nwait 300\nprint-agents')

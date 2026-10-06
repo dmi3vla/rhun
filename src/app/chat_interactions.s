@@ -28,6 +28,8 @@ FN chat_pending_kind
 1:     mov eax, [rip + kind]
     ret
 FN chat_pending_label
+    cmp dword ptr [rip + chat_provider], 3
+    je chat_pi_label
     cmp dword ptr [rip + kind], 2
     jne 1f
     mov rax, [rip + question_index]
@@ -59,7 +61,7 @@ clear_questions:
 
 FN chat_interactions_clear
     PROLOGUE
-    mov dword ptr [rip + chat_pi_pending], 0
+    call chat_pi_clear_ui
     mov rbx, [rip + head]
 1:  cmp rbx, [rip + pending + VEC_len]
     jae 2f
@@ -221,7 +223,17 @@ activate:
     mov r12, rax
     cmp dword ptr [rip + chat_provider], 0
     jne .Lacp_request
+    mov rdi, r13
+    lea rsi, [rip + .Lthread_id]
+    call json_get
     mov rdi, rax
+    mov rsi, [rip + chat_runtime_session]
+    test rsi, rsi
+    jz .Lunsupported
+    call json_is
+    test eax, eax
+    jz .Lunsupported
+    mov rdi, r12
     lea rsi, [rip + .Lcommand_method]
     call json_is
     test eax, eax
@@ -715,3 +727,6 @@ FN chat_interaction_answer
 .Lacp_selected: .asciz ",\"result\":{\"outcome\":{\"outcome\":\"selected\",\"optionId\":"
 .Lacp_selected_end: .asciz "}}}\n"
 .Lacp_cancelled: .asciz ",\"result\":{\"outcome\":{\"outcome\":\"cancelled\"}}}\n"
+
+.section .rodata
+.Lthread_id: .asciz "threadId"

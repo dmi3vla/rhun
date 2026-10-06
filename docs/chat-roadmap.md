@@ -140,7 +140,21 @@ missing interactive permission implementation.
   Pi has a dedicated native JSONL RPC adapter with session-file resume, streamed
   messages, agent_settled completion, cancellation, model selection, confirmation
   and text extension dialogs. Its built-in tools are restricted to read/grep/find/ls;
-  unsupported select dialogs are cancelled. 23 deterministic provider scenarios
+  selection dialogs use bounded native options. The phase-7 milestone had 23
+  deterministic provider scenarios
   pass. Grok/Pi CLIs are absent locally, so installed-version compatibility remains
   unverified. Claude is optional per user direction; OpenCode v1 is unverified.
   Automatic new-chat detection prefers installed OpenCode, then Codex/Grok/Pi.
+
+- Phase 8 Linux validation milestone: strict UTF-8 frames/context and JSON escape
+  decoding; bounded live transcripts (2048 messages / 8 MiB); foreign-thread
+  interaction rejection; stale-turn event filtering; tool/assistant ordering;
+  native response correlation; Pi dialog cancellation/timeout cleanup; recoverable
+  Codex catalog errors and safe empty-thread recovery. Installed Codex 0.160.1 and
+  OpenCode 2.0.24 completed real short model turns and native resume through rhun.
+  Empty OpenCode resume and Codex draft recovery also pass without model prompts.
+  A temporary official Pi 1.0.4 CLI also passed native create/resume without a
+  model turn. The final suite passes, including 100 transport/chat scenarios.
+  Final regression status and outstanding acceptance gates are recorded in
+  [chat-validation.md](chat-validation.md). Cross-platform execution and the
+  remaining UI/provider parity items are not marked complete.

@@ -317,9 +317,48 @@ parse_string:
     movzx eax, byte ptr [rcx]
     cmp al, '"'
     je 2f
+    cmp al, 0x20
+    jb .Lps_fail
     cmp al, '\\'
     jne 11f
     inc rcx
+    cmp rcx, rdi
+    jae .Lps_fail
+    movzx eax, byte ptr [rcx]
+    cmp al, '"'
+    je 11f
+    cmp al, '\\'
+    je 11f
+    cmp al, '/'
+    je 11f
+    cmp al, 'n'
+    je 11f
+    cmp al, 'r'
+    je 11f
+    cmp al, 't'
+    je 11f
+    cmp al, 'b'
+    je 11f
+    cmp al, 'f'
+    je 11f
+    cmp al, 'u'
+    jne .Lps_fail
+    mov edx, 4
+12: inc rcx
+    cmp rcx, rdi
+    jae .Lps_fail
+    movzx eax, byte ptr [rcx]
+    cmp al, '0'
+    jb .Lps_fail
+    cmp al, '9'
+    jbe 13f
+    or al, 0x20
+    cmp al, 'a'
+    jb .Lps_fail
+    cmp al, 'f'
+    ja .Lps_fail
+13: dec edx
+    jnz 12b
 11: inc rcx
     jmp 1b
 2:  mov r12, rcx                # closing quote
@@ -379,11 +418,15 @@ parse_string:
     # surrogate pair
     lea ecx, [rax - 0xd800]
     cmp ecx, 0x3ff
-    ja 3f
+    ja .Lps_non_high
+    mov rcx, r12
+    sub rcx, rsi
+    cmp rcx, 6
+    jb .Lps_fail
     cmp byte ptr [rsi], '\\'
-    jne 3f
+    jne .Lps_fail
     cmp byte ptr [rsi + 1], 'u'
-    jne 3f
+    jne .Lps_fail
     lea rdi, [rsi + 2]
     push rsi
     mov esi, 4
@@ -391,7 +434,7 @@ parse_string:
     pop rsi
     lea ecx, [rax - 0xdc00]
     cmp ecx, 0x3ff
-    ja 3f
+    ja .Lps_fail
     add rsi, 6
     mov eax, r15d
     sub eax, 0xd800
@@ -399,6 +442,12 @@ parse_string:
     add eax, ecx
     add eax, 0x10000
     mov r15d, eax
+    jmp 3f
+.Lps_non_high:
+    cmp r15d, 0xdc00
+    jb 3f
+    cmp r15d, 0xdfff
+    jbe .Lps_fail
 3:  mov edi, r15d
     push rsi
     lea rsi, [r13 + r14]

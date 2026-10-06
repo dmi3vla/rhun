@@ -18,6 +18,7 @@ turn_id: .quad 0
 answer_item: .quad 0
 stop_requested: .long 0
 restart_requested: .long 0
+resume_sent: .long 0
 restart_provider: .long 0
 stop_deadline: .quad 0
 cli: .quad 0
@@ -492,8 +493,44 @@ capture_turn:
     call interrupt_turn
 9:  EPILOGUE
 
+# Reject late deltas/tools from a previous turn in the same native thread.
+active_turn_event:
+    PROLOGUE
+    lea rsi, [rip + .Lturn_id_key]
+    call json_get
+    mov rdi, rax
+    mov rsi, [rip + turn_id]
+    test rsi, rsi
+    jz 1f
+    call json_is
+    EPILOGUE
+1:  xor eax, eax
+    EPILOGUE
+
 # Consume one protocol line. The JSON arena cannot survive another json_parse.
 on_record:
+    PROLOGUE 16
+    mov [rsp], rdi
+    mov [rsp + 8], rsi
+    call chat_text_valid
+    test eax, eax
+    jnz 1f
+    mov rdi, [rsp]
+    mov rsi, [rsp + 8]
+    call dispatch_record
+    EPILOGUE
+1:  call chat_shutdown
+    lea rax, [rip + .Lprotocol_failed]
+    mov [rip + status], rax
+    mov rdi, rax
+    call strlen
+    mov rdx, rax
+    lea rsi, [rip + .Lprotocol_failed]
+    mov edi, 3
+    call agents_chat_event
+    EPILOGUE
+
+dispatch_record:
     cmp dword ptr [rip + chat_provider], 3
     je chat_pi_record
     cmp dword ptr [rip + chat_provider], 0
@@ -622,6 +659,7 @@ on_record:
     call chat_store_dirty
     jmp .Lrecord_done
 .Linitialized:
+    mov dword ptr [rip + resume_sent], 0
     cmp dword ptr [rip + state], 1
     jne .Lrecord_done
     lea rdi, [rip + .Linitialized_msg]
@@ -633,6 +671,7 @@ on_record:
     jz 1f
     cmp byte ptr [rax], 0
     je 1f
+    mov dword ptr [rip + resume_sent], 1
     lea rdi, [rip + .Lresume_prefix]
     call append
     mov rdi, [rip + chat_resume_id]
@@ -717,6 +756,12 @@ on_record:
     jnz .Lrpc_error
     jmp .Lrecord_done
 .Ltool_item:
+    cmp dword ptr [rip + state], 4
+    jne .Lrecord_done
+    mov rdi, r13
+    call active_turn_event
+    test eax, eax
+    jz .Lrecord_done
     mov rdi, r13
     lea rsi, [rip + .Litem_key]
     call json_get
@@ -726,6 +771,10 @@ on_record:
 .Ldelta:
     cmp dword ptr [rip + state], 4
     jne .Lrecord_done
+    mov rdi, r13
+    call active_turn_event
+    test eax, eax
+    jz .Lrecord_done
     mov rdi, r13
     lea rsi, [rip + .Litem_id_key]
     call json_get
@@ -778,6 +827,16 @@ on_record:
     call json_get
     mov r13, rax
     mov rdi, rax
+    lea rsi, [rip + .Lid]
+    call json_get
+    mov rdi, rax
+    mov rsi, [rip + turn_id]
+    test rsi, rsi
+    jz .Lrecord_done
+    call json_is
+    test eax, eax
+    jz .Lrecord_done
+    mov rdi, r13
     lea rsi, [rip + .Lstatus_key]
     call json_get
     mov rdi, rax
@@ -823,10 +882,57 @@ on_record:
     call json_str
     test rdx, rdx
     jz 2f
-    mov rsi, rax
+    mov r14, rax
+    mov r15, rdx
+    cmp dword ptr [rip + state], 2
+    jne 11f
+    cmp dword ptr [rip + resume_sent], 1
+    jne 11f
+    mov rdi, rax
+    mov rsi, r15
+    lea rdx, [rip + .Lno_rollout]
+    mov ecx, .Lno_rollout_end - .Lno_rollout - 1
+    call str_starts
+    test eax, eax
+    jz 11f
+    call agents_chat_has_dialogue
+    test eax, eax
+    jnz 11f
+    # Empty threads have no native rollout until their first turn. Recover only
+    # an empty local conversation, preserving its draft; never lose real context.
+    mov dword ptr [rip + resume_sent], 0
+    lea rdi, [rip + request]
+    call sb_clear
+    lea rdi, [rip + .Lthread_prefix]
+    call append
+    mov rdi, [rip + g_project]
+    call quote_cstr
+    lea rdi, [rip + .Lthread_suffix]
+    call append
+    call send_request
+    test rax, rax
+    js .Lbad_record
+    call time_ms
+    add rax, 15000
+    mov [rip + deadline], rax
+    lea rdi, [rip + .Lempty_recovered]
+    call app_toast
+    jmp .Lrecord_done
+11: mov rsi, r14
+    mov rdx, r15
     mov edi, 3
     call agents_chat_event
-2:  cmp dword ptr [rip + state], 4
+2:  mov rdi, rbx
+    lea rsi, [rip + .Lid]
+    call json_get
+    mov rdi, rax
+    lea rsi, [rip + .Lmodels_id]
+    call json_is
+    test eax, eax
+    jz 12f
+    mov dword ptr [rip + model_picker], 0
+    jmp .Lrecord_done
+12: cmp dword ptr [rip + state], 4
     jne 3f
     mov dword ptr [rip + state], 3
     mov dword ptr [rip + stop_requested], 0
@@ -1032,3 +1138,11 @@ FN chat_tick
 .Lpi_tools: .asciz "--tools"
 .Lpi_readonly: .asciz "read,grep,find,ls"
 .Lpi_session: .asciz "--session"
+
+.section .rodata
+.Lturn_id_key: .asciz "turnId"
+
+.section .rodata
+.Lno_rollout: .asciz "no rollout found for thread id "
+.Lno_rollout_end:
+.Lempty_recovered: .asciz "Codex empty conversation reopened; draft retained"

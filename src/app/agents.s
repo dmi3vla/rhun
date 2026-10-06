@@ -1794,6 +1794,24 @@ agents_chat_field:
     lea rax, [rip + chat_reply_input]
 1:  ret
 
+FN agents_chat_has_dialogue
+    xor ecx, ecx
+1:  cmp rcx, [rip + chat_session + AS_msgs + VEC_len]
+    jae 3f
+    imul rax, rcx, AM_SIZE
+    add rax, [rip + chat_session + AS_msgs + VEC_ptr]
+    mov eax, [rax + AM_role]
+    cmp eax, R_USER
+    je 2f
+    cmp eax, R_ASSIST
+    je 2f
+    inc rcx
+    jmp 1b
+2:  mov eax, 1
+    ret
+3:  xor eax, eax
+    ret
+
 FN agents_chat_answer_boundary
     mov qword ptr [rip + chat_answer_index], -1
     ret
@@ -1810,7 +1828,26 @@ FN agents_chat_event
     mov r12d, edi
     mov r13, rsi
     mov r14, rdx
-    cmp edi, R_USER
+    cmp r14, 1 << 20
+    ja .Lchat_transcript_full
+    xor ebx, ebx
+    mov r15, r14
+.Lchat_budget_loop:
+    cmp rbx, [rip + chat_session + AS_msgs + VEC_len]
+    jae .Lchat_budget_checked
+    cmp r12d, R_ASSIST
+    jne 11f
+    cmp rbx, [rip + chat_answer_index]
+    je 12f
+11: imul rax, rbx, AM_SIZE
+    add rax, [rip + chat_session + AS_msgs + VEC_ptr]
+    add r15, [rax + AM_len]
+12: inc rbx
+    jmp .Lchat_budget_loop
+.Lchat_budget_checked:
+    cmp r15, 8 << 20
+    ja .Lchat_transcript_full
+    cmp r12d, R_USER
     jne 1f
     mov qword ptr [rip + chat_answer_index], -1
 1:  cmp r12d, R_ASSIST
@@ -1831,7 +1868,9 @@ FN agents_chat_event
     jmp 9f
 2:  mov rax, [rip + chat_session + AS_msgs + VEC_len]
     mov [rip + chat_answer_index], rax
-3:  lea rdi, [rip + chat_session]
+3:  cmp qword ptr [rip + chat_session + AS_msgs + VEC_len], 2048
+    jae .Lchat_transcript_full
+    lea rdi, [rip + chat_session]
     mov esi, r12d
     mov rdx, r13
     mov rcx, r14
@@ -1893,6 +1932,13 @@ FN agents_chat_reset
     call tf_clear
     mov qword ptr [rip + view], -1
     mov dword ptr [rip + g_dirty], 1
+    EPILOGUE
+
+.Lchat_transcript_full:
+    call chat_shutdown
+    mov qword ptr [rip + chat_answer_index], -1
+    lea rdi, [rip + .Lchat_limit]
+    call app_toast
     EPILOGUE
 
 FN agents_chat_export
@@ -1998,6 +2044,11 @@ FN agents_chat_import
     jz 8f
     cmp rdx, 1024
     ja 8f
+    mov rdi, rax
+    mov rsi, rdx
+    call chat_text_valid
+    test eax, eax
+    jnz 8f
     mov rdi, r12
     lea rsi, [rip + .Lsave_draft_key]
     call json_get
@@ -2007,6 +2058,11 @@ FN agents_chat_import
     jz 8f
     cmp rdx, 65536
     ja 8f
+    mov rdi, rax
+    mov rsi, rdx
+    call chat_text_valid
+    test eax, eax
+    jnz 8f
     mov rdi, r12
     lea rsi, [rip + .Lsave_messages_key]
     call json_get
@@ -2054,6 +2110,11 @@ FN agents_chat_import
     add r14, rdx
     cmp r14, 8 << 20
     ja 8f
+    mov rdi, rax
+    mov rsi, rdx
+    call chat_text_valid
+    test eax, eax
+    jnz 8f
     inc rbx
     jmp 1b
 2:  lea rdi, [rip + chat_session]
@@ -3446,3 +3507,6 @@ th_follow: .long 1
 .Lpi_executable: .asciz "pi"
 .Lgrok_name: .asciz "Grok"
 .Lpi_name: .asciz "Pi"
+
+.section .rodata
+.Lchat_limit: .asciz "Chat transcript limit reached; start a new conversation"

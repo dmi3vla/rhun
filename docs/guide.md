@@ -567,14 +567,30 @@ Pi starts `pi --mode rpc --tools read,grep,find,ls`. Its native JSONL protocol
 provides streaming, cancellation, model selection and native session-file resume.
 Completion waits for `agent_settled`, including after intermediate `agent_end`.
 Extension confirmation and input/editor dialogs use explicit approval or a separate
-reply field. Select dialogs are cancelled; other extension UI updates are ignored.
+reply field. Select dialogs open a searchable native-option picker (up to 128
+options); replies are validated against the offered options. Dialog completion or
+Stop clears the owned picker. Other extension UI updates are ignored.
 Pi image input is not enabled. Its built-in tools are limited to reading; apply
 reviewed edits in rhun. CLI extensions execute under their own provider policy.
 
-Grok and Pi have deterministic protocol tests, but their CLIs are not installed
-on the development host. Native model workflows for these providers are unverified.
+Grok and Pi have deterministic protocol tests. The Grok CLI is absent on the
+development host. Pi 1.0.4 startup and native resume were checked through a
+temporary official CLI installation without sending a model prompt. Real Pi
+model/extension workflows and native Grok execution remain unverified.
 Claude remains optional. All interactive adapters currently require Unix transport;
 Windows returns unsupported rather than running a blocking chat transport.
 
 Protocol references: [Pi RPC](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/rpc.md),
 [Claudian Grok transport](https://github.com/YishenTu/claudian/blob/main/src/providers/grok/execution/GrokExecutionNativeConnection.ts).
+
+Codex does not materialize an empty thread's native rollout until its first turn.
+If resume reports that this rollout is missing and the local tab has no user or
+assistant messages, rhun reopens a fresh native thread while retaining its draft.
+A missing thread with an existing conversation produces an error and preserves
+the transcript; it never silently becomes a fresh conversation.
+
+Native smoke checks: `python3 tools/probe-live-chat.py --provider opencode` (or
+`codex`) starts/resumes an empty conversation through the assembly UI. Add
+`--prompt-turn` to send one tiny real model prompt in an empty temporary directory
+and then verify native resume. See [chat validation](chat-validation.md) for the
+verified versions, platform gates and remaining parity work.

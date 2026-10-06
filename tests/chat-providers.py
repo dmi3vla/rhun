@@ -38,10 +38,13 @@ for line in sys.stdin:
         text=msg['message']
         if text=='error':response(msg,False);continue
         response(msg,data={'disposition':'handled' if text=='handled' else 'started'})
+        if text=='foreign':emit({'id':'foreign','type':'response','command':'prompt','success':False});continue
+        if text=='tool':emit({'type':'tool_execution_end','toolName':'read','result':{'content':[{'type':'text','text':'Pi tool output'}]}})
         if text=='waiting':emit({'type':'agent_end'});continue
         if text=='handled':continue
         if text in ['confirm','input','select']:
-            emit({'type':'extension_ui_request','id':'request café','method':text,'title':'Native extension question'})
+            emit({'type':'extension_ui_request','id':'request café','method':text,'title':'Native extension question','options':['One','Two café']})
+            emit({'type':'extension_ui_request','id':'status update','method':'setStatus','text':'working'})
             continue
         finish(text)
 '''
@@ -77,6 +80,14 @@ class Pi(store.ChatStore):
     def setUp(self):
         super().setUp();cli=self.bin/'pi';cli.write_text(PI);cli.chmod(0o755)
     def run_pi(self,body):return self.run_editor('cmd chat_pi\nwait 500\n'+body)
+    def test_native_tool_result_is_rendered(self):
+        self.run_pi('type tool\nkey enter\nwait 300')
+        data=json.loads(self.state_path().read_text())
+        self.assertTrue(any('Pi tool output' in m['text'] for m in data['chats'][0]['messages']))
+    def test_foreign_error_does_not_finish_active_turn(self):
+        self.run_pi('type foreign\nkey enter\nwait 300\ntype Continued draft\nkey enter\nwait 100\ncmd chat_stop\nwait 300\nkey enter\nwait 300')
+        self.assertTrue(any(m['type']=='abort' for m in self.messages()))
+        self.assertEqual(sum(m['type']=='prompt' for m in self.messages()),2)
     def test_auto_prefers_installed_opencode(self):
         self.run_editor('cmd chat_auto\nwait 500')
         self.assertTrue(any(m.get('method')=='session/new' for m in self.messages()))
@@ -105,10 +116,19 @@ class Pi(store.ChatStore):
         self.run_pi('type input\nkey enter\nwait 300\ntype answer café\nkey enter\nwait 300')
         reply=next(m for m in self.messages() if m['type']=='extension_ui_response')
         self.assertEqual(reply['value'],'answer café')
-    def test_unsupported_selection_is_cancelled(self):
-        self.run_pi('type select\nkey enter\nwait 300')
+    def test_cancel_closes_owned_selection_picker(self):
+        out=self.run_pi('type select\nkey enter\nwait 300\ncmd chat_stop\nwait 300\nprint-palette\ntype Continue\nkey enter\nwait 300\nprint-agents')
+        self.assertIn('none',out);self.assertIn('agent Pi reply: Continue',out)
+        self.assertTrue(any(m.get('cancelled') for m in self.messages()))
+    def test_native_dialog_timeout_does_not_block_next_turn(self):
+        cli=self.bin/'pi'
+        cli.write_text(cli.read_text().replace("            emit({'type':'extension_ui_request','id':'status update'","            if text=='input':emit({'type':'agent_settled'});continue\n            emit({'type':'extension_ui_request','id':'status update'"))
+        out=self.run_pi('type input\nkey enter\nwait 300\ntype Continue\nkey enter\nwait 300\nprint-agents')
+        self.assertIn('agent Pi reply: Continue',out)
+    def test_selection_uses_native_option(self):
+        self.run_pi('type select\nkey enter\nwait 300\nkey down\nkey enter\nwait 300')
         reply=next(m for m in self.messages() if m['type']=='extension_ui_response')
-        self.assertTrue(reply['cancelled'])
+        self.assertEqual(reply['value'],'Two café')
     def test_stop_cancels_pending_input(self):
         self.run_pi('type input\nkey enter\nwait 300\ncmd chat_stop\nwait 300')
         self.assertTrue(any(m.get('cancelled') for m in self.messages()))

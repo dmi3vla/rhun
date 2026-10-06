@@ -242,8 +242,14 @@ FN chat_store_project
     test rax, rax
     jz 9f
     mov [rsp], rax
+    mov [rsp + 8], rdx
     mov rsi, rdx
     mov rdi, rax
+    call chat_text_valid
+    test eax, eax
+    jnz 8f
+    mov rdi, [rsp]
+    mov rsi, [rsp + 8]
     call json_parse_complete
     mov r12, rax
     test r12, r12

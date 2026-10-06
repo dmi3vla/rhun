@@ -6,9 +6,27 @@ models: .zero SB_SIZE
 notice: .zero SB_SIZE
 ui_id: .zero SB_SIZE
 ui_title: .zero SB_SIZE
+ui_choices: .zero SB_SIZE
+select_mode: .long 0
 .globl chat_pi_pending
 chat_pi_pending: .long 0
 .text
+FN chat_pi_clear_ui
+    PROLOGUE
+    mov dword ptr [rip + chat_pi_pending], 0
+    mov dword ptr [rip + select_mode], 0
+    lea rdi, [rip + select_chosen]
+    call palette_close_choose
+    test eax, eax
+    jz 1f
+    mov dword ptr [rip + g_focus], FOCUS_AGENTS
+1:  EPILOGUE
+FN chat_pi_label
+    mov rax, [rip + ui_title + SB_ptr]
+    test rax, rax
+    jnz 1f
+    lea rax, [rip + .Lquestion_hint]
+1:  ret
 FN chat_pi_prompt
     PROLOGUE
     mov r12, rdi
@@ -126,7 +144,9 @@ FN chat_pi_record
     cmp rdx, 15
     jb .Ldone
     mov rdi, rax
-    lea rsi, [rip + .Ltool_prefix]
+    mov rsi, rdx
+    lea rdx, [rip + .Ltool_prefix]
+    mov ecx, 15
     call str_starts
     test eax, eax
     jz .Ldone
@@ -217,6 +237,13 @@ FN chat_pi_record
     test eax, eax
     jz .Ldone
     mov rdi, r12
+    lea rsi, [rip + .Lprompt_response_id]
+    call response_id
+    test eax, eax
+    jz .Ldone
+    cmp dword ptr [rip + chat_runtime_state], 4
+    jne .Ldone
+    mov rdi, r12
     lea rsi, [rip + .Ldata]
     call json_get
     mov rdi, rax
@@ -230,11 +257,24 @@ FN chat_pi_record
     call ready
     jmp .Ldone
 .Lmodel_ack:
+    mov rdi, r12
+    lea rsi, [rip + .Lmodel_response_id]
+    call response_id
+    test eax, eax
+    jz .Ldone
     cmp dword ptr [rip + chat_runtime_state], 5
     jne .Ldone
     call ready
     jmp .Ldone
 .Lstate:
+    mov rdi, r12
+    lea rsi, [rip + .Linit_response_id]
+    cmp dword ptr [rip + chat_runtime_state], 1
+    je 11f
+    lea rsi, [rip + .Lstate_response_id]
+11: call response_id
+    test eax, eax
+    jz .Ldone
     mov rdi, r12
     lea rsi, [rip + .Ldata]
     call json_get
@@ -254,6 +294,11 @@ FN chat_pi_record
     call ready
     jmp .Ldone
 .Lmodel_catalog:
+    mov rdi, r12
+    lea rsi, [rip + .Lmodels_response_id]
+    call response_id
+    test eax, eax
+    jz .Ldone
     cmp dword ptr [rip + chat_runtime_state], 3
     jne .Ldone
     mov rdi, r12
@@ -316,9 +361,35 @@ FN chat_pi_record
     call palette_choose
     jmp .Ldone
 .Lui:
-    # One blocking extension dialog at a time; retain copied IDs and text.
+    # Fire-and-forget extension UI updates can arrive during a blocking dialog.
+    mov rdi, r12
+    lea rsi, [rip + .Lmethod]
+    call json_get
+    mov r14, rax
+    mov rdi, rax
+    lea rsi, [rip + .Lconfirm]
+    call json_is
+    test eax, eax
+    jnz 11f
+    mov rdi, r14
+    lea rsi, [rip + .Linput]
+    call json_is
+    test eax, eax
+    jnz 11f
+    mov rdi, r14
+    lea rsi, [rip + .Leditor]
+    call json_is
+    test eax, eax
+    jnz 11f
+    mov rdi, r14
+    lea rsi, [rip + .Lselect]
+    call json_is
+    test eax, eax
+    jz .Ldone
+11: # One blocking extension dialog at a time; retain copied IDs and text.
     cmp dword ptr [rip + chat_pi_pending], 0
     jne .Lbad
+    mov dword ptr [rip + select_mode], 0
     mov rdi, r12
     lea rsi, [rip + .Lid]
     call json_get
@@ -356,25 +427,109 @@ FN chat_pi_record
     test eax, eax
     jz 4f
 2:  mov dword ptr [rip + chat_pi_pending], 2
-3:  mov rdi, r12
+3:
+.Lui_show_title:
+    mov rdi, r12
     lea rsi, [rip + .Ltitle_key]
     call json_get
     mov rdi, rax
     call json_str
     test rax, rax
     jz .Ldone
-    mov rsi, rax
+    cmp rdx, 4096
+    ja .Lbad
+    mov r14, rax
+    mov r15, rdx
+    lea rdi, [rip + ui_title]
+    call sb_clear
+    lea rdi, [rip + ui_title]
+    mov rsi, r14
+    mov rdx, r15
+    call sb_push
+    mov rsi, r14
+    mov rdx, r15
     mov edi, 3
     call agents_chat_event
+    cmp dword ptr [rip + select_mode], 0
+    je .Ldone
+    mov rdi, [rip + ui_choices + SB_ptr]
+    lea rsi, [rip + select_chosen]
+    lea rdx, [rip + .Lselect_hint]
+    call palette_choose
     jmp .Ldone
 4:  mov rdi, r13
     lea rsi, [rip + .Lselect]
     call json_is
     test eax, eax
     jz .Ldone
+    jmp .Lselect_request
+.Lselect_request:
+    mov rdi, r12
+    lea rsi, [rip + .Loptions]
+    call json_get
+    mov r14, rax
+    mov rdi, rax
+    call json_len
+    test rax, rax
+    jz .Lcancel_select
+    cmp rax, 128
+    ja .Lcancel_select
+    lea rdi, [rip + ui_choices]
+    call sb_clear
+    xor ebx, ebx
+1:  mov rdi, r14
+    call json_len
+    cmp rbx, rax
+    jae 3f
+    mov rdi, r14
+    mov rsi, rbx
+    call json_at
+    mov rdi, rax
+    call json_str
+    test rdx, rdx
+    jz .Lcancel_select
+    cmp rdx, 1024
+    ja .Lcancel_select
+    xor ecx, ecx
+2:  cmp rcx, rdx
+    jae 21f
+    cmp byte ptr [rax + rcx], 10
+    je .Lcancel_select
+    cmp byte ptr [rax + rcx], 13
+    je .Lcancel_select
+    cmp byte ptr [rax + rcx], 0
+    je .Lcancel_select
+    inc rcx
+    jmp 2b
+21: lea rdi, [rip + ui_choices]
+    mov rsi, rax
+    call sb_push
+    lea rdi, [rip + ui_choices]
+    mov esi, 10
+    call sb_push_byte
+    inc rbx
+    jmp 1b
+3:  mov dword ptr [rip + select_mode], 1
+    mov dword ptr [rip + chat_pi_pending], 2
+    jmp .Lui_show_title
+.Lcancel_select:
     call cancel_ui
     jmp .Ldone
 .Lerror:
+    mov rdi, r12
+    lea rsi, [rip + .Lprompt_response_id]
+    cmp dword ptr [rip + chat_runtime_state], 4
+    je 11f
+    lea rsi, [rip + .Lmodel_response_id]
+    cmp dword ptr [rip + chat_runtime_state], 5
+    je 11f
+    lea rsi, [rip + .Linit_response_id]
+    cmp dword ptr [rip + chat_runtime_state], 1
+    je 11f
+    lea rsi, [rip + .Lmodels_response_id]
+11: call response_id
+    test eax, eax
+    jz .Ldone
     cmp dword ptr [rip + chat_runtime_state], 1
     je .Lbad
     call ready
@@ -388,12 +543,23 @@ FN chat_pi_record
 .Ldone:
     mov dword ptr [rip + g_dirty], 1
     EPILOGUE
+response_id:
+    PROLOGUE
+    mov rbx, rsi
+    lea rsi, [rip + .Lid]
+    call json_get
+    mov rdi, rax
+    mov rsi, rbx
+    call json_is
+    EPILOGUE
 ready:
+    PROLOGUE
+    call chat_pi_clear_ui
     mov dword ptr [rip + chat_runtime_state], 3
     mov dword ptr [rip + chat_runtime_stop], 0
     lea rax, [rip + .Lready]
     mov [rip + chat_runtime_status], rax
-    ret
+    EPILOGUE
 ui_prefix:
     PROLOGUE
     lea rdi, [rip + chat_runtime_request]
@@ -411,7 +577,7 @@ cancel_ui:
     lea rdi, [rip + .Lcancelled]
     call chat_runtime_append
     call chat_runtime_send
-    mov dword ptr [rip + chat_pi_pending], 0
+    call chat_pi_clear_ui
     EPILOGUE
 FN chat_pi_decide
     PROLOGUE
@@ -435,7 +601,14 @@ FN chat_pi_answer
     jne 9f
     cmp r13, 65536
     ja 9f
-    call ui_prefix
+    cmp dword ptr [rip + select_mode], 0
+    je 11f
+    mov rdi, r12
+    mov rsi, r13
+    call is_choice
+    test eax, eax
+    jz 9f
+11: call ui_prefix
     lea rdi, [rip + .Lvalue]
     call chat_runtime_append
     lea rdi, [rip + chat_runtime_request]
@@ -452,6 +625,42 @@ FN chat_pi_answer
     EPILOGUE
 9:  xor eax, eax
     EPILOGUE
+select_chosen:
+    PROLOGUE
+    mov r12, rdi
+    call strlen
+    mov rsi, rax
+    mov rdi, r12
+    call chat_pi_answer
+    mov dword ptr [rip + g_focus], FOCUS_AGENTS
+    EPILOGUE
+is_choice:
+    PROLOGUE
+    mov r12, rdi
+    mov r13, rsi
+    xor r14d, r14d
+1:  cmp r14, [rip + ui_choices + SB_len]
+    jae 8f
+    mov r15, r14
+    mov rbx, [rip + ui_choices + SB_ptr]
+2:  cmp byte ptr [rbx + r15], 10
+    je 3f
+    inc r15
+    jmp 2b
+3:  mov rax, r15
+    sub rax, r14
+    cmp rax, r13
+    jne 4f
+    lea rdi, [rbx + r14]
+    mov rsi, r12
+    mov rdx, r13
+    call memeq
+    test eax, eax
+    jnz 9f
+4:  lea r14, [r15 + 1]
+    jmp 1b
+8:  xor eax, eax
+9:  EPILOGUE
 .section .rodata
 .globl pi_initialize_packet
 pi_initialize_packet: .asciz "{\"id\":\"init\",\"type\":\"get_state\"}\n"
@@ -502,3 +711,17 @@ pi_initialize_packet: .asciz "{\"id\":\"init\",\"type\":\"get_state\"}\n"
 
 .section .rodata
 .Lselect: .asciz "select"
+
+.section .rodata
+.Linit_response_id: .asciz "init"
+.Lstate_response_id: .asciz "state"
+.Lmodel_response_id: .asciz "model"
+.Lmodels_response_id: .asciz "models"
+.Lprompt_response_id: .asciz "prompt"
+
+.section .rodata
+.Lquestion_hint: .asciz "Pi extension awaits an explicit response"
+
+.section .rodata
+.Loptions: .asciz "options"
+.Lselect_hint: .asciz "Choose Pi extension response"
