@@ -26,7 +26,7 @@ Sources:
 | Codex | app-server, newline-delimited JSON RPC over stdio | Installed 0.160.1; handshake probe | Turns, approvals, resume, cancellation |
 | Claude | CLI stream-json input/output | CLI absent | Control/permission protocol must be verified before enabling tools |
 | Grok Build | ACP | CLI absent | Version, handshake and capability matrix |
-| OpenCode | v2 HTTP/events; v1 ACP compatibility later | Installed v2.0.24; CLI flags verified | Owned server lifecycle, readiness, events, permission/forms and resume |
+| OpenCode | ACP stdio, verified against installed v2 | v2.0.24 initialize and session/new passed | Real model turns, saved-session resume, model selection and native forms |
 | Pi | RPC | CLI absent | Version, handshake and capability matrix |
 
 Codex initialization precedes initialized, thread/start and turn/start. Store the
@@ -89,12 +89,22 @@ missing interactive permission implementation.
   executable/model/effort settings, model catalog and recoverable turn errors.
   Seventeen mock-runtime tests cover these interactions. Secret input, tool/diff
   rendering and equivalent OpenCode behavior remain acceptance gates.
+- OpenCode MVP milestone: owned `opencode acp` runtime; explicit new-chat
+  command; session creation, fragmented text streaming, follow-up, native cancel,
+  once-only permission options and queued cancellation outcomes. Model catalog
+  handles both legacy models and configOptions with grouped values. Eleven mock CLI
+  scenarios pass. Installed v2.0.24 initialize/session/new probes pass without a
+  model turn. Codex regression: 17 tests; settings: 11 tests. Windows transport,
+  native macOS execution, paid model turns, native question forms, model selection
+  and persistence remain unverified or pending.
 - Phases 4–8: pending. This is not yet full Claudian parity.
 - Updated next-provider sequence: OpenCode v2 runtime lifecycle and HTTP/event
-  transport, then new session/send/stream/follow-up/interrupt, then permission
+  transport was the initial candidate. The installed v2.0.24 also supports ACP;
+  use its verified ACP stdio endpoint for the first adapter, then add native
   forms and model selection. Reuse the existing assembly composer and owned
   interaction queue; preserve Codex behavior. Claudian selects HTTP for OpenCode
-  v2 and ACP for v1, so a generic ACP-only adapter is not the v2 implementation.
+  v2 and ACP for v1. rhun currently uses the locally verified v2 ACP endpoint;
+  HTTP-specific features are not yet reproduced.
 - Local Git author was resolved through gh: dmi3vla, with GitHub's ID-based
   noreply address. No remote is configured. Specification, Unix transport and
   the initial Codex interface are recorded as separate commits; remaining gates

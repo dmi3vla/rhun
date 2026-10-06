@@ -8,7 +8,7 @@ F AS_mtime, 8
 F AS_off, 8             # bytes parsed
 F AS_msgs, VEC_SIZE     # AM
 F AS_part, SB_SIZE      # incomplete trailing line
-F AS_kind, 4            # 1 claude, 2 codex
+F AS_kind, 4            # 1 claude, 2 codex, 3 interactive opencode
 F AS_loaded, 4          # messages parsed (opened at least once)
 F AS_titled, 4          # has a custom title
 F AS_pad, 4
@@ -1609,7 +1609,12 @@ FN agents_key
     ret
 
 # New chat owns a synthetic session; external native histories remain separate.
+FN cmd_chat_new_opencode
+    mov dword ptr [rip + chat_requested_provider], 1
+    jmp .Lnew_provider
 FN cmd_chat_new
+    mov dword ptr [rip + chat_requested_provider], 0
+.Lnew_provider:
     PROLOGUE
     call chat_start
     test eax, eax
@@ -1618,6 +1623,11 @@ FN cmd_chat_new
     call session_clear_msgs
     mov dword ptr [rip + chat_session + AS_kind], 2
     lea rax, [rip + .Lchat_title]
+    cmp dword ptr [rip + chat_requested_provider], 1
+    jne 1f
+    lea rax, [rip + .Lopencode_chat_title]
+    mov dword ptr [rip + chat_session + AS_kind], 3
+1:
     mov [rip + chat_session + AS_title], rax
     mov qword ptr [rip + chat_answer_index], -1
     mov qword ptr [rip + view], -2
@@ -1862,7 +1872,13 @@ agent_badge:
     jne 1f
     COLOR ebx, T_SUCCESS        # some themes share their warning and accent colors
 1:
-    cmp edi, 2
+    cmp edi, 3
+    jne 2f
+    lea r15, [rip + .Lopencode_name]
+    mov dword ptr [rsp], IC_TERMINAL
+    COLOR ebx, T_ACCENT
+    jmp 3f
+2:  cmp edi, 2
     jne 3f
     lea r15, [rip + .Lcodex_name]
     mov dword ptr [rsp], IC_OPENAI
@@ -2806,8 +2822,10 @@ draw_msg:
     EPILOGUE
 
 .section .rodata
+.Lopencode_name: .asciz "OpenCode"
+.Lopencode_chat_title: .asciz "OpenCode chat"
 .Lchat_title: .asciz "Codex chat"
-.Lchat_placeholder: .asciz "Message Codex (Shift+Enter for newline)"
+.Lchat_placeholder: .asciz "Message agent (Shift+Enter for newline)"
 .Lchat_approve: .asciz "Approve once"
 .Lchat_reject: .asciz "Reject"
 .Lhome: .asciz "HOME"

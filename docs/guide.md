@@ -344,8 +344,7 @@ and unsupported interactions receive an explicit error without granting access.
 
 Settings under Agents accept an optional Codex executable path, model and
 reasoning effort. **Chat: List Available Models** displays the installed server's
-model catalog. Saved chat tabs, file diffs, other interactive providers and native
-Windows transport remain pending.
+model catalog. Saved chat tabs, file diffs and native Windows transport remain pending.
 
 Implementation phases and protocol validation are tracked in
 [chat-roadmap.md](chat-roadmap.md).
@@ -471,3 +470,27 @@ Porting to another platform means another file in `src/plat/` that fills the pla
 ## License
 
 MIT, see [LICENSE](../LICENSE). The built-in Iosevka font is under the SIL Open Font License ([assets/fonts/LICENSE-Iosevka.md](../assets/fonts/LICENSE-Iosevka.md)).
+
+### Interactive OpenCode chat (Linux MVP)
+
+Install and configure OpenCode in your terminal, then open a project and run
+**Chat: New OpenCode Conversation**. The installed `opencode acp` CLI owns the
+session, model and authentication. An optional **OpenCode CLI path** is available
+in Agents settings. The Codex model/effort settings apply only to Codex.
+
+The composer supports streaming text, follow-up messages and stopping a turn
+without disconnecting. Permission requests show **Approve once** and **Reject**;
+only the provider's once-only options are used. Stopping a turn cancels pending
+permission requests. Unsupported client interactions receive an explicit error.
+**Chat: List Available Models** displays the advertised model catalog; selecting
+a model inside rhun and OpenCode-specific question forms are still pending.
+
+Creating a new conversation with the other provider replaces the current live
+chat. Switching providers during an active turn is rejected. The existing native
+history browser continues to show Claude and Codex history; OpenCode history and
+saved chat tabs will be added during the persistence phase.
+
+The current adapter uses ACP stdio, tested with OpenCode 2.0.24. It does not yet
+reproduce Claudian's OpenCode v2 HTTP-specific behavior. Run
+`python3 tools/probe-opencode-chat.py` for an initialization probe, or add
+`--new-session` to create an empty native session without sending a model prompt.

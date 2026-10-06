@@ -520,6 +520,7 @@ g_commands:
     COMMAND feedback, "Send Feedback or Report a Bug", cmd_feedback, ""
     COMMAND focus_agents, "Focus Agents Panel", cmd_focus_agents, ""
     COMMAND chat_new, "Chat: New Codex Conversation", cmd_chat_new, ""
+    COMMAND chat_opencode, "Chat: New OpenCode Conversation", cmd_chat_new_opencode, ""
     COMMAND chat_focus, "Chat: Focus Conversation", cmd_chat_focus, ""
     COMMAND chat_stop, "Chat: Stop Conversation", chat_stop, ""
     COMMAND chat_disconnect, "Chat: Close Runtime", chat_disconnect, ""

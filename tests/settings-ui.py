@@ -47,6 +47,7 @@ STRINGS = {
     ('terminal', 'shell'): 'missing shell café', ('git', 'commit_model'): 'model:café',
     ('agents', 'model'): 'chat-model:café', ('agents', 'effort'): 'high',
     ('agents', 'codex_cli'): '/tmp/cli path café',
+    ('agents', 'opencode_cli'): '/tmp/opencode path café',
 }
 CHOICES = {('ui', 'decorations'): ('auto', 'client', 'server'),
            ('git', 'commit_ai'): ('off', 'claude', 'codex', 'ollama')}

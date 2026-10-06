@@ -2,6 +2,10 @@
 .include "rhun.inc"
 .bss
 .p2align 3
+# Provider is frozen for the lifetime of the owned process.
+.globl chat_provider, chat_requested_provider
+chat_provider: .long 0         # 0 Codex, 1 OpenCode ACP
+chat_requested_provider: .long 0
 channel: .zero CP_SIZE
 partial: .zero SB_SIZE
 request: .zero SB_SIZE
@@ -11,6 +15,7 @@ thread_id: .quad 0
 turn_id: .quad 0
 stop_requested: .long 0
 restart_requested: .long 0
+restart_provider: .long 0
 stop_deadline: .quad 0
 cli: .quad 0
 state: .long 0                # 0 closed, 1 init, 2 thread, 3 ready, 4 turn
@@ -81,10 +86,14 @@ FN chat_start
     cmp dword ptr [rip + state], 3
     jne .Lstart_busy
     call chat_shutdown
+    mov eax, [rip + chat_requested_provider]
+    mov [rip + restart_provider], eax
     mov dword ptr [rip + restart_requested], 1
     xor eax, eax
     EPILOGUE
 .Lstart_idle:
+    mov eax, [rip + chat_requested_provider]
+    mov [rip + chat_provider], eax
     mov rdi, [rip + cli]
     call mem_free
     lea rdi, [rip + .Lcodex]
@@ -93,7 +102,14 @@ FN chat_start
     je 1f
     mov rdi, rax
 1:
-    call proc_which
+    cmp dword ptr [rip + chat_provider], 1
+    jne 2f
+    lea rdi, [rip + .Lopencode]
+    mov rax, [rip + cfg_opencode_cli]
+    cmp byte ptr [rax], 0
+    je 2f
+    mov rdi, rax
+2:  call proc_which
     mov [rip + cli], rax
     test rax, rax
     jz .Lstart_missing
@@ -105,6 +121,12 @@ FN chat_start
     lea rax, [rip + .Lstdio]
     mov [rip + argv + 24], rax
     mov qword ptr [rip + argv + 32], 0
+    cmp dword ptr [rip + chat_provider], 1
+    jne 3f
+    lea rax, [rip + .Lacp]
+    mov [rip + argv + 8], rax
+    mov qword ptr [rip + argv + 16], 0
+3:
     mov rdi, [rip + thread_id]
     call mem_free
     mov qword ptr [rip + thread_id], 0
@@ -129,7 +151,10 @@ FN chat_start
     add rax, 15000
     mov [rip + deadline], rax
     lea rdi, [rip + .Linitialize]
-    call send_cstr
+    cmp dword ptr [rip + chat_provider], 1
+    jne 4f
+    lea rdi, [rip + acp_initialize_packet]
+4:  call send_cstr
     test rax, rax
     js .Lstart_failed
     xor eax, eax
@@ -198,7 +223,13 @@ FN chat_send
     jnz 8f
     lea rdi, [rip + request]
     call sb_clear
-    lea rdi, [rip + .Lturn_prefix]
+    cmp dword ptr [rip + chat_provider], 1
+    jne 7f
+    mov rdi, r12
+    mov rsi, r13
+    call chat_acp_prompt
+    jmp .Lqueued_turn
+7:  lea rdi, [rip + .Lturn_prefix]
     call append
     mov rdi, [rip + thread_id]
     call quote_cstr
@@ -227,6 +258,7 @@ FN chat_send
     lea rdi, [rip + .Lturn_suffix]
     call append
     call send_request
+.Lqueued_turn:
     test rax, rax
     js 8f
     lea rdi, [rip + answer]
@@ -260,7 +292,14 @@ FN chat_stop
     mov [rip + stop_deadline], rax
     lea rax, [rip + .Lstopping]
     mov [rip + status], rax
-    cmp qword ptr [rip + turn_id], 0
+    cmp dword ptr [rip + chat_provider], 1
+    jne 1f
+    call chat_acp_cancel
+    test rax, rax
+    jns 9f
+    call chat_shutdown
+    jmp 9f
+1:  cmp qword ptr [rip + turn_id], 0
     je 9f
     call interrupt_turn
 9:
@@ -271,6 +310,8 @@ FN chat_disconnect
     jmp chat_shutdown
 
 FN chat_list_models
+    cmp dword ptr [rip + chat_provider], 1
+    je chat_acp_models
     cmp dword ptr [rip + state], 3
     jne 1f
     lea rdi, [rip + .Lmodels_request]
@@ -332,6 +373,8 @@ capture_turn:
 
 # Consume one protocol line. The JSON arena cannot survive another json_parse.
 on_record:
+    cmp dword ptr [rip + chat_provider], 1
+    je chat_acp_record
     PROLOGUE
     mov r14, rdi
     mov r15, rsi
@@ -690,30 +733,34 @@ FN chat_tick
     cmp dword ptr [rip + restart_requested], 0
     je .Ltick_done
     mov dword ptr [rip + restart_requested], 0
+    mov eax, [rip + restart_provider]
+    mov [rip + chat_requested_provider], eax
     call chat_start
 .Ltick_done:
     EPILOGUE
 
 .section .rodata
+.Lopencode: .asciz "opencode"
+.Lacp: .asciz "acp"
 .Lcodex: .asciz "codex"
 .Lserver: .asciz "app-server"
 .Llisten: .asciz "--listen"
 .Lstdio: .asciz "stdio://"
-.Lclosed: .asciz "Start a new Codex chat"
-.Lconnecting: .asciz "Connecting to Codex..."
+.Lclosed: .asciz "Start a new agent chat"
+.Lconnecting: .asciz "Connecting to agent..."
 .Lready: .asciz "Codex ready"
-.Lworking: .asciz "Codex is working..."
+.Lworking: .asciz "Agent is working..."
 .Lanswer_wait: .asciz "Waiting for your answer to the question above"
 .Lstopping: .asciz "Stopping current turn..."
 .Lstopped: .asciz "Turn stopped. You can continue this conversation."
 .Lfailed: .asciz "Turn failed or interrupted"
 .Lclosing: .asciz "Previous chat is closing. Try again shortly."
-.Lmissing: .asciz "Codex CLI not found in PATH"
+.Lmissing: .asciz "Selected agent CLI not found; check PATH or its CLI setting"
 .Lnoproject: .asciz "Open a project folder first"
-.Llaunch_failed: .asciz "Could not start Codex chat on this platform"
+.Llaunch_failed: .asciz "Could not start agent chat on this platform"
 .Lrpc_failed: .asciz "Codex returned an error. Check CLI sign-in/configuration."
 .Lprotocol_failed: .asciz "Invalid or oversized Codex protocol message"
-.Lconnection_lost: .asciz "Codex connection closed or initialization timed out"
+.Lconnection_lost: .asciz "Agent connection closed or initialization timed out"
 .Lmethod: .asciz "method"
 .Lparams: .asciz "params"
 .Lresult: .asciz "result"
@@ -749,3 +796,15 @@ FN chat_tick
 .Linterrupt_prefix: .asciz "{\"id\":\"interrupt\",\"method\":\"turn/interrupt\",\"params\":{\"threadId\":"
 .Lturn_id_prefix: .asciz ",\"turnId\":"
 .Lobject_suffix: .asciz "}}\n"
+
+.globl chat_runtime_state, chat_runtime_status, chat_runtime_session, chat_runtime_answer
+.set chat_runtime_state, state
+.set chat_runtime_status, status
+.set chat_runtime_session, thread_id
+.set chat_runtime_answer, answer
+.globl chat_runtime_request, chat_runtime_stop, chat_runtime_append, chat_runtime_quote, chat_runtime_send
+.set chat_runtime_request, request
+.set chat_runtime_stop, stop_requested
+.set chat_runtime_append, append
+.set chat_runtime_quote, quote_cstr
+.set chat_runtime_send, send_request

@@ -15,6 +15,10 @@ rpc_id: .zero SB_SIZE
 summary: .zero SB_SIZE
 reply: .zero SB_SIZE
 answers: .zero SB_SIZE
+acp_is_permission: .long 0
+.p2align 3
+acp_allow: .zero SB_SIZE
+acp_reject: .zero SB_SIZE
 .text
 FN chat_pending_kind
     mov eax, [rip + kind]
@@ -178,6 +182,7 @@ FN chat_interaction_receive
 # Activate next queued request. All borrowed fields are consumed before return.
 activate:
     PROLOGUE
+    mov dword ptr [rip + acp_is_permission], 0
     call clear_questions
     lea rdi, [rip + summary]
     call sb_clear
@@ -209,6 +214,8 @@ activate:
     lea rsi, [rip + .Lmethod]
     call json_get
     mov r12, rax
+    cmp dword ptr [rip + chat_provider], 1
+    je .Lacp_request
     mov rdi, rax
     lea rsi, [rip + .Lcommand_method]
     call json_is
@@ -225,6 +232,102 @@ activate:
     test eax, eax
     jnz .Lquestions
     jmp .Lunsupported
+# ACP permission options are opaque IDs. Only offer explicit once decisions.
+.Lacp_request:
+    mov rdi, r12
+    lea rsi, [rip + .Lacp_permission]
+    call json_is
+    test eax, eax
+    jz .Lunsupported
+    mov dword ptr [rip + acp_is_permission], 1
+    mov rdi, r13
+    lea rsi, [rip + .Lacp_session]
+    call json_get
+    mov rdi, rax
+    mov rsi, [rip + chat_runtime_session]
+    test rsi, rsi
+    jz .Lunsupported
+    call json_is
+    test eax, eax
+    jz .Lunsupported
+    mov rdi, r13
+    lea rsi, [rip + .Lacp_tool]
+    call json_get
+    mov rbx, rax
+    lea rdi, [rip + summary]
+    lea rsi, [rip + .Lacp_title]
+    call sb_push_cstr
+    mov rdi, rbx
+    lea rsi, [rip + .Lacp_title_key]
+    lea rdx, [rip + .Lnewline]
+    call summary_field
+    mov rdi, rbx
+    lea rsi, [rip + .Lacp_input]
+    call json_get
+    mov rdi, rax
+    lea rsi, [rip + .Lcommand_key]
+    lea rdx, [rip + .Lnewline]
+    call summary_field
+    lea rdi, [rip + acp_allow]
+    call sb_clear
+    lea rdi, [rip + acp_reject]
+    call sb_clear
+    mov rdi, r13
+    lea rsi, [rip + .Loptions]
+    call json_get
+    mov r12, rax
+    xor r14d, r14d
+.Lacp_option_loop:
+    mov rdi, r12
+    call json_len
+    cmp r14, rax
+    jae .Lacp_options_done
+    cmp r14, 32
+    jae .Lunsupported
+    mov rdi, r12
+    mov rsi, r14
+    call json_at
+    mov r13, rax
+    mov rdi, rax
+    lea rsi, [rip + .Lacp_kind]
+    call json_get
+    mov rbx, rax
+    mov rdi, rax
+    lea rsi, [rip + .Lallow_once]
+    call json_is
+    test eax, eax
+    lea r15, [rip + acp_allow]
+    jnz .Lacp_option_id
+    mov rdi, rbx
+    lea rsi, [rip + .Lreject_once]
+    call json_is
+    test eax, eax
+    jz .Lacp_next_option
+    lea r15, [rip + acp_reject]
+.Lacp_option_id:
+    cmp qword ptr [r15 + SB_len], 0
+    jne .Lacp_next_option
+    mov rdi, r13
+    lea rsi, [rip + .Loption_id]
+    call json_get
+    mov rdi, rax
+    call json_str
+    test rdx, rdx
+    jz .Lunsupported
+    mov rdi, r15
+    mov rsi, rax
+    call chat_json_quote
+.Lacp_next_option:
+    inc r14
+    jmp .Lacp_option_loop
+.Lacp_options_done:
+    cmp qword ptr [rip + acp_allow + SB_len], 0
+    je .Lunsupported
+    cmp qword ptr [rip + acp_reject + SB_len], 0
+    je .Lunsupported
+    mov dword ptr [rip + kind], 1
+    call show_summary
+    jmp .Lok
 .Lcommand:
     lea rdi, [rip + summary]
     lea rsi, [rip + .Lcommand_title]
@@ -348,7 +451,10 @@ activate:
     call reply_prefix
     lea rdi, [rip + reply]
     lea rsi, [rip + .Lunsupported_reply]
-    call sb_push_cstr
+    cmp dword ptr [rip + acp_is_permission], 0
+    je 1f
+    lea rsi, [rip + .Lacp_cancelled]
+1:  call sb_push_cstr
     call send_reply
     test rax, rax
     js .Linvalid
@@ -374,7 +480,10 @@ reply_prefix:
     call sb_clear
     lea rdi, [rip + reply]
     lea rsi, [rip + .Lreply_prefix]
-    call sb_push_cstr
+    cmp dword ptr [rip + chat_provider], 1
+    jne 1f
+    lea rsi, [rip + .Lacp_reply_prefix]
+1:  call sb_push_cstr
     lea rdi, [rip + reply]
     mov rsi, [rip + rpc_id + SB_ptr]
     mov rdx, [rip + rpc_id + SB_len]
@@ -422,12 +531,15 @@ FN chat_interaction_decide
     jne 9f
     mov ebx, edi
     call reply_prefix
+    cmp dword ptr [rip + chat_provider], 1
+    je .Lacp_decision
     lea rsi, [rip + .Ldecline]
     test ebx, ebx
     jz 1f
     lea rsi, [rip + .Laccept]
 1:  lea rdi, [rip + reply]
     call sb_push_cstr
+.Ldecision_send:
     call send_reply
     test rax, rax
     js .Ldecision_failed
@@ -435,8 +547,45 @@ FN chat_interaction_decide
     call activate
     mov dword ptr [rip + g_dirty], 1
 9:  EPILOGUE
+.Lacp_decision:
+    lea rdi, [rip + reply]
+    lea rsi, [rip + .Lacp_selected]
+    call sb_push_cstr
+    lea rax, [rip + acp_reject]
+    test ebx, ebx
+    jz 1f
+    lea rax, [rip + acp_allow]
+1:  lea rdi, [rip + reply]
+    mov rsi, [rax + SB_ptr]
+    mov rdx, [rax + SB_len]
+    call sb_push
+    lea rdi, [rip + reply]
+    lea rsi, [rip + .Lacp_selected_end]
+    call sb_push_cstr
+    jmp .Ldecision_send
 .Ldecision_failed:
     call chat_shutdown
+    EPILOGUE
+
+FN chat_acp_cancel_permissions
+    PROLOGUE
+1:  cmp dword ptr [rip + kind], 1
+    jne 9f
+    call reply_prefix
+    lea rdi, [rip + reply]
+    lea rsi, [rip + .Lacp_cancelled]
+    call sb_push_cstr
+    call send_reply
+    test rax, rax
+    js 8f
+    call release_front
+    call activate
+    test eax, eax
+    js 8f
+    jmp 1b
+8:  mov eax, -1
+    EPILOGUE
+9:  xor eax, eax
     EPILOGUE
 
 FN chat_interaction_answer
@@ -541,3 +690,19 @@ FN chat_interaction_answer
 .Lunsupported_reply: .asciz ",\"error\":{\"code\":-32601,\"message\":\"Interaction not supported by rhun\"}}\n"
 .Lunsupported_text: .asciz "Unsupported provider interaction (or secret input). Request declined."
 .Lunsupported_text_end:
+
+.section .rodata
+.Lacp_permission: .asciz "session/request_permission"
+.Lacp_session: .asciz "sessionId"
+.Lacp_tool: .asciz "toolCall"
+.Lacp_title_key: .asciz "title"
+.Lacp_input: .asciz "rawInput"
+.Lacp_kind: .asciz "kind"
+.Loption_id: .asciz "optionId"
+.Lallow_once: .asciz "allow_once"
+.Lreject_once: .asciz "reject_once"
+.Lacp_title: .asciz "OpenCode requests permission:"
+.Lacp_reply_prefix: .asciz "{\"jsonrpc\":\"2.0\",\"id\":"
+.Lacp_selected: .asciz ",\"result\":{\"outcome\":{\"outcome\":\"selected\",\"optionId\":"
+.Lacp_selected_end: .asciz "}}}\n"
+.Lacp_cancelled: .asciz ",\"result\":{\"outcome\":{\"outcome\":\"cancelled\"}}}\n"
