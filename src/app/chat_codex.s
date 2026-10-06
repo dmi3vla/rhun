@@ -15,6 +15,7 @@ model_picker: .long 0
 .p2align 3
 thread_id: .quad 0
 turn_id: .quad 0
+answer_item: .quad 0
 stop_requested: .long 0
 restart_requested: .long 0
 restart_provider: .long 0
@@ -245,6 +246,11 @@ FN chat_send
     call chat_pending_kind
     test eax, eax
     jnz 8f
+    mov rdi, r12
+    mov rsi, r13
+    call chat_context_prepare
+    test eax, eax
+    js 8f
     lea rdi, [rip + request]
     call sb_clear
     cmp dword ptr [rip + chat_provider], 1
@@ -279,7 +285,10 @@ FN chat_send
     mov rsi, r12
     mov rdx, r13
     call chat_json_quote
-    lea rdi, [rip + .Lturn_suffix]
+    lea rdi, [rip + .Ltext_end]
+    call append
+    call chat_context_images
+    lea rdi, [rip + .Larray_end]
     call append
     call send_request
 .Lqueued_turn:
@@ -290,6 +299,9 @@ FN chat_send
     mov rdi, [rip + turn_id]
     call mem_free
     mov qword ptr [rip + turn_id], 0
+    mov rdi, [rip + answer_item]
+    call mem_free
+    mov qword ptr [rip + answer_item], 0
     mov dword ptr [rip + stop_requested], 0
     mov dword ptr [rip + state], 4
     lea rax, [rip + .Lworking]
@@ -620,6 +632,16 @@ on_record:
     call capture_turn
     jmp .Lrecord_done
 3:  mov rdi, r12
+    lea rsi, [rip + .Litem_started]
+    call json_is
+    test eax, eax
+    jnz .Ltool_item
+    mov rdi, r12
+    lea rsi, [rip + .Litem_completed]
+    call json_is
+    test eax, eax
+    jnz .Ltool_item
+    mov rdi, r12
     lea rsi, [rip + .Ldelta_method]
     call json_is
     test eax, eax
@@ -635,10 +657,42 @@ on_record:
     test eax, eax
     jnz .Lrpc_error
     jmp .Lrecord_done
+.Ltool_item:
+    mov rdi, r13
+    lea rsi, [rip + .Litem_key]
+    call json_get
+    mov rdi, rax
+    call chat_render_codex_tool
+    jmp .Lrecord_done
 .Ldelta:
     cmp dword ptr [rip + state], 4
     jne .Lrecord_done
     mov rdi, r13
+    lea rsi, [rip + .Litem_id_key]
+    call json_get
+    mov r14, rax
+    mov rsi, [rip + answer_item]
+    test rsi, rsi
+    jz 1f
+    mov rdi, r14
+    call json_is
+    test eax, eax
+    jnz 2f
+1:  mov rdi, r14
+    call json_str
+    test rdx, rdx
+    jz 2f
+    mov rdi, rax
+    mov rsi, rdx
+    call mem_dup
+    mov r14, rax
+    mov rdi, [rip + answer_item]
+    call mem_free
+    mov [rip + answer_item], r14
+    lea rdi, [rip + answer]
+    call sb_clear
+    call agents_chat_answer_boundary
+2:  mov rdi, r13
     lea rsi, [rip + .Ldelta_key]
     call json_get
     mov rdi, rax
@@ -899,3 +953,11 @@ FN chat_tick
 .Lrestored: .asciz "Saved chat restored. Use Chat: Resume Conversation to reconnect."
 .Lresume_prefix: .asciz "{\"id\":\"thread\",\"method\":\"thread/resume\",\"params\":{\"threadId\":"
 .Lresume_cwd: .asciz ",\"cwd\":"
+
+.Ltext_end: .asciz "}"
+.Larray_end: .asciz "]}}\n"
+
+.Litem_started: .asciz "item/started"
+.Litem_completed: .asciz "item/completed"
+.Litem_key: .asciz "item"
+.Litem_id_key: .asciz "itemId"

@@ -97,7 +97,7 @@ missing interactive permission implementation.
   model turn. Codex regression: 17 tests; settings: 11 tests. Windows transport,
   native macOS execution, paid model turns, native question forms, model selection
   and persistence remain unverified or pending.
-- Phases 4–8: pending. This is not yet full Claudian parity.
+- Phases 4 and 5 have local milestones below. Remaining gates are tracked explicitly; full Claudian parity is not claimed.
 - Updated next-provider sequence: OpenCode v2 runtime lifecycle and HTTP/event
   transport was the initial candidate. The installed v2.0.24 also supports ACP;
   use its verified ACP stdio endpoint for the first adapter, then add native
@@ -119,3 +119,11 @@ missing interactive permission implementation.
   drafts and native IDs; explicit Codex/OpenCode resume; coalesced autosave and
   crash recovery; tab selector and close/next/previous commands. Ten persistence
   scenarios include abrupt process termination and corrupt-state retention.
+
+- Phase 5 milestone: project file picker and @ mentions; exact unsaved buffer and
+  selection context; PNG/JPEG native inputs with ACP capability checks; project
+  prompt templates (/) and project SKILL.md context ($). Headings and fenced code
+  blocks use distinct rendering; tool command/output and proposed file changes
+  appear in the transcript. Nine context scenarios pass. Native global skill
+  catalogs, rich inline Markdown and HTTP-specific OpenCode forms remain gaps.
+  MCP tools are managed by the provider CLI configuration.

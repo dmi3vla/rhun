@@ -8,6 +8,8 @@ model_legacy: .long 0
 .p2align 3
 catalog_count: .long 0
 load_supported: .long 0
+.globl chat_acp_image_supported
+chat_acp_image_supported: .long 0
 .text
 
 FN chat_acp_prompt
@@ -24,7 +26,10 @@ FN chat_acp_prompt
     mov rsi, r12
     mov rdx, r13
     call chat_json_quote
-    lea rdi, [rip + .Lprompt_suffix]
+    lea rdi, [rip + .Ltext_end]
+    call chat_runtime_append
+    call chat_context_images
+    lea rdi, [rip + .Larray_end]
     call chat_runtime_append
     call chat_runtime_send
     EPILOGUE
@@ -311,6 +316,21 @@ FN chat_acp_record
     lea rsi, [rip + .Lcapabilities]
     call json_get
     mov rdi, rax
+    lea rsi, [rip + .Lprompt_capabilities]
+    call json_get
+    mov rdi, rax
+    lea rsi, [rip + .Limage_capability]
+    call json_get
+    mov rdi, rax
+    call json_type
+    cmp eax, JT_TRUE
+    sete al
+    movzx eax, al
+    mov [rip + chat_acp_image_supported], eax
+    mov rdi, r13
+    lea rsi, [rip + .Lcapabilities]
+    call json_get
+    mov rdi, rax
     lea rsi, [rip + .Lload_capability]
     call json_get
     mov rdi, rax
@@ -460,7 +480,18 @@ FN chat_acp_record
     mov rdi, r13
     lea rsi, [rip + .Lupdate_type]
     call json_get
+    mov r12, rax
     mov rdi, rax
+    lea rsi, [rip + .Ltool_call]
+    call json_is
+    test eax, eax
+    jnz .Ltool_update
+    mov rdi, r12
+    lea rsi, [rip + .Ltool_call_update]
+    call json_is
+    test eax, eax
+    jnz .Ltool_update
+    mov rdi, r12
     lea rsi, [rip + .Lagent_chunk]
     call json_is
     test eax, eax
@@ -495,6 +526,13 @@ FN chat_acp_record
     mov rsi, [rip + chat_runtime_answer + SB_ptr]
     mov rdx, [rip + chat_runtime_answer + SB_len]
     call agents_chat_event
+    jmp .Ldone
+.Ltool_update:
+    lea rdi, [rip + chat_runtime_answer]
+    call sb_clear
+    call agents_chat_answer_boundary
+    mov rdi, r13
+    call chat_render_acp_tool
     jmp .Ldone
 .Lserver_request:
     mov rdi, r14
@@ -590,3 +628,11 @@ acp_initialize_packet: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"init\",\"method\":\
 .Lload_capability: .asciz "loadSession"
 .Lload_prefix: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"thread\",\"method\":\"session/load\",\"params\":{\"sessionId\":"
 .Lload_cwd: .asciz ",\"cwd\":"
+
+.Ltext_end: .asciz "}"
+.Larray_end: .asciz "]}}\n"
+.Lprompt_capabilities: .asciz "promptCapabilities"
+.Limage_capability: .asciz "image"
+
+.Ltool_call: .asciz "tool_call"
+.Ltool_call_update: .asciz "tool_call_update"

@@ -1589,7 +1589,32 @@ FN agents_key
     mov eax, 1
     ret
 .Lag_input_key:
-    mov ecx, edx
+    cmp esi, 47
+    jne 2f
+    cmp qword ptr [rip + chat_input + TF_sb + SB_len], 0
+    jne 2f
+    test edx, MOD_CTRL | MOD_ALT | MOD_SUPER
+    jnz 2f
+    call chat_prompt_template
+    mov eax, 1
+    ret
+2:  cmp esi, 36
+    jne 2f
+    cmp qword ptr [rip + chat_input + TF_sb + SB_len], 0
+    jne 2f
+    test edx, MOD_CTRL | MOD_ALT | MOD_SUPER
+    jnz 2f
+    call chat_project_skill
+    mov eax, 1
+    ret
+2:  cmp esi, 64
+    jne 1f
+    test edx, MOD_CTRL | MOD_ALT | MOD_SUPER
+    jnz 1f
+    call chat_attach_file
+    mov eax, 1
+    ret
+1:  mov ecx, edx
     mov edx, esi
     mov esi, edi
     call agents_chat_field
@@ -1709,6 +1734,10 @@ agents_chat_field:
     lea rax, [rip + chat_reply_input]
 1:  ret
 
+FN agents_chat_answer_boundary
+    mov qword ptr [rip + chat_answer_index], -1
+    ret
+
 # agents_chat_event(role, bytes, len): streamed answers replace one message.
 FN agents_chat_event
     PROLOGUE
@@ -1759,6 +1788,40 @@ FN agents_chat_event
     EPILOGUE
 
 # Project chat snapshots. All serialized bytes are independent of parser storage.
+# Append explicit context to the message draft, never to a question reply.
+FN agents_chat_append
+    PROLOGUE
+    mov r12, rdi
+    mov r13, rsi
+    call cmd_chat_focus
+    mov rax, [rip + chat_input + TF_sb + SB_len]
+    add rax, r13
+    inc rax
+    cmp rax, 65536
+    ja 8f
+    lea rdi, [rip + chat_input]
+    mov rax, [rdi + TF_sb + SB_len]
+    mov [rdi + TF_cur], rax
+    mov [rdi + TF_anchor], rax
+    test rax, rax
+    jz 1f
+    lea rdi, [rip + chat_input + TF_sb]
+    mov esi, 10
+    call sb_push_byte
+1:  lea rdi, [rip + chat_input + TF_sb]
+    mov rsi, r12
+    mov rdx, r13
+    call sb_push
+    mov rax, [rip + chat_input + TF_sb + SB_len]
+    mov [rip + chat_input + TF_cur], rax
+    mov [rip + chat_input + TF_anchor], rax
+    call chat_store_dirty
+    mov dword ptr [rip + g_dirty], 1
+    EPILOGUE
+8:  lea rdi, [rip + .Lcontext_draft_limit]
+    call app_toast
+    EPILOGUE
+
 FN agents_chat_reset
     PROLOGUE
     lea rdi, [rip + chat_session]
@@ -2273,17 +2336,46 @@ F WR_color, 4
 F WR_draw, 4
 F WR_top, 4
 F WR_bot, 4
+F WR_markdown, 4
+F WR_pad, 4
 ENDSTRUCT WR_SIZE
 
 wrap:
     PROLOGUE 48
     mov rbx, rdi
     xor r15d, r15d              # lines
+    mov dword ptr [rsp + 36], 0   # fenced code block
     xor r12d, r12d              # p
 .Lwr_line:
     cmp r12, [rbx + WR_len]
     jae .Lwr_done
     mov r13, r12                # line start
+    mov rax, [rbx + WR_face]
+    mov [rsp + 40], rax
+    cmp dword ptr [rbx + WR_markdown], 0
+    je .Lwr_md_ready
+    mov rax, [rbx + WR_text]
+    test r12, r12
+    jz .Lwr_md_line
+    cmp byte ptr [rax + r12 - 1], 10
+    jne .Lwr_md_face
+.Lwr_md_line:
+    lea rcx, [r12 + 3]
+    cmp rcx, [rbx + WR_len]
+    ja .Lwr_md_face
+    cmp byte ptr [rax + r12], '`'
+    jne .Lwr_md_face
+    cmp byte ptr [rax + r12 + 1], '`'
+    jne .Lwr_md_face
+    cmp byte ptr [rax + r12 + 2], '`'
+    jne .Lwr_md_face
+    xor dword ptr [rsp + 36], 1
+.Lwr_md_face:
+    cmp dword ptr [rsp + 36], 0
+    je .Lwr_md_ready
+    lea rax, [rip + g_face_code]
+    mov [rsp + 40], rax
+.Lwr_md_ready:
     xor r14d, r14d              # width 26.6
     mov qword ptr [rsp], -1     # last break
     mov rax, [rbx + WR_len]
@@ -2310,7 +2402,7 @@ wrap:
     sub rsi, r12
     call utf8_decode
     mov [rsp + 32], edx
-    mov rdi, [rbx + WR_face]
+    mov rdi, [rsp + 40]
     mov esi, eax
     call face_glyph
     mov eax, [rax + GL_adv]
@@ -2351,17 +2443,37 @@ wrap:
     jl 5f
     cmp eax, [rbx + WR_bot]
     jg 5f
-    mov rdx, [rbx + WR_face]
+    cmp dword ptr [rsp + 36], 0
+    je 7f
+    mov edi, [rbx + WR_x]
+    mov esi, eax
+    mov edx, [rbx + WR_w]
+    mov ecx, [rbx + WR_lh]
+    COLOR r8d, T_BG
+    call gfx_fill
+    mov eax, r15d
+    imul eax, [rbx + WR_lh]
+    add eax, [rbx + WR_y]
+7:  mov rdx, [rsp + 40]
     add eax, [rdx + FACE_ascent]
     mov edx, eax
-    mov rdi, [rbx + WR_face]
+    mov rdi, [rsp + 40]
     mov esi, [rbx + WR_x]
     mov rcx, [rbx + WR_text]
     add rcx, r13
     mov r8, [rsp + 8]
     sub r8, r13
     mov r9d, [rbx + WR_color]
-    call text_draw
+    cmp dword ptr [rbx + WR_markdown], 0
+    je 7f
+    cmp dword ptr [rsp + 36], 0
+    jne 7f
+    test r8, r8
+    jz 7f
+    cmp byte ptr [rcx], '#'
+    jne 7f
+    COLOR r9d, T_ACCENT
+7:  call text_draw
 5:  inc r15d
     mov r12, [rsp + 16]
     jmp .Lwr_line
@@ -2377,11 +2489,20 @@ msg_height:
     PROLOGUE 96
     mov rbx, rdi
     mov r12d, esi
+    mov eax, [rip + g_face_code + FACE_px]
+    shl eax, 16
+    xor eax, [rip + g_face_ui + FACE_px]
+    cmp eax, [rbx + AM_pad]
+    jne 1f
     cmp [rbx + AM_w], r12d
     jne 1f
     mov eax, [rbx + AM_h]
     EPILOGUE
-1:  mov [rbx + AM_w], r12d
+1:  mov eax, [rip + g_face_code + FACE_px]
+    shl eax, 16
+    xor eax, [rip + g_face_ui + FACE_px]
+    mov [rbx + AM_pad], eax
+    mov [rbx + AM_w], r12d
     mov eax, [rbx + AM_role]
     cmp eax, R_TOOL
     jne 2f
@@ -2409,14 +2530,23 @@ wr_setup:
     mov rax, [rbx + AM_len]
     mov [rdi + WR_len], rax
     mov [rdi + WR_w], r12d
-    lea rax, [rip + g_face_ui]
+    mov dword ptr [rdi + WR_markdown], 0
+    cmp dword ptr [rbx + AM_role], R_ASSIST
+    jne 2f
+    mov dword ptr [rdi + WR_markdown], 1
+2:  lea rax, [rip + g_face_ui]
     mov ecx, [rip + g_face_ui + FACE_lineh]
     cmp dword ptr [rbx + AM_role], R_RESULT
     jne 1f
     lea rax, [rip + g_face_small]
     mov ecx, [rip + g_face_small + FACE_lineh]
 1:  mov [rdi + WR_face], rax
-    add ecx, [rip + g_mt + 4*MI_3]
+    cmp dword ptr [rdi + WR_markdown], 0
+    je 3f
+    mov eax, [rip + g_face_code + FACE_lineh]
+    cmp eax, ecx
+    cmovg ecx, eax
+3:  add ecx, [rip + g_mt + 4*MI_3]
     mov [rdi + WR_lh], ecx
     ret
 
@@ -3206,3 +3336,7 @@ th_follow: .long 1
 .Lsave_messages_key: .asciz "messages"
 .Lsave_role_key: .asciz "role"
 .Lsave_text_key: .asciz "text"
+
+.section .rodata
+.Lcontext_newline: .asciz "\n"
+.Lcontext_draft_limit: .asciz "Chat drafts are limited to 64 KiB"

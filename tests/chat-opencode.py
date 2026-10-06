@@ -54,7 +54,7 @@ for line in sys.stdin:
     elif method=='initialize':
         assert msg['params']['protocolVersion']==1
         assert msg['params']['clientCapabilities']=={}
-        emit({'id':msg['id'],'result':{'protocolVersion':1,'agentCapabilities':{'loadSession':True}}})
+        emit({'id':msg['id'],'result':{'protocolVersion':1,'agentCapabilities':{'loadSession':True,'promptCapabilities':{'image':os.environ.get('CHAT_NO_IMAGES')!='1'}}}})
     elif method in ('session/new','session/load'):
         assert msg['params']['cwd']==os.getcwd()
         assert msg['params']['mcpServers']==[]

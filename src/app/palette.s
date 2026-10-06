@@ -168,6 +168,19 @@ pal_return_focus:
 1:  mov [rip + g_focus], eax
     ret
 
+# Reuse the project file inventory with a caller-owned action on the picked path.
+FN palette_choose_file
+    PROLOGUE
+    mov r12, rdi
+    mov r13, rsi
+    mov edi, PM_FILES
+    call palette_open
+    mov [rip + custom_callback], r12
+    mov [rip + pal_label], r13
+    mov dword ptr [rip + pal_mode], PM_CUSTOM
+    call palette_filter
+    EPILOGUE
+
 # palette_choose(newline-delimited cstr, callback(label), placeholder).
 # Copy the inventory so asynchronous provider updates cannot invalidate rows.
 FN palette_choose
