@@ -9,14 +9,15 @@ The application, provider adapters, transport and UI remain assembly. Installed
 agent CLIs are external runtimes; no application-side JavaScript SDK is required.
 The existing Agents session reader must remain usable throughout development.
 
-Providers targeted: Claude Code, Codex, Grok Build, OpenCode, Pi. Claude and Codex
-are the first release pair. Features are capability-driven; changing provider
+Providers targeted: Codex and OpenCode first; Grok Build and Pi later. Claude Code
+is optional, per the user's updated priority. Features are capability-driven; changing provider
 must never silently continue a conversation under a different runtime.
 
 Sources:
 - https://github.com/YishenTu/claudian (chat, context, inline edits and providers)
 - https://learn.chatgpt.com/docs/app-server (Codex protocol)
 - https://code.claude.com/docs/en/cli-reference (Claude CLI flags)
+- https://github.com/YishenTu/claudian/blob/main/src/providers/opencode/execution/OpencodeSessionKernel.ts (OpenCode version-specific transport)
 
 ## Protocol decisions
 
@@ -25,7 +26,7 @@ Sources:
 | Codex | app-server, newline-delimited JSON RPC over stdio | Installed 0.160.1; handshake probe | Turns, approvals, resume, cancellation |
 | Claude | CLI stream-json input/output | CLI absent | Control/permission protocol must be verified before enabling tools |
 | Grok Build | ACP | CLI absent | Version, handshake and capability matrix |
-| OpenCode | ACP / HTTP, selected after probe | CLI absent | Version, handshake and capability matrix |
+| OpenCode | v2 HTTP/events; v1 ACP compatibility later | Installed v2.0.24; CLI flags verified | Owned server lifecycle, readiness, events, permission/forms and resume |
 | Pi | RPC | CLI absent | Version, handshake and capability matrix |
 
 Codex initialization precedes initialized, thread/start and turn/start. Store the
@@ -47,7 +48,7 @@ missing interactive permission implementation.
    backpressure, closed input and oversized frames. Unix first; native Windows
    transport and macOS runtime validation are explicit follow-up gates.
 2. **Interactive MVP.** New chat, provider discovery, multiline composer, send,
-   streamed response, follow-up and stop. First enable Codex, then verified Claude.
+   streamed response, follow-up and stop. First enable Codex, then OpenCode v2.
    Keep the existing history browser. GUI and deterministic mock CLI tests.
 3. **Interactions.** Permission cards, questions, model selection, turn states.
    Unknown requests receive an explicit unsupported response, never an approval.
@@ -57,7 +58,8 @@ missing interactive permission implementation.
    supported, Markdown, code blocks, slash commands, skills and native MCP.
 6. **Editing workflows.** Inline changes with diff/undo, project diffs, side chat,
    compact composer. Detect stale buffers before applying edits.
-7. **Other providers.** Shared ACP, Grok/OpenCode adapters and Pi RPC; run the same
+7. **Other providers.** Shared ACP, Grok adapter and Pi RPC; optional Claude and
+   OpenCode v1 compatibility. Run the same
    acceptance scenarios for each provider.
 8. **Release validation.** Linux, Windows and macOS; real CLI workflows, resource
    limits, compatibility documentation and regression suite.
@@ -81,13 +83,18 @@ missing interactive permission implementation.
   AArch64 translation passes; native macOS execution remains unverified.
 - Phase 2: initial Codex chat implemented on Linux, with composer, streamed text,
   follow-up turns and stop/reconnect via a new conversation. Eight mock-runtime
-  UI/protocol tests passed at the initial milestone. Claude remains pending.
+  UI/protocol tests passed at the initial milestone. OpenCode is next; Claude is optional.
 - Phase 3, Codex milestone: explicit command/file approvals, queued requests,
   sequential questions with a separate draft, native turn interruption, optional
   executable/model/effort settings, model catalog and recoverable turn errors.
   Seventeen mock-runtime tests cover these interactions. Secret input, tool/diff
-  rendering and equivalent Claude behavior remain acceptance gates.
+  rendering and equivalent OpenCode behavior remain acceptance gates.
 - Phases 4–8: pending. This is not yet full Claudian parity.
+- Updated next-provider sequence: OpenCode v2 runtime lifecycle and HTTP/event
+  transport, then new session/send/stream/follow-up/interrupt, then permission
+  forms and model selection. Reuse the existing assembly composer and owned
+  interaction queue; preserve Codex behavior. Claudian selects HTTP for OpenCode
+  v2 and ACP for v1, so a generic ACP-only adapter is not the v2 implementation.
 - Local Git author was resolved through gh: dmi3vla, with GitHub's ID-based
   noreply address. No remote is configured. Specification, Unix transport and
   the initial Codex interface are recorded as separate commits; remaining gates
