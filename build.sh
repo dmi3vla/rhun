@@ -21,7 +21,8 @@ for s in $(find src -name "*.s" ! -path "src/mac/*" ! -path "src/win/*" | LC_ALL
 done
 LDFLAGS="-static -nostdlib --no-dynamic-linker -z noexecstack"
 [ "$1" = release ] && LDFLAGS="$LDFLAGS -s"
-ld $LDFLAGS -o build/rhun $objs
+ld $LDFLAGS -o build/rhun.new $objs
+mv -f build/rhun.new build/rhun
 if [ "$1" = test ]; then
     lib=$(echo $objs | tr ' ' '\n' | grep -v 'src_main.o')
     for t in tests/*.s; do

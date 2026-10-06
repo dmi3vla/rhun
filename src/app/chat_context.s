@@ -19,7 +19,41 @@ attach_picked_file:
     mov rdi, [rip + g_project]
     call path_join
     mov r12, rax
+    mov rdi, r12
+    call chat_attach_path
+    mov rdi, r12
+    call mem_free
+    EPILOGUE
+
+# chat_attach_path(absolute path): shared picker/drop/clipboard ingestion.
+FN chat_attach_path
+    PROLOGUE
+    mov r12, rdi
+    call strlen
+    cmp rax, 4095
+    ja .Lpath_invalid
+    test rax, rax
+    jz .Lpath_invalid
+    cmp byte ptr [r12], '/'
+    jne .Lpath_invalid
+    mov rsi, rax
+    mov rdi, r12
+    call chat_text_valid
+    test eax, eax
+    jnz .Lpath_invalid
+    mov rdi, r12
+    call strlen
+    mov rsi, rax
+    mov rdi, r12
+    call mem_dup
+    mov r12, rax
     mov rdi, rax
+    call file_type
+    cmp eax, 0x4000
+    je .Lattach_reference
+    cmp eax, 0x8000
+    jne .Lpath_missing
+    mov rdi, r12
     mov ecx, 1 << 20
     call file_read_limited
     test rax, rax
@@ -39,7 +73,7 @@ attach_picked_file:
     mov rsi, rdx
     call doc_is_binary
     test eax, eax
-    jnz .Lattach_image
+    jnz .Lattach_reference_bytes
     cmp r14, 32768
     ja 7f
     mov rdi, r13
@@ -77,13 +111,46 @@ attach_picked_file:
     lea rdi, [rip + .Linvalid_text]
     call app_toast
     jmp 6b
-7:  lea rdi, [rip + .Llarge_text]
-    call app_toast
-    jmp 6b
-8:  lea rdi, [rip + .Lread_error]
+7:  jmp .Lattach_reference_bytes
+.Lattach_reference_bytes:
+    mov rdi, r13
+    call mem_free
+.Lattach_reference:
+    lea rdi, [rip + block]
+    call sb_clear
+    lea rdi, [rip + block]
+    lea rsi, [rip + .Lfile_reference]
+    call sb_push_cstr
+    mov rdi, r12
+    call strlen
+    mov rdx, rax
+    mov rsi, r12
+    lea rdi, [rip + block]
+    call chat_json_quote
+    lea rdi, [rip + block]
+    mov esi, 10
+    call sb_push_byte
+    call append_block
+    mov rdi, r12
+    call mem_free
+    EPILOGUE
+8:  cmp rdx, -27
+    je .Lattach_reference
+    lea rdi, [rip + .Lread_error]
     call app_toast
     mov rdi, r12
     call mem_free
+    EPILOGUE
+
+.Lpath_missing:
+    lea rdi, [rip + .Lread_error]
+    call app_toast
+    mov rdi, r12
+    call mem_free
+    EPILOGUE
+.Lpath_invalid:
+    lea rdi, [rip + .Lread_error]
+    call app_toast
     EPILOGUE
 
 FN chat_attach_active_file
@@ -439,3 +506,6 @@ insert_prompt_file:
 
 .section .rodata
 .Linvalid_text: .asciz "Attachment must contain valid UTF-8 text without NUL bytes"
+
+.section .rodata
+.Lfile_reference: .asciz "@file: "
