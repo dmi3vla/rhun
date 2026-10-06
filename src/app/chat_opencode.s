@@ -7,6 +7,7 @@ model_config_id: .zero SB_SIZE
 model_legacy: .long 0
 .p2align 3
 catalog_count: .long 0
+load_supported: .long 0
 .text
 
 FN chat_acp_prompt
@@ -306,13 +307,39 @@ FN chat_acp_record
     jne .Lbad
     cmp byte ptr [rax], '1'
     jne .Lbad
+    mov rdi, r13
+    lea rsi, [rip + .Lcapabilities]
+    call json_get
+    mov rdi, rax
+    lea rsi, [rip + .Lload_capability]
+    call json_get
+    mov rdi, rax
+    call json_type
+    cmp eax, JT_TRUE
+    sete al
+    movzx eax, al
+    mov [rip + load_supported], eax
     lea rdi, [rip + models]
     call sb_clear
     lea rdi, [rip + chat_runtime_request]
     call sb_clear
-    lea rdi, [rip + .Lnew_prefix]
+    mov rax, [rip + chat_resume_id]
+    test rax, rax
+    jz 2f
+    cmp byte ptr [rax], 0
+    je 2f
+    cmp dword ptr [rip + load_supported], 0
+    je .Lbad
+    lea rdi, [rip + .Lload_prefix]
     call chat_runtime_append
-    mov rdi, [rip + g_project]
+    mov rdi, [rip + chat_resume_id]
+    call chat_runtime_quote
+    lea rdi, [rip + .Lload_cwd]
+    call chat_runtime_append
+    jmp 3f
+2:  lea rdi, [rip + .Lnew_prefix]
+    call chat_runtime_append
+3:  mov rdi, [rip + g_project]
     call chat_runtime_quote
     lea rdi, [rip + .Lnew_suffix]
     call chat_runtime_append
@@ -330,11 +357,22 @@ FN chat_acp_record
     mov rdi, rax
     call json_str
     test rdx, rdx
+    jnz 1f
+    mov rax, [rip + chat_resume_id]
+    test rax, rax
     jz .Lbad
+    cmp byte ptr [rax], 0
+    je .Lbad
     mov rdi, rax
+    call strlen
+    mov rdx, rax
+    mov rax, [rip + chat_resume_id]
+1:  mov rdi, rax
     mov rsi, rdx
     call mem_dup
     mov [rip + chat_runtime_session], rax
+    mov rdi, rax
+    call chat_store_native_id
     mov rdi, r13
     call read_config_models
     cmp qword ptr [rip + models + SB_len], 0
@@ -372,6 +410,7 @@ FN chat_acp_record
     inc r13
     jmp .Lmodel_loop
 .Lsession_ready:
+    call chat_store_dirty
     mov dword ptr [rip + chat_runtime_state], 3
     lea rax, [rip + .Lready]
     mov [rip + chat_runtime_status], rax
@@ -546,3 +585,8 @@ acp_initialize_packet: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"init\",\"method\":\
 .Lconfig_id_prefix: .asciz ",\"configId\":"
 .Lvalue_prefix: .asciz ",\"value\":"
 .Lmodel_id_prefix: .asciz ",\"modelId\":"
+
+.Lcapabilities: .asciz "agentCapabilities"
+.Lload_capability: .asciz "loadSession"
+.Lload_prefix: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"thread\",\"method\":\"session/load\",\"params\":{\"sessionId\":"
+.Lload_cwd: .asciz ",\"cwd\":"

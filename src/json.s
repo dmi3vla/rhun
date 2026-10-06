@@ -525,3 +525,124 @@ FN json_type
     jz 1f
     mov eax, [rdi + JV_type]
 1:  ret
+
+# json_dump(SB*, JV*): canonical JSON, copying strings out of the parser arena.
+FN json_dump
+    PROLOGUE
+    mov r12, rdi
+    mov rbx, rsi
+    test rsi, rsi
+    jz .Ljd_null
+    mov eax, [rbx + JV_type]
+    cmp eax, JT_STR
+    je .Ljd_string
+    cmp eax, JT_NUM
+    je .Ljd_number
+    cmp eax, JT_ARR
+    je .Ljd_container
+    cmp eax, JT_OBJ
+    je .Ljd_container
+    cmp eax, JT_TRUE
+    je .Ljd_true
+    cmp eax, JT_FALSE
+    je .Ljd_false
+.Ljd_null:
+    lea rsi, [rip + .Ljd_null_text]
+    jmp .Ljd_literal
+.Ljd_true:
+    lea rsi, [rip + .Ljd_true_text]
+    jmp .Ljd_literal
+.Ljd_false:
+    lea rsi, [rip + .Ljd_false_text]
+.Ljd_literal:
+    mov rdi, r12
+    call sb_push_cstr
+    EPILOGUE
+.Ljd_string:
+    mov rsi, [rbx + JV_ptr]
+    mov edx, [rbx + JV_n]
+    mov rdi, r12
+    call chat_json_quote
+    EPILOGUE
+.Ljd_number:
+    mov rsi, [rbx + JV_ptr]
+    mov edx, [rbx + JV_n]
+    mov rdi, r12
+    call sb_push
+    EPILOGUE
+.Ljd_container:
+    mov esi, '['
+    cmp dword ptr [rbx + JV_type], JT_OBJ
+    jne 1f
+    mov esi, '{'
+1:  mov rdi, r12
+    call sb_push_byte
+    xor r13d, r13d
+2:  cmp r13d, [rbx + JV_n]
+    jae 5f
+    test r13d, r13d
+    jz 3f
+    mov rdi, r12
+    mov esi, ','
+    call sb_push_byte
+3:  mov r14, [rbx + JV_ptr]
+    lea r14, [r14 + r13*8]
+    cmp dword ptr [rbx + JV_type], JT_OBJ
+    jne 4f
+    lea r14, [r14 + r13*8]
+    mov rdi, r12
+    mov rsi, [r14]
+    call json_dump
+    mov rdi, r12
+    mov esi, ':'
+    call sb_push_byte
+    add r14, 8
+4:  mov rdi, r12
+    mov rsi, [r14]
+    call json_dump
+    inc r13d
+    jmp 2b
+5:  mov esi, ']'
+    cmp dword ptr [rbx + JV_type], JT_OBJ
+    jne 6f
+    mov esi, '}'
+6:  mov rdi, r12
+    call sb_push_byte
+    EPILOGUE
+
+# Strict unsigned integer accessor: reject fractional, signed and overflowing tokens.
+FN json_u64
+    push rbx
+    call json_number_text
+    mov r8, rax
+    mov r9, rdx
+    xor eax, eax
+    test r9, r9
+    jz 8f
+    cmp r9, 20
+    ja 8f
+    xor r10d, r10d
+1:  movzx edi, byte ptr [r8 + r10]
+    sub edi, '0'
+    cmp edi, 9
+    ja 8f
+    mov ecx, 10
+    mul rcx
+    test rdx, rdx
+    jnz 8f
+    add rax, rdi
+    jc 8f
+    inc r10
+    cmp r10, r9
+    jb 1b
+    mov rdx, r9
+    pop rbx
+    ret
+8:  xor eax, eax
+    xor edx, edx
+    pop rbx
+    ret
+.section .rodata
+.Ljd_null_text: .asciz "null"
+.Ljd_true_text: .asciz "true"
+.Ljd_false_text: .asciz "false"

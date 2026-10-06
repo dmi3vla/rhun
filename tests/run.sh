@@ -52,6 +52,7 @@ python3 tests/agents.py || fail=1
 python3 tests/chat-transport.py || fail=1
 python3 tests/chat-codex.py || fail=1
 python3 tests/chat-opencode.py || fail=1
+python3 tests/chat-store.py || fail=1
 sh tests/files.sh || fail=1
 sh tests/update.sh || fail=1
 python3 tests/commit-ai.py || fail=1

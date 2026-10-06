@@ -45,7 +45,7 @@ for line in sys.stdin:
     elif method == 'model/list':
         emit({'id': msg['id'], 'result': {'data': [
             {'model': 'fixture-small'}, {'model': 'fixture-large'}], 'nextCursor': None}})
-    elif method == 'thread/start':
+    elif method in ('thread/start', 'thread/resume'):
         assert msg['params']['cwd'] == os.getcwd()
         assert msg['params']['sandbox'] == 'workspace-write'
         assert msg['params']['approvalPolicy'] == 'on-request'

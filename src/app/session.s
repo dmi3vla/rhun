@@ -552,3 +552,6 @@ session_unhex:
 CSTR .Lwin_hex, "0123456789ABCDEF"
 CSTR .Lwin_long_session, "This project path is too long to save its session"
 .endif
+
+.globl chat_project_state_path
+.set chat_project_state_path, session_file

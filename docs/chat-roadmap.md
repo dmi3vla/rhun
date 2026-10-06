@@ -114,3 +114,8 @@ missing interactive permission implementation.
   selection applies to the next turn, OpenCode uses native session configuration
   with acknowledgement/error/timeout handling. 18 Codex and 12 OpenCode scenarios
   pass. Native question forms and secret input remain explicit limitations.
+
+- Phase 4 milestone: 16 project chat tabs; atomic private snapshots; messages,
+  drafts and native IDs; explicit Codex/OpenCode resume; coalesced autosave and
+  crash recovery; tab selector and close/next/previous commands. Ten persistence
+  scenarios include abrupt process termination and corrupt-state retention.

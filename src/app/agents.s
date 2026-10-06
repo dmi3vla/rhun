@@ -101,6 +101,7 @@ FN agents_set_project
     call chat_shutdown
     lea rdi, [rip + chat_session]
     call session_clear_msgs
+    mov qword ptr [rip + chat_session + AS_title], 0
     lea rdi, [rip + chat_input]
     call tf_clear
     lea rdi, [rip + chat_reply_input]
@@ -183,7 +184,8 @@ FN agents_set_project
     mov rdi, rax
     call watch_agents_dir
     call agents_scan
-9:  mov dword ptr [rip + g_dirty], 1
+9:  call chat_store_project
+    mov dword ptr [rip + g_dirty], 1
     EPILOGUE
 
 session_free:
@@ -1414,6 +1416,9 @@ FN agents_timeout
     call chat_timeout
     cmp eax, -1
     jne .Lag_timeout_return
+    call chat_store_timeout
+    cmp eax, -1
+    jne .Lag_timeout_return
     cmp qword ptr [rip + claude_dir], 0
     je 1f
     call time_ms
@@ -1431,6 +1436,7 @@ FN agents_timeout
 FN agents_tick
     push rbx
     call chat_tick
+    call chat_store_tick
     cmp qword ptr [rip + claude_dir], 0
     je 9f
     call time_ms
@@ -1588,7 +1594,13 @@ FN agents_key
     mov esi, edi
     call agents_chat_field
     mov rdi, rax
-    jmp ta_key
+    call ta_key
+    push rax
+    push rax
+    call chat_store_dirty
+    pop rax
+    pop rax
+    ret
 .Lag_back:
     mov qword ptr [rip + view], -1
     mov dword ptr [rip + g_dirty], 1
@@ -1616,6 +1628,9 @@ FN cmd_chat_new
     mov dword ptr [rip + chat_requested_provider], 0
 .Lnew_provider:
     PROLOGUE
+    call chat_store_before_new
+    test eax, eax
+    js 9f
     call chat_start
     test eax, eax
     js 9f
@@ -1629,6 +1644,9 @@ FN cmd_chat_new
     mov dword ptr [rip + chat_session + AS_kind], 3
 1:
     mov [rip + chat_session + AS_title], rax
+    lea rdi, [rip + chat_input]
+    call tf_clear
+    call chat_store_new
     mov qword ptr [rip + chat_answer_index], -1
     mov qword ptr [rip + view], -2
     mov dword ptr [rip + th_follow], 1
@@ -1678,7 +1696,8 @@ FN agents_chat_paste
     mov rsi, rdi
     call agents_chat_field
     mov rdi, rax
-    jmp ta_insert
+    call ta_insert
+    jmp chat_store_dirty
 1:  ret
 
 # This helper and chat_pending_kind preserve argument registers for tail calls.
@@ -1735,7 +1754,266 @@ FN agents_chat_event
     cmp rax, [rip + chat_session + AS_msgs + VEC_len]
     jb 9f
     mov qword ptr [rip + chat_answer_index], -1
-9:  mov dword ptr [rip + g_dirty], 1
+9:  call chat_store_dirty
+    mov dword ptr [rip + g_dirty], 1
+    EPILOGUE
+
+# Project chat snapshots. All serialized bytes are independent of parser storage.
+FN agents_chat_reset
+    PROLOGUE
+    lea rdi, [rip + chat_session]
+    call session_clear_msgs
+    mov qword ptr [rip + chat_session + AS_title], 0
+    lea rdi, [rip + chat_input]
+    call tf_clear
+    lea rdi, [rip + chat_reply_input]
+    call tf_clear
+    mov qword ptr [rip + view], -1
+    mov dword ptr [rip + g_dirty], 1
+    EPILOGUE
+
+FN agents_chat_export
+    PROLOGUE
+    mov r12, rdi
+    cmp qword ptr [rip + chat_session + AS_title], 0
+    je 9f
+    lea rsi, [rip + .Lsave_prefix]
+    call sb_push_cstr
+    mov esi, 0
+    cmp dword ptr [rip + chat_session + AS_kind], 3
+    jne 1f
+    mov esi, 1
+1:  mov rdi, r12
+    call sb_push_u64
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_id]
+    call sb_push_cstr
+    mov rbx, [rip + chat_resume_id]
+    cmp dword ptr [rip + chat_runtime_state], 3
+    jb 2f
+    mov rbx, [rip + chat_runtime_session]
+2:  test rbx, rbx
+    jnz 3f
+    lea rbx, [rip + .Lsave_empty]
+3:  mov rdi, rbx
+    call strlen
+    mov rdx, rax
+    mov rsi, rbx
+    mov rdi, r12
+    call chat_json_quote
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_model]
+    call sb_push_cstr
+    mov rbx, [rip + cfg_chat_model]
+    mov rdi, rbx
+    call strlen
+    mov rdx, rax
+    mov rsi, rbx
+    mov rdi, r12
+    call chat_json_quote
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_draft]
+    call sb_push_cstr
+    lea rdi, [rip + chat_input]
+    call tf_text
+    mov rsi, rax
+    mov rdi, r12
+    call chat_json_quote
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_messages]
+    call sb_push_cstr
+    xor r13d, r13d
+4:  cmp r13, [rip + chat_session + AS_msgs + VEC_len]
+    jae 7f
+    test r13, r13
+    jz 5f
+    mov rdi, r12
+    mov esi, ','
+    call sb_push_byte
+5:  imul rbx, r13, AM_SIZE
+    add rbx, [rip + chat_session + AS_msgs + VEC_ptr]
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_role]
+    call sb_push_cstr
+    mov rdi, r12
+    mov esi, [rbx + AM_role]
+    call sb_push_u64
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_text]
+    call sb_push_cstr
+    mov rdi, r12
+    mov rsi, [rbx + AM_text]
+    mov rdx, [rbx + AM_len]
+    call chat_json_quote
+    mov rdi, r12
+    mov esi, '}'
+    call sb_push_byte
+    inc r13
+    jmp 4b
+7:  mov rdi, r12
+    lea rsi, [rip + .Lsave_end]
+    call sb_push_cstr
+9:  EPILOGUE
+
+# Validate a snapshot fully before replacing the active transcript/draft.
+FN agents_chat_import
+    PROLOGUE
+    mov r12, rdi
+    lea rsi, [rip + .Lsave_provider_key]
+    call json_get
+    mov rdi, rax
+    call json_u64
+    test rdx, rdx
+    jz 8f
+    cmp rax, 1
+    ja 8f
+    mov r15d, eax
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_id_key]
+    call json_get
+    mov rdi, rax
+    call json_str
+    test rax, rax
+    jz 8f
+    cmp rdx, 1024
+    ja 8f
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_draft_key]
+    call json_get
+    mov rdi, rax
+    call json_str
+    test rax, rax
+    jz 8f
+    cmp rdx, 65536
+    ja 8f
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_messages_key]
+    call json_get
+    mov r13, rax
+    mov rdi, rax
+    call json_type
+    cmp eax, JT_ARR
+    jne 8f
+    mov rdi, r13
+    call json_len
+    cmp rax, 2048
+    ja 8f
+    xor ebx, ebx
+    xor r14d, r14d
+1:  mov rdi, r13
+    call json_len
+    cmp rbx, rax
+    jae 2f
+    mov rdi, r13
+    mov rsi, rbx
+    call json_at
+    mov rdi, rax
+    lea rsi, [rip + .Lsave_role_key]
+    call json_get
+    mov rdi, rax
+    call json_u64
+    test rdx, rdx
+    jz 8f
+    cmp rax, 1
+    jb 8f
+    cmp rax, 4
+    ja 8f
+    mov rdi, r13
+    mov rsi, rbx
+    call json_at
+    mov rdi, rax
+    lea rsi, [rip + .Lsave_text_key]
+    call json_get
+    mov rdi, rax
+    call json_str
+    test rax, rax
+    jz 8f
+    cmp rdx, CHAT_FRAME_LIMIT
+    ja 8f
+    add r14, rdx
+    cmp r14, 8 << 20
+    ja 8f
+    inc rbx
+    jmp 1b
+2:  lea rdi, [rip + chat_session]
+    call session_clear_msgs
+    lea rdi, [rip + chat_reply_input]
+    call tf_clear
+    mov dword ptr [rip + chat_session + AS_kind], 2
+    lea rax, [rip + .Lchat_title]
+    test r15d, r15d
+    jz 3f
+    mov dword ptr [rip + chat_session + AS_kind], 3
+    lea rax, [rip + .Lopencode_chat_title]
+3:  mov [rip + chat_session + AS_title], rax
+    mov [rip + chat_requested_provider], r15d
+    mov rdi, [rip + chat_resume_id]
+    call mem_free
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_id_key]
+    call json_get
+    mov rdi, rax
+    call json_str
+    mov rdi, rax
+    mov rsi, rdx
+    call mem_dup
+    mov [rip + chat_resume_id], rax
+    test r15d, r15d
+    jnz 4f
+    mov rdi, r12
+    lea rsi, [rip + .Lsave_model_key]
+    call json_get
+    mov rdi, rax
+    call json_str
+    test rax, rax
+    jz 4f
+    cmp rdx, 200
+    ja 4f
+    mov rdi, rax
+    call chat_config_model
+4:  mov rdi, r12
+    lea rsi, [rip + .Lsave_draft_key]
+    call json_get
+    mov rdi, rax
+    call json_str
+    mov rsi, rax
+    lea rdi, [rip + chat_input]
+    call tf_set
+    xor ebx, ebx
+5:  mov rdi, r13
+    call json_len
+    cmp rbx, rax
+    jae 7f
+    mov rdi, r13
+    mov rsi, rbx
+    call json_at
+    mov r14, rax
+    mov rdi, rax
+    lea rsi, [rip + .Lsave_role_key]
+    call json_get
+    mov rdi, rax
+    call json_u64
+    mov r15, rax
+    mov rdi, r14
+    lea rsi, [rip + .Lsave_text_key]
+    call json_get
+    mov rdi, rax
+    call json_str
+    mov rcx, rdx
+    mov rdx, rax
+    mov esi, r15d
+    lea rdi, [rip + chat_session]
+    xor r8d, r8d
+    call add_msg
+    inc rbx
+    jmp 5b
+7:  mov qword ptr [rip + chat_answer_index], -1
+    mov qword ptr [rip + view], -2
+    mov dword ptr [rip + th_follow], 1
+    mov dword ptr [rip + g_dirty], 1
+    xor eax, eax
+    EPILOGUE
+8:  mov eax, -1
     EPILOGUE
 
 # ---------- drawing ----------
@@ -2478,7 +2756,23 @@ thread_draw:
     push r10
     call ui_text_v_fit
     add rsp, 16
-    mov rdi, rbx
+    cmp qword ptr [rip + view], -2
+    jne 7f
+    mov edi, 0x5f11
+    mov esi, [rsp]
+    add esi, [rsp + 8]
+    sub esi, [rip + g_mt + 4*MI_40]
+    mov edx, [rsp + 4]
+    add edx, [rip + g_mt + 4*MI_6]
+    M ecx, MI_28
+    mov r8d, ecx
+    mov r9d, IC_PANEL_R
+    call ui_icon_btn
+    test eax, UB_CLICK
+    jz 3f
+    call chat_tabs
+    jmp 3f
+7:  mov rdi, rbx
     call is_live
     test eax, eax
     jz 3f
@@ -2894,3 +3188,21 @@ summary_keys:
 .data
 view: .quad -1
 th_follow: .long 1
+
+.section .rodata
+.Lsave_prefix: .asciz "{\"provider\":"
+.Lsave_id: .asciz ",\"id\":"
+.Lsave_model: .asciz ",\"model\":"
+.Lsave_draft: .asciz ",\"draft\":"
+.Lsave_messages: .asciz ",\"messages\":["
+.Lsave_role: .asciz "{\"role\":"
+.Lsave_text: .asciz ",\"text\":"
+.Lsave_end: .asciz "]}"
+.Lsave_empty: .asciz ""
+.Lsave_provider_key: .asciz "provider"
+.Lsave_id_key: .asciz "id"
+.Lsave_model_key: .asciz "model"
+.Lsave_draft_key: .asciz "draft"
+.Lsave_messages_key: .asciz "messages"
+.Lsave_role_key: .asciz "role"
+.Lsave_text_key: .asciz "text"

@@ -166,6 +166,7 @@ FN app_set_project
 set_project:
     PROLOGUE
     mov rbx, rdi
+    call chat_store_save
     mov rdi, [rip + g_project]
     call mem_free
     mov rdi, rbx

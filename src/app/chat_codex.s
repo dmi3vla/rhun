@@ -52,7 +52,10 @@ FN chat_busy
     cmp eax, 3
     je 1f
     test eax, eax
-    setnz al
+    jnz 2f
+    mov eax, [rip + channel + CP_pid]
+    test eax, eax
+2:  setnz al
     movzx eax, al
     ret
 1:  xor eax, eax
@@ -77,6 +80,25 @@ FN chat_shutdown
     lea rax, [rip + .Lclosed]
     mov [rip + status], rax
     EPILOGUE
+
+FN chat_mark_restored
+    lea rax, [rip + .Lrestored]
+    mov [rip + status], rax
+    ret
+
+FN chat_resume
+    mov dword ptr [rip + g_focus], FOCUS_AGENTS
+    mov dword ptr [rip + cfg_agents], 1
+    cmp dword ptr [rip + state], 0
+    jne 1f
+    cmp dword ptr [rip + channel + CP_pid], 0
+    je chat_start
+    mov eax, [rip + chat_requested_provider]
+    mov [rip + restart_provider], eax
+    mov dword ptr [rip + restart_requested], 1
+    lea rax, [rip + .Lconnecting]
+    mov [rip + status], rax
+1:  ret
 
 # chat_start() -> 0 success, -1 failure. Only called on explicit New Chat.
 FN chat_start
@@ -521,9 +543,12 @@ on_record:
     mov rsi, rdx
     call mem_dup
     mov [rip + thread_id], rax
+    mov rdi, rax
+    call chat_store_native_id
     mov dword ptr [rip + state], 3
     lea rax, [rip + .Lready]
     mov [rip + status], rax
+    call chat_store_dirty
     jmp .Lrecord_done
 .Linitialized:
     cmp dword ptr [rip + state], 1
@@ -532,9 +557,21 @@ on_record:
     call send_cstr
     lea rdi, [rip + request]
     call sb_clear
-    lea rdi, [rip + .Lthread_prefix]
+    mov rax, [rip + chat_resume_id]
+    test rax, rax
+    jz 1f
+    cmp byte ptr [rax], 0
+    je 1f
+    lea rdi, [rip + .Lresume_prefix]
     call append
-    mov rdi, [rip + g_project]
+    mov rdi, [rip + chat_resume_id]
+    call quote_cstr
+    lea rdi, [rip + .Lresume_cwd]
+    call append
+    jmp 2f
+1:  lea rdi, [rip + .Lthread_prefix]
+    call append
+2:  mov rdi, [rip + g_project]
     call quote_cstr
     lea rdi, [rip + .Lthread_suffix]
     call append
@@ -857,3 +894,8 @@ FN chat_tick
 
 .globl chat_runtime_deadline
 .set chat_runtime_deadline, deadline
+
+.globl chat_runtime_state
+.Lrestored: .asciz "Saved chat restored. Use Chat: Resume Conversation to reconnect."
+.Lresume_prefix: .asciz "{\"id\":\"thread\",\"method\":\"thread/resume\",\"params\":{\"threadId\":"
+.Lresume_cwd: .asciz ",\"cwd\":"

@@ -54,8 +54,8 @@ for line in sys.stdin:
     elif method=='initialize':
         assert msg['params']['protocolVersion']==1
         assert msg['params']['clientCapabilities']=={}
-        emit({'id':msg['id'],'result':{'protocolVersion':1}})
-    elif method=='session/new':
+        emit({'id':msg['id'],'result':{'protocolVersion':1,'agentCapabilities':{'loadSession':True}}})
+    elif method in ('session/new','session/load'):
         assert msg['params']['cwd']==os.getcwd()
         assert msg['params']['mcpServers']==[]
         emit({'id':msg['id'],'result':{'sessionId':'open-fixture','models':{

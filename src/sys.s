@@ -272,7 +272,12 @@ FN file_type
 
 # file_read_all(path) -> rax=ptr (NUL-terminated, mem_alloc'd) rdx=len; rax=0, rdx=-errno on error
 FN file_read_all
-    PROLOGUE
+    mov rcx, -1
+    jmp .Lfr_begin
+FN file_read_limited
+.Lfr_begin:
+    PROLOGUE 16
+    mov [rsp], rcx
     call file_open_read
     test rax, rax
     js .Lfr_fail
@@ -281,6 +286,11 @@ FN file_read_all
     call file_size
     test rax, rax
     js .Lfr_close_fail
+    cmp rax, [rsp]
+    jbe 1f
+    mov rax, -27
+    jmp .Lfr_close_fail
+1:
     mov ecx, [rip + stat_buf + 24]
     and ecx, 0xf000
     cmp ecx, 0x4000             # a directory can report size zero, so read would never reject it
@@ -333,8 +343,17 @@ FN file_read_all
 
 # file_write_all(path, ptr, len) -> 0 or -errno
 # Follow final symlinks, then replace the target through an exclusively created sibling.
+FN file_write_private
+    mov r8d, 0600
+    mov r9d, 1
+    jmp .Lfw_begin
 FN file_write_all
+    mov r8d, 0644
+    xor r9d, r9d
+.Lfw_begin:
     PROLOGUE 8208              # target path, link text, existing-file flag
+    mov [rsp + 8196], r8d
+    mov [rsp + 8200], r9d
     mov r13, rsi
     mov r14, rdx
     mov r12, rdi
@@ -384,7 +403,7 @@ FN file_write_all
     jmp .Lfw_resolve
 .Lfw_stat:
     mov dword ptr [rsp + 8192], 0
-    mov r15d, 0644
+    mov r15d, [rsp + 8196]
     mov rdi, r12
     lea rsi, [rip + stat_buf]
     mov eax, 4
@@ -402,6 +421,8 @@ FN file_write_all
     cmp ecx, 0x8000
     jne .Lfw_ret
     mov dword ptr [rsp + 8192], 1
+    cmp dword ptr [rsp + 8200], 0
+    jne 1f
     mov r15d, [rip + stat_buf + 24]
     and r15d, 07777
 1:  mov ebx, 128                # bounded retries if stale temporary files exist

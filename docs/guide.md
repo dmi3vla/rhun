@@ -496,3 +496,22 @@ The current adapter uses ACP stdio, tested with OpenCode 2.0.24. It does not yet
 reproduce Claudian's OpenCode v2 HTTP-specific behavior. Run
 `python3 tools/probe-opencode-chat.py` for an initialization probe, or add
 `--new-session` to create an empty native session without sending a model prompt.
+
+### Saved chat tabs
+
+**Chat: Switch Tab**, **Chat: Next Tab** and **Chat: Previous Tab** switch between
+up to 16 project chat tabs. The icon at the right of the chat header opens the tab
+selector. **Chat: Close Tab** removes the selected local tab without deleting the
+provider's native conversation. Stop a running turn before switching or closing.
+
+Messages, the composer draft, provider and native session ID are saved atomically
+in the rhun state directory alongside the project session file, with the suffix
+`.session.chats.json` and permissions `0600` on Unix. Saves are coalesced to one
+per second during activity and forced on project changes and normal exit. Pending
+approvals and question answers are not replayed after restart.
+
+On startup the last local tab is restored without starting a CLI. Use **Chat:
+Resume Conversation** to reconnect. Codex uses `thread/resume`; OpenCode uses
+`session/load` when the installed agent advertises that capability. Local history
+is retained without duplicating native replay messages. Corrupt, oversized or
+unknown-version state is preserved for manual recovery rather than overwritten.
