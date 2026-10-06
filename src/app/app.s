@@ -1717,7 +1717,8 @@ FN app_render
     mov edx, [rsp + 20]
     mov ecx, [rsp + 24]
     call splitter
-5:  # editor column, the terminal panel under it
+5:  call explorer_drag_frame
+    # editor column, the terminal panel under it
     mov edi, [rsp + 28]
     cmp dword ptr [rip + cfg_sidebar], 0
     je 51f

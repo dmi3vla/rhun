@@ -20,6 +20,12 @@ ENDSTRUCT N_SIZE
 .bss
 .p2align 3
 root: .quad 0
+selection: .zero VEC_SIZE        # copied paths, independent of tree node lifetime
+selection_anchor: .long 0
+drag_armed: .long 0
+drag_live: .long 0
+drag_x: .long 0
+drag_y: .long 0
 rows: .zero VEC_SIZE            # visible NODE*
 exp_scroll: .long 0             # px
 exp_cursor: .long 0             # keyboard row
@@ -324,6 +330,7 @@ collect_open:
 
 FN explorer_set_root
     PROLOGUE
+    call explorer_selection_clear
     mov rdi, [rip + root]
     call node_free
     mov qword ptr [rip + root], 0
@@ -356,6 +363,7 @@ FN explorer_set_root
 # explorer_refresh(): reload the tree, keep expanded folders
 FN explorer_refresh
     PROLOGUE
+    call explorer_selection_clear
     mov rbx, [rip + root]
     test rbx, rbx
     jz 9f
@@ -915,8 +923,13 @@ FN explorer_draw
     mov [rsp + 28], eax
     test eax, UB_PRESS
     jz 5f
+    mov edi, r12d
+    mov rsi, [r14 + N_path]
+    call explorer_select_press
     mov [rip + exp_cursor], r12d
     mov dword ptr [rip + g_focus], FOCUS_EXPLORER
+    test dword ptr [rip + g_mods], MOD_CTRL | MOD_SHIFT
+    jnz 5f
     mov rdi, r14
     call activate
     cmp dword ptr [r14 + N_dir], 0
@@ -945,7 +958,19 @@ FN explorer_draw
     mov esi, [rip + g_mx]
     mov edx, [rip + g_my]
     call ctx_menu_open
-51: # background: active document, keyboard cursor, hover
+51: # selected rows retain a visible marker independently of editor focus
+    mov rdi, [r14 + N_path]
+    call explorer_selected
+    test eax, eax
+    jz 511f
+    mov edi, [rsp]
+    add edi, [rip + g_mt + 4*MI_4]
+    mov esi, r13d
+    M edx, MI_2
+    mov ecx, ebx
+    COLOR r8d, T_ACCENT
+    call gfx_fill
+511: # background: active document, keyboard cursor, hover
     M eax, MI_6
     mov edi, [rsp]
     add edi, eax
@@ -1520,3 +1545,165 @@ menu_items_git:
 menu_items_root:
     .quad .Lm1, cmd_new_file_prompt, .Lm2, cmd_new_folder, .Lm5, copy_project_path
     .quad .Lm_reveal, reveal_project, 0, 0
+
+.text
+explorer_selection_clear:
+    PROLOGUE
+    xor ebx, ebx
+1:  cmp rbx, [rip + selection + VEC_len]
+    jae 2f
+    mov rax, [rip + selection + VEC_ptr]
+    mov rdi, [rax + rbx*8]
+    call mem_free
+    inc rbx
+    jmp 1b
+2:  mov qword ptr [rip + selection + VEC_len], 0
+    mov dword ptr [rip + drag_armed], 0
+    mov dword ptr [rip + drag_live], 0
+    EPILOGUE
+
+# path -> one-based index, zero absent
+explorer_selected:
+    PROLOGUE
+    mov r12, rdi
+    xor ebx, ebx
+1:  cmp rbx, [rip + selection + VEC_len]
+    jae 3f
+    mov rax, [rip + selection + VEC_ptr]
+    mov rsi, [rax + rbx*8]
+    mov rdi, r12
+    call strcmp_eq
+    test eax, eax
+    jnz 2f
+    inc rbx
+    jmp 1b
+2:  lea rax, [rbx + 1]
+    EPILOGUE
+3:  xor eax, eax
+    EPILOGUE
+
+explorer_selection_add:
+    PROLOGUE
+    mov r12, rdi
+    call explorer_selected
+    test eax, eax
+    jnz 9f
+    cmp qword ptr [rip + selection + VEC_len], 64
+    jae 8f
+    mov rdi, r12
+    call strlen
+    mov rsi, rax
+    mov rdi, r12
+    call mem_dup
+    mov r12, rax
+    lea rdi, [rip + selection]
+    mov esi, 8
+    call vec_push
+    mov [rax], r12
+9:  EPILOGUE
+8:  lea rdi, [rip + .Lselection_limit]
+    call app_toast
+    EPILOGUE
+
+# row, path: Ctrl toggle, Shift visible range, plain press preserves a group.
+explorer_select_press:
+    PROLOGUE
+    mov r12d, edi
+    mov r13, rsi
+    test dword ptr [rip + g_mods], MOD_SHIFT
+    jnz .Lselect_range
+    mov rdi, r13
+    call explorer_selected
+    test dword ptr [rip + g_mods], MOD_CTRL
+    jz .Lselect_plain
+    test eax, eax
+    jz .Lselect_add
+    dec rax
+    mov rbx, rax
+    mov r14, [rip + selection + VEC_ptr]
+    mov rdi, [r14 + rbx*8]
+    call mem_free
+1:  lea rax, [rbx + 1]
+    cmp rax, [rip + selection + VEC_len]
+    jae 2f
+    mov rdx, [r14 + rax*8]
+    mov [r14 + rbx*8], rdx
+    inc rbx
+    jmp 1b
+2:  dec qword ptr [rip + selection + VEC_len]
+    jmp .Lselect_arm
+.Lselect_plain:
+    test eax, eax
+    jnz .Lselect_arm
+    call explorer_selection_clear
+.Lselect_add:
+    mov rdi, r13
+    call explorer_selection_add
+    mov [rip + selection_anchor], r12d
+    jmp .Lselect_arm
+.Lselect_range:
+    mov r14d, [rip + selection_anchor]
+    mov r15d, r12d
+    cmp r14d, r15d
+    jbe 3f
+    xchg r14d, r15d
+3:  call explorer_selection_clear
+4:  cmp r14d, r15d
+    ja .Lselect_arm
+    mov edi, r14d
+    call row_node
+    test rax, rax
+    jz .Lselect_arm
+    mov rdi, [rax + N_path]
+    call explorer_selection_add
+    inc r14d
+    jmp 4b
+.Lselect_arm:
+    mov dword ptr [rip + drag_armed], 1
+    mov dword ptr [rip + drag_live], 0
+    mov eax, [rip + g_mx]
+    mov [rip + drag_x], eax
+    mov eax, [rip + g_my]
+    mov [rip + drag_y], eax
+    EPILOGUE
+
+# Called after panel layout even if the tree/panel is hidden.
+FN explorer_drag_frame
+    PROLOGUE
+    cmp dword ptr [rip + drag_armed], 0
+    je 9f
+    cmp dword ptr [rip + g_block], 0
+    jne 8f
+    mov eax, [rip + g_mx]
+    sub eax, [rip + drag_x]
+    imul eax, eax
+    mov ecx, [rip + g_my]
+    sub ecx, [rip + drag_y]
+    imul ecx, ecx
+    add eax, ecx
+    cmp eax, 36
+    jb 1f
+    mov dword ptr [rip + drag_live], 1
+1:  cmp dword ptr [rip + drag_live], 0
+    je 7f
+    call agents_drop_hit
+    test eax, eax
+    jz 7f
+    call agents_drop_feedback
+    test dword ptr [rip + g_released], 1 << BTN_LEFT
+    jz 9f
+    xor ebx, ebx
+2:  cmp rbx, [rip + selection + VEC_len]
+    jae 8f
+    mov rax, [rip + selection + VEC_ptr]
+    mov rdi, [rax + rbx*8]
+    call chat_attach_path
+    inc rbx
+    jmp 2b
+7:  test dword ptr [rip + g_mdown], 1 << BTN_LEFT
+    jnz 9f
+8:  mov dword ptr [rip + drag_armed], 0
+    mov dword ptr [rip + drag_live], 0
+9:  EPILOGUE
+.section .rodata
+.Lselection_limit: .asciz "Select up to 64 files at a time."

@@ -3510,3 +3510,47 @@ th_follow: .long 1
 
 .section .rodata
 .Lchat_limit: .asciz "Chat transcript limit reached; start a new conversation"
+
+.text
+# Actual panel bounds, no hit when hidden or a modal owns input.
+FN agents_drop_hit
+    xor eax, eax
+    cmp dword ptr [rip + cfg_agents], 0
+    je 9f
+    cmp dword ptr [rip + g_block], 0
+    jne 9f
+    mov ecx, [rip + g_mx]
+    sub ecx, [rip + panel_rect]
+    cmp ecx, [rip + panel_rect + 8]
+    jae 9f
+    mov ecx, [rip + g_my]
+    sub ecx, [rip + panel_rect + 4]
+    cmp ecx, [rip + panel_rect + 12]
+    jae 9f
+    mov eax, 1
+9:  ret
+FN agents_drop_feedback
+    PROLOGUE
+    mov edi, [rip + panel_rect]
+    mov esi, [rip + panel_rect + 4]
+    mov edx, [rip + panel_rect + 8]
+    mov ecx, [rip + panel_rect + 12]
+    M r8d, MI_RADIUS
+    COLOR r9d, T_ACCENT
+    COLOR eax, T_PANEL
+    push rax
+    push rax
+    call gfx_frame
+    add rsp, 16
+    lea rdi, [rip + g_face_small]
+    mov esi, [rip + panel_rect]
+    add esi, [rip + g_mt + 4*MI_16]
+    mov edx, [rip + panel_rect + 4]
+    add edx, [rip + g_mt + 4*MI_32]
+    M ecx, MI_24
+    lea r8, [rip + .Ldrop_hint]
+    COLOR r9d, T_ACCENT
+    call ui_text_c
+    EPILOGUE
+.section .rodata
+.Ldrop_hint: .asciz "Drop files to attach to chat"

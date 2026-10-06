@@ -231,7 +231,11 @@ c_click:
     jne 2f
     mov dword ptr [rip + click_mods], MOD_SHIFT
     jmp 1f
-2:  mov r13d, BTN_RIGHT
+2:  cmp byte ptr [rax], 'c'
+    jne 21f
+    mov dword ptr [rip + click_mods], MOD_CTRL
+    jmp 1f
+21: mov r13d, BTN_RIGHT
     cmp byte ptr [rax], 'r'
     je 1f
     mov r13d, BTN_MIDDLE
