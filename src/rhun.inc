@@ -192,6 +192,18 @@ F SB_len, 8
 F SB_cap, 8
 ENDSTRUCT SB_SIZE
 
+# Bounded newline-protocol process. Initialize before use; queue owns its bytes.
+STRUCT
+F CP_pid, 4
+F CP_in, 4
+F CP_out, 4
+F CP_err, 4
+F CP_queue, SB_SIZE
+F CP_sent, 8
+ENDSTRUCT CP_SIZE
+.equ CHAT_FRAME_LIMIT, 1 << 20
+.equ CHAT_QUEUE_LIMIT, 2 << 20
+
 # generic growable array of fixed-size items
 STRUCT
 F VEC_ptr, 8
