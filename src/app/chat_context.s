@@ -230,8 +230,10 @@ FN chat_context_prepare
     jne 8f
     lea rcx, [rip + .Ljpeg]
 4:  mov [rip + image_mime], rcx
-    cmp dword ptr [rip + chat_provider], 1
-    jne 7f
+    cmp dword ptr [rip + chat_provider], 3
+    je 8f
+    cmp dword ptr [rip + chat_provider], 0
+    je 7f
     cmp dword ptr [rip + chat_acp_image_supported], 0
     je 8f
 7:  lea r14, [r15 + 1]
@@ -247,8 +249,8 @@ FN chat_context_images
     PROLOGUE
     cmp qword ptr [rip + image_path + SB_len], 0
     je 9f
-    cmp dword ptr [rip + chat_provider], 1
-    je 1f
+    cmp dword ptr [rip + chat_provider], 0
+    jne 1f
     lea rdi, [rip + .Llocal_image]
     call chat_runtime_append
     mov rdi, [rip + image_path + SB_ptr]

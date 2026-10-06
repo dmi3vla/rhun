@@ -344,7 +344,9 @@ and unsupported interactions receive an explicit error without granting access.
 
 Settings under Agents accept an optional Codex executable path, model and
 reasoning effort. **Chat: List Available Models** displays the installed server's
-model catalog. **Chat: Choose Model** opens a searchable selector. Saved chat tabs, file diffs and native Windows transport remain pending.
+model catalog. **Chat: Choose Model** opens a searchable selector. Saved tabs and
+reviewed selection edits are described below. Native Windows chat transport
+remains unavailable.
 
 Implementation phases and protocol validation are tracked in
 [chat-roadmap.md](chat-roadmap.md).
@@ -515,3 +517,64 @@ Resume Conversation** to reconnect. Codex uses `thread/resume`; OpenCode uses
 `session/load` when the installed agent advertises that capability. Local history
 is retained without duplicating native replay messages. Corrupt, oversized or
 unknown-version state is preserved for manual recovery rather than overwritten.
+
+### Context, templates and code rendering
+
+Use **Chat: Attach Project File** or type `@` to search the project. Text files up
+to 32 KiB are copied into the draft. **Attach Active Buffer** includes unsaved
+changes; **Attach Selection** preserves exact selected bytes, including tabs.
+PNG/JPEG files up to 1 MiB use native Codex localImage or ACP image blocks when
+the provider advertises image support. One image is supported per turn. A draft
+image marker contains the JSON-quoted path; the file is read again at send time.
+Unsupported images keep the draft and prevent sending.
+
+Type `/` in an empty composer for project `.rhun/prompts/` templates. Type `$` for
+project `SKILL.md` files. These commands insert explicit text context; they do not
+register native skills or discover user-level catalogs. Native provider MCP tools
+remain configured through the CLI. Assistant headings and fenced code blocks have
+distinct formatting. Tool commands, outputs and proposed file changes appear as
+wrapped transcript cards. Inline emphasis, tables and clickable Markdown links
+are not implemented yet.
+
+### Reviewed edits and side conversations
+
+Select text in an editable document, open a chat, then run **Chat: Prepare
+Selection Edit**. Add your instructions to the composer and send. After the turn
+finishes, **Chat: Preview Selection Edit** opens a read-only comparison of the
+original selection and proposed replacement. A single outer code fence is removed
+from the replacement. Inspect the complete replacement before using **Chat: Apply
+Reviewed Edit**; explanations returned outside code fences would also be applied.
+The source must still be open and unchanged. Applying modifies the buffer, does
+not save it, and can be undone in one step. **Discard Selection Edit** invalidates
+the prepared edit.
+
+**Chat: Start Temporary Side Conversation** opens a separate native conversation
+with the same provider. Main messages and the draft are retained. **Return to Main
+Conversation** closes the local side tab and resumes the original. Temporary side
+tabs are excluded from project snapshots; the provider may retain native history.
+Stop a running turn before returning. **Toggle Compact Composer** reduces the
+input height inside the Agents panel.
+
+### Additional providers and automatic selection
+
+**Chat: New Conversation (Auto Detect)** prefers OpenCode, then Codex, Grok and Pi
+from PATH (or the configured OpenCode/Codex executable). Explicit provider commands
+remain available. Grok starts `grok agent --no-leader stdio` and uses ACP, including
+its x.ai update aliases. The shared adapter handles session resume when advertised,
+models, permission requests and cancellation.
+
+Pi starts `pi --mode rpc --tools read,grep,find,ls`. Its native JSONL protocol
+provides streaming, cancellation, model selection and native session-file resume.
+Completion waits for `agent_settled`, including after intermediate `agent_end`.
+Extension confirmation and input/editor dialogs use explicit approval or a separate
+reply field. Select dialogs are cancelled; other extension UI updates are ignored.
+Pi image input is not enabled. Its built-in tools are limited to reading; apply
+reviewed edits in rhun. CLI extensions execute under their own provider policy.
+
+Grok and Pi have deterministic protocol tests, but their CLIs are not installed
+on the development host. Native model workflows for these providers are unverified.
+Claude remains optional. All interactive adapters currently require Unix transport;
+Windows returns unsupported rather than running a blocking chat transport.
+
+Protocol references: [Pi RPC](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/rpc.md),
+[Claudian Grok transport](https://github.com/YishenTu/claudian/blob/main/src/providers/grok/execution/GrokExecutionNativeConnection.ts).

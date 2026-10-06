@@ -243,11 +243,11 @@ class CodexChat(unittest.TestCase):
 
     def test_invalid_protocol_is_visible(self):
         output = self.run_script('type invalid\nkey enter\nwait 400\nprint-agents')
-        self.assertIn('Invalid or oversized Codex protocol', output)
+        self.assertIn('Invalid or oversized provider protocol', output)
 
     def test_trailing_garbage_is_rejected(self):
         output = self.run_script('type trailing\nkey enter\nwait 400\nprint-agents')
-        self.assertIn('Invalid or oversized Codex protocol', output)
+        self.assertIn('Invalid or oversized provider protocol', output)
 
     def test_chat_can_be_reopened_from_history(self):
         output = self.run_script('type Keep me\nkey enter\nwait 400\nkey escape\n'

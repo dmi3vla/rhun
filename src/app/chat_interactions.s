@@ -21,7 +21,11 @@ acp_allow: .zero SB_SIZE
 acp_reject: .zero SB_SIZE
 .text
 FN chat_pending_kind
-    mov eax, [rip + kind]
+    cmp dword ptr [rip + chat_provider], 3
+    jne 1f
+    mov eax, [rip + chat_pi_pending]
+    ret
+1:     mov eax, [rip + kind]
     ret
 FN chat_pending_label
     cmp dword ptr [rip + kind], 2
@@ -55,6 +59,7 @@ clear_questions:
 
 FN chat_interactions_clear
     PROLOGUE
+    mov dword ptr [rip + chat_pi_pending], 0
     mov rbx, [rip + head]
 1:  cmp rbx, [rip + pending + VEC_len]
     jae 2f
@@ -214,8 +219,8 @@ activate:
     lea rsi, [rip + .Lmethod]
     call json_get
     mov r12, rax
-    cmp dword ptr [rip + chat_provider], 1
-    je .Lacp_request
+    cmp dword ptr [rip + chat_provider], 0
+    jne .Lacp_request
     mov rdi, rax
     lea rsi, [rip + .Lcommand_method]
     call json_is
@@ -480,8 +485,8 @@ reply_prefix:
     call sb_clear
     lea rdi, [rip + reply]
     lea rsi, [rip + .Lreply_prefix]
-    cmp dword ptr [rip + chat_provider], 1
-    jne 1f
+    cmp dword ptr [rip + chat_provider], 0
+    je 1f
     lea rsi, [rip + .Lacp_reply_prefix]
 1:  call sb_push_cstr
     lea rdi, [rip + reply]
@@ -526,13 +531,15 @@ FN chat_approve
 FN chat_decline
     xor edi, edi
 FN chat_interaction_decide
+    cmp dword ptr [rip + chat_provider], 3
+    je chat_pi_decide
     PROLOGUE
     cmp dword ptr [rip + kind], 1
     jne 9f
     mov ebx, edi
     call reply_prefix
-    cmp dword ptr [rip + chat_provider], 1
-    je .Lacp_decision
+    cmp dword ptr [rip + chat_provider], 0
+    jne .Lacp_decision
     lea rsi, [rip + .Ldecline]
     test ebx, ebx
     jz 1f
@@ -589,6 +596,8 @@ FN chat_acp_cancel_permissions
     EPILOGUE
 
 FN chat_interaction_answer
+    cmp dword ptr [rip + chat_provider], 3
+    je chat_pi_answer
     PROLOGUE
     mov r12, rdi
     mov r13, rsi

@@ -1,8 +1,13 @@
-# OpenCode ACP adapter, using the owned stdio runtime and bounded framing.
+# ACP agent adapter, using the owned stdio runtime and bounded framing.
 .include "rhun.inc"
 .bss
 .p2align 3
 models: .zero SB_SIZE
+mirror_previous: .zero SB_SIZE
+mirror_current: .zero SB_SIZE
+mirror_source: .long 0
+notification_source: .long 0
+notification_wrapped: .long 0
 model_config_id: .zero SB_SIZE
 model_legacy: .long 0
 .p2align 3
@@ -301,6 +306,8 @@ FN chat_acp_record
     call chat_interactions_clear
     jmp .Ldone
 .Linitialized:
+    lea rdi, [rip + mirror_previous]
+    call sb_clear
     cmp dword ptr [rip + chat_runtime_state], 1
     jne .Ldone
     mov rdi, r13
@@ -441,15 +448,57 @@ FN chat_acp_record
     call json_get
     test rax, rax
     jnz .Lserver_request
+    mov dword ptr [rip + notification_source], 1
+    mov dword ptr [rip + notification_wrapped], 0
     mov rdi, r12
     lea rsi, [rip + .Lupdate_method]
     call json_is
     test eax, eax
+    jnz 11f
+    cmp dword ptr [rip + chat_provider], 2
+    jne .Ldone
+    mov dword ptr [rip + notification_source], 2
+    mov rdi, r12
+    lea rsi, [rip + .Lgrok_update]
+    call json_is
+    test eax, eax
+    jnz 11f
+    mov rdi, r12
+    lea rsi, [rip + .Lgrok_update_alt]
+    call json_is
+    test eax, eax
+    jnz 11f
+    mov rdi, r12
+    lea rsi, [rip + .Lgrok_wrapped]
+    call json_is
+    test eax, eax
     jz .Ldone
-    mov rdi, rbx
+    mov dword ptr [rip + notification_wrapped], 1
+11: mov rdi, rbx
     lea rsi, [rip + .Lparams]
     call json_get
+    cmp dword ptr [rip + notification_wrapped], 0
+    je 12f
     mov r13, rax
+    mov rdi, rax
+    lea rsi, [rip + .Lmethod]
+    call json_get
+    mov rdi, rax
+    lea rsi, [rip + .Lgrok_inner]
+    call json_is
+    test eax, eax
+    jz .Ldone
+    mov rdi, r13
+    lea rsi, [rip + .Lparams]
+    call json_get
+12: mov r13, rax
+    cmp dword ptr [rip + chat_provider], 2
+    jne 13f
+    mov rdi, rax
+    call dedup_mirror
+    test eax, eax
+    jz .Ldone
+13: mov rax, r13
     mov rdi, rax
     lea rsi, [rip + .Lsession_id]
     call json_get
@@ -571,6 +620,41 @@ FN chat_acp_record
     mov dword ptr [rip + g_dirty], 1
     EPILOGUE
 
+# Suppress only a consecutive identical notification from the other wire alias.
+dedup_mirror:
+    PROLOGUE
+    mov r12, rdi
+    lea rdi, [rip + mirror_current]
+    call sb_clear
+    lea rdi, [rip + mirror_current]
+    mov rsi, r12
+    call json_dump
+    mov eax, [rip + notification_source]
+    cmp eax, [rip + mirror_source]
+    je 2f
+    mov rdx, [rip + mirror_current + SB_len]
+    cmp rdx, [rip + mirror_previous + SB_len]
+    jne 2f
+    mov rdi, [rip + mirror_current + SB_ptr]
+    mov rsi, [rip + mirror_previous + SB_ptr]
+    call memeq
+    test eax, eax
+    jz 2f
+    lea rdi, [rip + mirror_previous]
+    call sb_clear
+    xor eax, eax
+    EPILOGUE
+2:  lea rdi, [rip + mirror_previous]
+    call sb_clear
+    lea rdi, [rip + mirror_previous]
+    mov rsi, [rip + mirror_current + SB_ptr]
+    mov rdx, [rip + mirror_current + SB_len]
+    call sb_push
+    mov eax, [rip + notification_source]
+    mov [rip + mirror_source], eax
+    mov eax, 1
+    EPILOGUE
+
 .section .rodata
 .globl acp_initialize_packet
 acp_initialize_packet: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"init\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientCapabilities\":{},\"clientInfo\":{\"name\":\"rhun\",\"version\":\"0.1.0\"}}}\n"
@@ -603,9 +687,9 @@ acp_initialize_packet: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"init\",\"method\":\
 .Lavailable: .asciz "availableModels"
 .Lmodel_id: .asciz "modelId"
 .Lstop_reason: .asciz "stopReason"
-.Lready: .asciz "OpenCode ready"
+.Lready: .asciz "ACP agent ready"
 .Lturn_error: .asciz "OpenCode turn failed. You can try another message."
-.Lprotocol_error: .asciz "Invalid OpenCode ACP response or failed initialization"
+.Lprotocol_error: .asciz "Invalid ACP agent response or failed initialization"
 .Lno_models: .asciz "OpenCode did not advertise a model catalog. Configure the model in its CLI."
 
 .Lconfig_options: .asciz "configOptions"
@@ -636,3 +720,11 @@ acp_initialize_packet: .asciz "{\"jsonrpc\":\"2.0\",\"id\":\"init\",\"method\":\
 
 .Ltool_call: .asciz "tool_call"
 .Ltool_call_update: .asciz "tool_call_update"
+
+.section .rodata
+.Lgrok_update: .asciz "_x.ai/session/update"
+
+.section .rodata
+.Lgrok_update_alt: .asciz "x.ai/session/update"
+.Lgrok_wrapped: .asciz "_x.ai/session_notification"
+.Lgrok_inner: .asciz "x.ai/session_notification"

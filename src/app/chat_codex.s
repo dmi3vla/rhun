@@ -4,7 +4,7 @@
 .p2align 3
 # Provider is frozen for the lifetime of the owned process.
 .globl chat_provider, chat_requested_provider
-chat_provider: .long 0         # 0 Codex, 1 OpenCode ACP
+chat_provider: .long 0         # 0 Codex, 1 OpenCode ACP, 2 Grok ACP, 3 Pi RPC
 chat_requested_provider: .long 0
 channel: .zero CP_SIZE
 partial: .zero SB_SIZE
@@ -25,7 +25,7 @@ state: .long 0                # 0 closed, 1 init, 2 thread, 3 ready, 4 turn
 deadline: .quad 0
 status: .quad 0
 readbuf: .zero 16384
-argv: .zero 40
+argv: .zero 72
 .text
 FN chat_init
     lea rdi, [rip + channel]
@@ -127,7 +127,15 @@ FN chat_start
     je 1f
     mov rdi, rax
 1:
-    cmp dword ptr [rip + chat_provider], 1
+    cmp dword ptr [rip + chat_provider], 2
+    jne 11f
+    lea rdi, [rip + .Lgrok]
+    jmp 2f
+11: cmp dword ptr [rip + chat_provider], 3
+    jne 12f
+    lea rdi, [rip + .Lpi]
+    jmp 2f
+12: cmp dword ptr [rip + chat_provider], 1
     jne 2f
     lea rdi, [rip + .Lopencode]
     mov rax, [rip + cfg_opencode_cli]
@@ -146,7 +154,37 @@ FN chat_start
     lea rax, [rip + .Lstdio]
     mov [rip + argv + 24], rax
     mov qword ptr [rip + argv + 32], 0
-    cmp dword ptr [rip + chat_provider], 1
+    cmp dword ptr [rip + chat_provider], 2
+    jne 11f
+    lea rax, [rip + .Lgrok_agent]
+    mov [rip + argv + 8], rax
+    lea rax, [rip + .Lgrok_no_leader]
+    mov [rip + argv + 16], rax
+    lea rax, [rip + .Lgrok_stdio]
+    mov [rip + argv + 24], rax
+    jmp 3f
+11: cmp dword ptr [rip + chat_provider], 3
+    jne 12f
+    lea rax, [rip + .Lpi_mode]
+    mov [rip + argv + 8], rax
+    lea rax, [rip + .Lpi_rpc]
+    mov [rip + argv + 16], rax
+    lea rax, [rip + .Lpi_tools]
+    mov [rip + argv + 24], rax
+    lea rax, [rip + .Lpi_readonly]
+    mov [rip + argv + 32], rax
+    mov qword ptr [rip + argv + 40], 0
+    mov rax, [rip + chat_resume_id]
+    test rax, rax
+    jz 3f
+    cmp byte ptr [rax], 0
+    je 3f
+    mov [rip + argv + 48], rax
+    lea rax, [rip + .Lpi_session]
+    mov [rip + argv + 40], rax
+    mov qword ptr [rip + argv + 56], 0
+    jmp 3f
+12: cmp dword ptr [rip + chat_provider], 1
     jne 3f
     lea rax, [rip + .Lacp]
     mov [rip + argv + 8], rax
@@ -176,8 +214,12 @@ FN chat_start
     add rax, 15000
     mov [rip + deadline], rax
     lea rdi, [rip + .Linitialize]
-    cmp dword ptr [rip + chat_provider], 1
-    jne 4f
+    cmp dword ptr [rip + chat_provider], 3
+    jne 11f
+    lea rdi, [rip + pi_initialize_packet]
+    jmp 4f
+11: cmp dword ptr [rip + chat_provider], 0
+    je 4f
     lea rdi, [rip + acp_initialize_packet]
 4:  call send_cstr
     test rax, rax
@@ -253,8 +295,14 @@ FN chat_send
     js 8f
     lea rdi, [rip + request]
     call sb_clear
-    cmp dword ptr [rip + chat_provider], 1
-    jne 7f
+    cmp dword ptr [rip + chat_provider], 3
+    jne 11f
+    mov rdi, r12
+    mov rsi, r13
+    call chat_pi_prompt
+    jmp .Lqueued_turn
+11: cmp dword ptr [rip + chat_provider], 0
+    je 7f
     mov rdi, r12
     mov rsi, r13
     call chat_acp_prompt
@@ -328,9 +376,14 @@ FN chat_stop
     mov [rip + stop_deadline], rax
     lea rax, [rip + .Lstopping]
     mov [rip + status], rax
-    cmp dword ptr [rip + chat_provider], 1
-    jne 1f
+    cmp dword ptr [rip + chat_provider], 3
+    jne 11f
+    call chat_pi_cancel
+    jmp 12f
+11: cmp dword ptr [rip + chat_provider], 0
+    je 1f
     call chat_acp_cancel
+12:
     test rax, rax
     jns 9f
     call chat_shutdown
@@ -348,8 +401,10 @@ FN chat_disconnect
 FN chat_choose_model
     cmp dword ptr [rip + state], 3
     jne 1f
-    cmp dword ptr [rip + chat_provider], 1
-    je chat_acp_choose_model
+    cmp dword ptr [rip + chat_provider], 3
+    je chat_pi_models
+    cmp dword ptr [rip + chat_provider], 0
+    jne chat_acp_choose_model
     mov dword ptr [rip + model_picker], 1
     jmp chat_list_models
 1:  ret
@@ -374,8 +429,10 @@ set_codex_model:
     EPILOGUE
 
 FN chat_list_models
-    cmp dword ptr [rip + chat_provider], 1
-    je chat_acp_models
+    cmp dword ptr [rip + chat_provider], 3
+    je chat_pi_models
+    cmp dword ptr [rip + chat_provider], 0
+    jne chat_acp_models
     cmp dword ptr [rip + state], 3
     jne 1f
     lea rdi, [rip + .Lmodels_request]
@@ -437,8 +494,10 @@ capture_turn:
 
 # Consume one protocol line. The JSON arena cannot survive another json_parse.
 on_record:
-    cmp dword ptr [rip + chat_provider], 1
-    je chat_acp_record
+    cmp dword ptr [rip + chat_provider], 3
+    je chat_pi_record
+    cmp dword ptr [rip + chat_provider], 0
+    jne chat_acp_record
     PROLOGUE
     mov r14, rdi
     mov r15, rsi
@@ -892,8 +951,8 @@ FN chat_tick
 .Lmissing: .asciz "Selected agent CLI not found; check PATH or its CLI setting"
 .Lnoproject: .asciz "Open a project folder first"
 .Llaunch_failed: .asciz "Could not start agent chat on this platform"
-.Lrpc_failed: .asciz "Codex returned an error. Check CLI sign-in/configuration."
-.Lprotocol_failed: .asciz "Invalid or oversized Codex protocol message"
+.Lrpc_failed: .asciz "Provider returned an error. Check CLI sign-in/configuration."
+.Lprotocol_failed: .asciz "Invalid or oversized provider protocol message"
 .Lconnection_lost: .asciz "Agent connection closed or initialization timed out"
 .Lmethod: .asciz "method"
 .Lparams: .asciz "params"
@@ -961,3 +1020,15 @@ FN chat_tick
 .Litem_completed: .asciz "item/completed"
 .Litem_key: .asciz "item"
 .Litem_id_key: .asciz "itemId"
+
+.section .rodata
+.Lgrok: .asciz "grok"
+.Lpi: .asciz "pi"
+.Lgrok_agent: .asciz "agent"
+.Lgrok_no_leader: .asciz "--no-leader"
+.Lgrok_stdio: .asciz "stdio"
+.Lpi_mode: .asciz "--mode"
+.Lpi_rpc: .asciz "rpc"
+.Lpi_tools: .asciz "--tools"
+.Lpi_readonly: .asciz "read,grep,find,ls"
+.Lpi_session: .asciz "--session"

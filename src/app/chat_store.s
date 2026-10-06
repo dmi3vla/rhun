@@ -360,7 +360,13 @@ FN chat_tabs
     test rax, rax
     jz 2f
     lea rsi, [rip + .Lopencode_label]
-2:  lea rdi, [rip + labels]
+2:  cmp rax, 2
+    jne 11f
+    lea rsi, [rip + .Lgrok_label]
+11: cmp rax, 3
+    jne 12f
+    lea rsi, [rip + .Lpi_label]
+12: lea rdi, [rip + labels]
     call sb_push_cstr
     lea rdi, [rip + labels]
     mov esi, 10
@@ -527,7 +533,15 @@ FN chat_side_start
     test eax, eax
     jnz 9f
     mov r13, [rip + records + VEC_len]
-    cmp dword ptr [rip + chat_provider], 1
+    cmp dword ptr [rip + chat_provider], 2
+    jne 11f
+    call cmd_chat_new_grok
+    jmp 2f
+11: cmp dword ptr [rip + chat_provider], 3
+    jne 12f
+    call cmd_chat_new_pi
+    jmp 2f
+12: cmp dword ptr [rip + chat_provider], 1
     je 1f
     call cmd_chat_new
     jmp 2f
@@ -575,3 +589,7 @@ FN chat_side_return
 .Lopencode_label: .asciz "OpenCode"
 .Lempty_file: .asciz "{\"version\":1,\"active\":0,\"chats\":[]}\n"
 .Lempty_file_end:
+
+.section .rodata
+.Lgrok_label: .asciz "Grok"
+.Lpi_label: .asciz "Pi"

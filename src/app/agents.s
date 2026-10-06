@@ -1648,6 +1648,56 @@ FN agents_key
     ret
 
 # New chat owns a synthetic session; external native histories remain separate.
+# Prefer OpenCode for automatically created chats, then installed alternatives.
+FN cmd_chat_new_auto
+    PROLOGUE
+    mov rdi, [rip + cfg_opencode_cli]
+    cmp byte ptr [rdi], 0
+    jne 1f
+    lea rdi, [rip + .Lopencode_executable]
+1:  call proc_which
+    test rax, rax
+    jz 2f
+    mov rdi, rax
+    call mem_free
+    call cmd_chat_new_opencode
+    EPILOGUE
+2:  mov rdi, [rip + cfg_chat_cli]
+    cmp byte ptr [rdi], 0
+    jne 3f
+    lea rdi, [rip + .Lcodex]
+3:  call proc_which
+    test rax, rax
+    jz 4f
+    mov rdi, rax
+    call mem_free
+    call cmd_chat_new
+    EPILOGUE
+4:  lea rdi, [rip + .Lgrok_executable]
+    call proc_which
+    test rax, rax
+    jz 5f
+    mov rdi, rax
+    call mem_free
+    call cmd_chat_new_grok
+    EPILOGUE
+5:  lea rdi, [rip + .Lpi_executable]
+    call proc_which
+    test rax, rax
+    jz 6f
+    mov rdi, rax
+    call mem_free
+    call cmd_chat_new_pi
+    EPILOGUE
+6:  call cmd_chat_new_opencode
+    EPILOGUE
+
+FN cmd_chat_new_grok
+    mov dword ptr [rip + chat_requested_provider], 2
+    jmp .Lnew_provider
+FN cmd_chat_new_pi
+    mov dword ptr [rip + chat_requested_provider], 3
+    jmp .Lnew_provider
 FN cmd_chat_new_opencode
     mov dword ptr [rip + chat_requested_provider], 1
     jmp .Lnew_provider
@@ -1669,7 +1719,15 @@ FN cmd_chat_new
     jne 1f
     lea rax, [rip + .Lopencode_chat_title]
     mov dword ptr [rip + chat_session + AS_kind], 3
-1:
+1:  cmp dword ptr [rip + chat_requested_provider], 2
+    jne 11f
+    lea rax, [rip + .Lgrok_chat_title]
+    mov dword ptr [rip + chat_session + AS_kind], 4
+11: cmp dword ptr [rip + chat_requested_provider], 3
+    jne 12f
+    lea rax, [rip + .Lpi_chat_title]
+    mov dword ptr [rip + chat_session + AS_kind], 5
+12:
     mov [rip + chat_session + AS_title], rax
     lea rdi, [rip + chat_input]
     call tf_clear
@@ -1684,7 +1742,7 @@ FN cmd_chat_new
 
 FN cmd_chat_focus
     cmp qword ptr [rip + chat_session + AS_title], 0
-    je cmd_chat_new
+    je cmd_chat_new_auto
     mov qword ptr [rip + view], -2
     mov dword ptr [rip + cfg_agents], 1
     mov dword ptr [rip + g_focus], FOCUS_AGENTS
@@ -1844,19 +1902,17 @@ FN agents_chat_export
     je 9f
     lea rsi, [rip + .Lsave_prefix]
     call sb_push_cstr
-    mov esi, 0
-    cmp dword ptr [rip + chat_session + AS_kind], 3
-    jne 1f
-    mov esi, 1
+    mov esi, [rip + chat_session + AS_kind]
+    sub esi, 2
+    cmp esi, 3
+    jbe 1f
+    xor esi, esi
 1:  mov rdi, r12
     call sb_push_u64
     mov rdi, r12
     lea rsi, [rip + .Lsave_id]
     call sb_push_cstr
     mov rbx, [rip + chat_resume_id]
-    cmp dword ptr [rip + chat_runtime_state], 3
-    jb 2f
-    mov rbx, [rip + chat_runtime_session]
 2:  test rbx, rbx
     jnz 3f
     lea rbx, [rip + .Lsave_empty]
@@ -1930,7 +1986,7 @@ FN agents_chat_import
     call json_u64
     test rdx, rdx
     jz 8f
-    cmp rax, 1
+    cmp rax, 3
     ja 8f
     mov r15d, eax
     mov rdi, r12
@@ -2010,7 +2066,15 @@ FN agents_chat_import
     jz 3f
     mov dword ptr [rip + chat_session + AS_kind], 3
     lea rax, [rip + .Lopencode_chat_title]
-3:  mov [rip + chat_session + AS_title], rax
+3:  cmp r15d, 2
+    jne 11f
+    mov dword ptr [rip + chat_session + AS_kind], 4
+    lea rax, [rip + .Lgrok_chat_title]
+11: cmp r15d, 3
+    jne 12f
+    mov dword ptr [rip + chat_session + AS_kind], 5
+    lea rax, [rip + .Lpi_chat_title]
+12: mov [rip + chat_session + AS_title], rax
     mov [rip + chat_requested_provider], r15d
     mov rdi, [rip + chat_resume_id]
     call mem_free
@@ -2229,9 +2293,18 @@ agent_badge:
     jne 1f
     COLOR ebx, T_SUCCESS        # some themes share their warning and accent colors
 1:
-    cmp edi, 3
+    cmp edi, 4
+    jne 11f
+    lea r15, [rip + .Lgrok_name]
+    jmp 12f
+11: cmp edi, 5
+    jne 13f
+    lea r15, [rip + .Lpi_name]
+    jmp 12f
+13: cmp edi, 3
     jne 2f
     lea r15, [rip + .Lopencode_name]
+12:
     mov dword ptr [rsp], IC_TERMINAL
     COLOR ebx, T_ACCENT
     jmp 3f
@@ -3362,3 +3435,14 @@ th_follow: .long 1
 .section .rodata
 .Lcontext_newline: .asciz "\n"
 .Lcontext_draft_limit: .asciz "Chat drafts are limited to 64 KiB"
+
+.section .rodata
+.Lgrok_chat_title: .asciz "Grok conversation"
+.Lpi_chat_title: .asciz "Pi conversation (read-only tools)"
+
+.section .rodata
+.Lopencode_executable: .asciz "opencode"
+.Lgrok_executable: .asciz "grok"
+.Lpi_executable: .asciz "pi"
+.Lgrok_name: .asciz "Grok"
+.Lpi_name: .asciz "Pi"

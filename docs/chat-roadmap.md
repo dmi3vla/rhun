@@ -134,3 +134,13 @@ missing interactive permission implementation.
   Compact composer toggles available transcript space. Six workflow tests pass.
   Existing project Git diff views remain available; word-level inline diff and
   Claudian's editor-bottom Zen placement are still UI parity gaps.
+
+- Phase 7 milestone: Grok shares ACP session, models, permissions and cancellation
+  with OpenCode, including x.ai notification aliases and mirrored-event filtering.
+  Pi has a dedicated native JSONL RPC adapter with session-file resume, streamed
+  messages, agent_settled completion, cancellation, model selection, confirmation
+  and text extension dialogs. Its built-in tools are restricted to read/grep/find/ls;
+  unsupported select dialogs are cancelled. 23 deterministic provider scenarios
+  pass. Grok/Pi CLIs are absent locally, so installed-version compatibility remains
+  unverified. Claude is optional per user direction; OpenCode v1 is unverified.
+  Automatic new-chat detection prefers installed OpenCode, then Codex/Grok/Pi.
