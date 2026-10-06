@@ -1799,7 +1799,12 @@ wl_clip_get:
     lea rbx, [rip + .Lmime_uri]
     mov dword ptr [rip + paste_kind], 1
     jmp .Lwc_request
-11: test ecx, 16
+11: test ecx, 64
+    jz 111f
+    lea rbx, [rip + .Lmime_gnome]
+    mov dword ptr [rip + paste_kind], 4
+    jmp .Lwc_request
+111: test ecx, 16
     jz 12f
     lea rbx, [rip + .Lmime_png]
     mov dword ptr [rip + paste_kind], 2
@@ -1869,6 +1874,8 @@ on_paste_readable:
     jle 1f
     add [rip + paste_sb + SB_len], rax
     mov ecx, 65536
+    cmp dword ptr [rip + paste_kind], 4
+    je 2f
     cmp dword ptr [rip + paste_kind], 2
     jb 2f
     mov ecx, 1 << 20
@@ -2192,7 +2199,7 @@ clipboard_mime_bit:
     mov r13, rsi
     xor ebx, ebx
     lea r14, [rip + clipboard_mimes]
-1:  cmp ebx, 6
+1:  cmp ebx, 7
     jae 3f
     mov rdi, r12
     mov rsi, r13
@@ -2213,5 +2220,8 @@ clipboard_mime_bit:
 .Lmime_png: .asciz "image/png"
 .Lmime_jpeg: .asciz "image/jpeg"
 .p2align 3
-clipboard_mimes: .quad .Lmime_utf8, .Lmime_plain, .Lmime_utf8str, .Lmime_uri, .Lmime_png, .Lmime_jpeg
+clipboard_mimes: .quad .Lmime_utf8, .Lmime_plain, .Lmime_utf8str, .Lmime_uri, .Lmime_png, .Lmime_jpeg, .Lmime_gnome
 .Lpaste_error: .asciz "Clipboard transfer unsupported or too large."
+
+.section .rodata
+.Lmime_gnome: .asciz "x-special/gnome-copied-files"

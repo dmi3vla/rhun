@@ -1789,14 +1789,19 @@ FN agents_chat_paste
     jnz 8f
     call agents_chat_field
     mov rbx, rax
-    mov rcx, [rbx + TF_sb + SB_len]
+    mov rax, [rbx + TF_cur]
+    sub rax, [rbx + TF_anchor]
+    jns 1f
+    neg rax
+1:  mov rcx, [rbx + TF_sb + SB_len]
+    sub rcx, rax
     add rcx, r13
     cmp rcx, 65536
     ja 8f
     mov rdi, rbx
     mov rsi, r12
     mov rdx, r13
-    call ta_insert
+    call ta_insert_keep_tabs
     call chat_store_dirty
 9:  EPILOGUE
 8:  lea rdi, [rip + .Lcontext_draft_limit]
@@ -3551,17 +3556,35 @@ FN agents_drop_hit
 9:  ret
 FN agents_drop_feedback
     PROLOGUE
+    # Four thin edges preserve the transcript and composer beneath the target.
     mov edi, [rip + panel_rect]
     mov esi, [rip + panel_rect + 4]
     mov edx, [rip + panel_rect + 8]
+    M ecx, MI_2
+    COLOR r8d, T_ACCENT
+    call gfx_fill
+    mov edi, [rip + panel_rect]
+    mov esi, [rip + panel_rect + 4]
+    add esi, [rip + panel_rect + 12]
+    sub esi, [rip + g_mt + 4*MI_2]
+    mov edx, [rip + panel_rect + 8]
+    M ecx, MI_2
+    COLOR r8d, T_ACCENT
+    call gfx_fill
+    mov edi, [rip + panel_rect]
+    mov esi, [rip + panel_rect + 4]
+    M edx, MI_2
     mov ecx, [rip + panel_rect + 12]
-    M r8d, MI_RADIUS
-    COLOR r9d, T_ACCENT
-    COLOR eax, T_PANEL
-    push rax
-    push rax
-    call gfx_frame
-    add rsp, 16
+    COLOR r8d, T_ACCENT
+    call gfx_fill
+    mov edi, [rip + panel_rect]
+    add edi, [rip + panel_rect + 8]
+    sub edi, [rip + g_mt + 4*MI_2]
+    mov esi, [rip + panel_rect + 4]
+    M edx, MI_2
+    mov ecx, [rip + panel_rect + 12]
+    COLOR r8d, T_ACCENT
+    call gfx_fill
     lea rdi, [rip + g_face_small]
     mov esi, [rip + panel_rect]
     add esi, [rip + g_mt + 4*MI_16]

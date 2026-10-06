@@ -45,7 +45,7 @@ FN chat_paste_uris
     mov ecx, 7
     call str_starts
     test eax, eax
-    jz .Luri_bad
+    jz .Luri_web
     add r14, 7
     cmp byte ptr [r12 + r14], '/'
     je 4f
@@ -101,6 +101,38 @@ FN chat_paste_uris
 .Luri_skip:
     lea r14, [r15 + 1]
     jmp .Luri_next
+.Luri_web:
+    mov rsi, r15
+    sub rsi, r14
+    cmp byte ptr [r12 + r15 - 1], 13
+    jne 10f
+    dec rsi
+10: lea rdi, [r12 + r14]
+    lea rdx, [rip + .Lhttp]
+    mov ecx, 7
+    call str_starts
+    test eax, eax
+    jnz .Luri_web_add
+    mov rsi, r15
+    sub rsi, r14
+    lea rdi, [r12 + r14]
+    lea rdx, [rip + .Lhttps]
+    mov ecx, 8
+    call str_starts
+    test eax, eax
+    jz .Luri_bad
+.Luri_web_add:
+    inc ebx
+    cmp ebx, 64
+    ja .Luri_bad
+    mov rsi, r15
+    sub rsi, r14
+    cmp byte ptr [r12 + r15 - 1], 13
+    jne 11f
+    dec rsi
+11: lea rdi, [r12 + r14]
+    call agents_chat_append
+    jmp .Luri_skip
 .Luri_bad:
     lea rdi, [rip + .Luri_error]
     call app_toast
@@ -121,7 +153,9 @@ uri_hex:
 .section .rodata
 .Llocal_uri: .asciz "file://"
 .Llocalhost: .asciz "localhost/"
-.Luri_error: .asciz "Clipboard: expected local file URLs (max 64 files / 64 KiB)."
+.Lhttp: .asciz "http://"
+.Lhttps: .asciz "https://"
+.Luri_error: .asciz "Clipboard: expected local files or HTTP(S) links (max 64 items / 64 KiB)."
 .bss
 .p2align 3
 clip_image_path: .zero SB_SIZE
@@ -139,9 +173,31 @@ FN app_on_clipboard
     call agents_chat_accept_objects
     test eax, eax
     jz .Lclip_unavailable
+    cmp ebx, 4
+    je .Lclip_gnome
     cmp ebx, 1
     jne .Lclip_image
     mov rdi, r12
+    mov rsi, r13
+    call chat_paste_uris
+    jmp .Lclip_done
+.Lclip_gnome:
+    cmp r13, 65536
+    ja .Lclip_bad
+    cmp r13, 5
+    jb .Lclip_bad
+    cmp dword ptr [r12], 0x79706f63 # copy
+    jne 10f
+    cmp byte ptr [r12 + 4], 10
+    jne .Lclip_bad
+    add r12, 5
+    sub r13, 5
+    jmp 11f
+10: cmp dword ptr [r12], 0x0a747563 # cut + LF; attachment never moves files
+    jne .Lclip_bad
+    add r12, 4
+    sub r13, 4
+11: mov rdi, r12
     mov rsi, r13
     call chat_paste_uris
     jmp .Lclip_done

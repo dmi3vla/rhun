@@ -47,7 +47,7 @@ The registered transport/chat modules contain 100 deterministic scenarios:
 editor, Git, files, resource/fault and other application suites remain registered
 in `tests/run.sh`.
 
-Final full-suite result: PASS (`tests/run.sh`, exit 0). The history suite has
+Phase-8 full-suite result: PASS (`tests/run.sh`, exit 0). The history suite has
 one expected macOS-only skip on Linux. The final palette-focus change also passed
 all 10 palette scenarios and the context cancellation regression.
 
@@ -86,3 +86,32 @@ Undo group; it does not auto-apply a model answer or save the source file.
 
 These gates remain visible rather than being counted as completed phases or
 full Claudian parity. Linux implementation milestones have a commit per phase.
+
+
+## Drag/drop and clipboard follow-up
+
+The input follow-up is specified in [chat-input-roadmap.md](chat-input-roadmap.md).
+It adds six pointer scenarios, thirteen typed clipboard/context scenarios and six
+native X11 clipboard scenarios, bringing the registered transport/chat inventory
+to 125 cases when isolated Xvfb is available. Without Xvfb, those six native
+cases are explicitly skipped. The temporary Xvfb executable can be passed via
+`RHUN_XVFB`; no user's desktop clipboard is used for the tests.
+
+Code paste preserves tabs and normalizes line endings. Ctrl/Shift project-tree
+selection can be dropped into chat. PNG/JPEG clipboard files persist with mode
+0600. Multiple native images are bounded to eight / 1 MiB total per turn. URI
+lists support local file URLs and literal HTTP(S) links. Audio/video and other
+binary objects are local file references, not native media model blocks.
+
+Wayland MIME negotiation and bounded asynchronous reading are implemented, but
+native compositor clipboard execution remains an acceptance gate. External
+application drops and macOS/Windows object clipboard integration remain outside
+this milestone.
+
+
+Follow-up regression result: all registered groups passed across the initial
+long run and focused completion runs. The long run exited 143 during stress;
+stress, file-fault injection and UI scripts subsequently exited 0 independently.
+Final focused input coverage passes 25 new scenarios plus all 10 existing context
+cases and the assembly textarea check. Seven shared sources pass AArch64
+translation, without a claim of native macOS execution.

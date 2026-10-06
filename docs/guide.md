@@ -523,8 +523,8 @@ unknown-version state is preserved for manual recovery rather than overwritten.
 Use **Chat: Attach Project File** or type `@` to search the project. Text files up
 to 32 KiB are copied into the draft. **Attach Active Buffer** includes unsaved
 changes; **Attach Selection** preserves exact selected bytes, including tabs.
-PNG/JPEG files up to 1 MiB use native Codex localImage or ACP image blocks when
-the provider advertises image support. One image is supported per turn. A draft
+Up to eight PNG/JPEG images, at most 1 MiB total per turn, use native Codex
+localImage or ACP image blocks when the provider advertises image support. A draft
 image marker contains the JSON-quoted path; the file is read again at send time.
 Unsupported images keep the draft and prevent sending.
 
@@ -594,3 +594,32 @@ Native smoke checks: `python3 tools/probe-live-chat.py --provider opencode` (or
 `--prompt-turn` to send one tiny real model prompt in an empty temporary directory
 and then verify native resume. See [chat validation](chat-validation.md) for the
 verified versions, platform gates and remaining parity work.
+
+### Drag/drop and clipboard in chat
+
+Drag a file or folder from the project tree into the right Agents panel. The
+panel shows an accent outline and a drop hint. Release to add the item to the
+message draft. Ctrl-click toggles selected rows; Shift-click selects the visible
+range. Drag a selected row to attach the whole selection (up to 64 items). Tree
+refresh clears the selection. Dropping elsewhere does not attach or move files.
+
+With the chat composer focused, Ctrl+V inserts text and web links. Code tabs are
+preserved; CR/CRLF line endings become newlines. On Linux,
+copied files from a file manager are recognized through `text/uri-list` or
+`x-special/gnome-copied-files` (copy/cut both attach without moving); PNG/JPEG
+clipboard images are saved as private files under the rhun configuration folder's
+`chat-attachments/` directory. These files remain available after restarting the
+app. They are not automatically deleted when closing a chat.
+
+Text files up to 32 KiB become copied context. Folders, larger files and binary
+objects (including audio/video) become JSON-quoted `@file:` path references for
+the provider's tools. Audio/video bytes are not sent as native model inputs.
+PNG/JPEG images become `@image:` markers and are re-read when sending. Every drop
+or object paste adds to the unsent draft; press Enter explicitly to send.
+
+Web links remain literal text; rhun does not fetch the linked page. The draft
+limit is 64 KiB. Invalid/oversized clipboard data shows a message and retains the
+existing draft. File/image objects never enter a provider question's text field.
+A delayed clipboard transfer is rejected if its original chat is no longer
+focused. Windows/macOS object clipboard integration and drops from external
+applications are not implemented by this Linux/internal-tree milestone.

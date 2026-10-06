@@ -49,6 +49,7 @@ a_utf8: .long 0
 a_clipboard: .long 0
 a_targets: .long 0
 a_uri: .long 0
+a_gnome: .long 0
 a_png: .long 0
 a_jpeg: .long 0
 a_incr: .long 0
@@ -1245,6 +1246,9 @@ FN x_open_window
     lea rdi, [rip + .La_uri]
     call x_intern
     mov [rip + a_uri], eax
+    lea rdi, [rip + .La_gnome]
+    call x_intern
+    mov [rip + a_gnome], eax
     lea rdi, [rip + .La_png]
     call x_intern
     mov [rip + a_png], eax
@@ -1700,7 +1704,13 @@ x_paste_reply:
     jne 2f
     mov ebx, 1
     jmp 4f
-2:  cmp eax, [rip + a_png]
+2:  cmp eax, [rip + a_gnome]
+    jne 21f
+    mov ebx, 4
+    jmp 31f
+21: cmp ebx, 4
+    je 31f
+    cmp eax, [rip + a_png]
     jne 3f
     mov ebx, 2
 3:  cmp eax, [rip + a_jpeg]
@@ -1722,7 +1732,10 @@ x_paste_reply:
 6:  cmp ebx, 3
     jne 7f
     mov eax, [rip + a_jpeg]
-7:  call x_paste_convert
+7:  cmp ebx, 4
+    jne 71f
+    mov eax, [rip + a_gnome]
+71: call x_paste_convert
     EPILOGUE
 .Lxp_value:
     mov eax, [r12 + 8]
@@ -1745,6 +1758,8 @@ x_paste_reply:
     mov rax, [rip + paste_data + SB_len]
     add rax, r14
     mov ecx, 65536
+    cmp dword ptr [rip + paste_kind], 4
+    je 9f
     cmp dword ptr [rip + paste_kind], 2
     jb 9f
     mov ecx, 1 << 20
@@ -1982,3 +1997,6 @@ want_seq: .long -1
 .La_jpeg: .asciz "image/jpeg"
 .La_incr: .asciz "INCR"
 .Lpaste_error: .asciz "Clipboard transfer unsupported or too large."
+
+.section .rodata
+.La_gnome: .asciz "x-special/gnome-copied-files"

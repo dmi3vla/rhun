@@ -1432,7 +1432,14 @@ FN ta_line_h
 
 # ta_insert(tf, ptr, len): replaces the selection; CR LF and CR become line breaks, tabs spaces
 FN ta_insert
+    xor ecx, ecx
+    jmp .Lta_insert_begin
+# Chat code paste preserves tabs while normalizing CR/CRLF line endings.
+FN ta_insert_keep_tabs
+    mov ecx, 1
+.Lta_insert_begin:
     PROLOGUE
+    mov r15d, ecx
     mov rbx, rdi
     mov r12, rsi
     mov r13, rdx
@@ -1454,6 +1461,8 @@ FN ta_insert
     jmp 3f
 2:  cmp esi, 9
     jne 3f
+    test r15d, r15d
+    jnz 3f
     mov esi, ' '
 3:  lea rdi, [rip + ta_buf]
     call sb_push_byte

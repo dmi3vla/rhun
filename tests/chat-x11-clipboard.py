@@ -131,6 +131,10 @@ class X11Clipboard(mod.ChatStore):
         value=self.paste_native('text/uri-list',(p.as_uri()+'\r\n').encode())
         self.assertIn('Native clipboard file context',value[0]['text'])
         self.assertNotIn('fallback text',value[0]['text'])
+    def test_gnome_files_preferred_over_text(self):
+        p=self.project/'gnome.txt';p.write_text('GNOME native context')
+        value=self.paste_native('x-special/gnome-copied-files',('copy\n'+p.as_uri()).encode())
+        self.assertIn('GNOME native context',value[0]['text'])
     def test_png_direct(self):
         raw=(ROOT/'tests/data/images/gray16-adam7.png').read_bytes()
         value=self.paste_native('image/png',raw)
