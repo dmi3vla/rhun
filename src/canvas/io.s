@@ -58,6 +58,19 @@ FN scene_serialize
 113: mov rdi, r12
     call chat_json_quote
     mov rdi, r12
+    lea rsi, [rip + .Lanalysis_key]
+    call sb_push_cstr
+    mov rsi, [rbx + SC_analysis]
+    xor edx, edx
+    test rsi, rsi
+    jz .Lserialize_analysis
+    mov rdi, rsi
+    call strlen
+    mov rdx, rax
+    mov rsi, [rbx + SC_analysis]
+.Lserialize_analysis: mov rdi, r12
+    call chat_json_quote
+    mov rdi, r12
     lea rsi, [rip + .Lscene_elements]
     call sb_push_cstr
     xor r13d, r13d
@@ -241,6 +254,8 @@ FN scene_parse
     cmp dword ptr [r12 + 4], 7
     je 101f
     cmp dword ptr [r12 + 4], 8
+    je 101f
+    cmp dword ptr [r12 + 4], 9
     jne .Lparse_null
 101:
     mov rdi, r12
@@ -267,6 +282,8 @@ FN scene_parse
     cmp rax, 4
     je 102f
     cmp rax, 5
+    je 102f
+    cmp rax, 6
     jne .Lparse_null
 102: mov [rsp + 32], eax
     cmp eax, 3
@@ -274,7 +291,8 @@ FN scene_parse
     cmp eax, 5
     mov eax, 7
     jb 108f
-    inc eax
+    mov eax, [rsp + 32]
+    add eax, 3
     jmp 108f
 111: add eax, 3
 108: cmp [r12 + 4], eax
@@ -348,6 +366,18 @@ FN scene_parse
     jz .Lparse_bad
     mov [rbx + SC_graph], rax
 113:
+    cmp dword ptr [rsp + 32], 6
+    jb .Lparse_analysis_done
+    mov rdi, [rsp + 48]
+    lea rsi, [rip + .Lanalysis]
+    call json_get
+    mov rdi, rax
+    mov esi, 1 << 20
+    call scene_owned_json_string
+    test rax, rax
+    jz .Lparse_bad
+    mov [rbx + SC_analysis], rax
+.Lparse_analysis_done:
     cmp dword ptr [rsp + 32], 2
     jb 104f
     mov rdi, [rsp + 40]
@@ -585,6 +615,10 @@ FN scene_parse
     call canvas_graph_validate
     test eax, eax
     jz .Lparse_bad
+    mov rdi, rbx
+    call radare_analysis_valid
+    test eax, eax
+    jz .Lparse_bad
     mov rax, rbx
     EPILOGUE
 .Lparse_bad:
@@ -686,7 +720,7 @@ FN canvas_path
 9:  EPILOGUE
 .section .rodata
 .Lgraph_suffix: .asciz ".rhun-graph"
-.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":5,\"next\":"
+.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":6,\"next\":"
 .Lscene_elements: .asciz ",\"elements\":["
 .Lscene_end: .asciz "]}\n"
 .Ltext_key: .asciz "\"text\":"
@@ -789,3 +823,7 @@ FN scene_owned_json_string
 .section .rodata
 .Lgraph: .asciz "graph"
 .Lgraph_key: .asciz ",\"graph\":"
+
+.section .rodata
+.Lanalysis: .asciz "analysis"
+.Lanalysis_key: .asciz ",\"analysis\":"

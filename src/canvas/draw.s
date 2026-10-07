@@ -242,7 +242,12 @@ FN canvas_element
     cmp r15d, 8
     jae 5f
     mov r15d, 8
-5:  cmp byte ptr [r13], 0
+5:  mov eax, [rip + g_face_ui + FACE_ascent]
+    add eax, [rip + g_face_ui + FACE_descent]
+    add eax, 2
+    cmp r15d, eax
+    cmovl r15d, eax
+    cmp byte ptr [r13], 0
     je .Ldraw_selected
     xor edx, edx
 6:  cmp byte ptr [r13 + rdx], 0

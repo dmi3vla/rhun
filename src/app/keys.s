@@ -477,6 +477,8 @@ key_names:
 g_commands:
     COMMAND quick_open, "Go to File", cmd_quick_open, "ctrl+p ctrl+e"
     COMMAND command_palette, "Command Palette", cmd_command_palette, "ctrl+shift+p F1"
+    COMMAND radare_demo, "Radare2: Open CFG Demo", cmd_radare_demo, ""
+    COMMAND radare_import, "Radare2: Import agfj JSON", cmd_radare_import, ""
     COMMAND canvas_graph_demo, "Canvas: Open Distributed State Demo", cmd_canvas_graph_demo, ""
     COMMAND canvas_graph_mode, "Canvas: Toggle Graph 2D/3D", cmd_canvas_graph_mode, ""
     COMMAND canvas_graph_fold, "Canvas: Fold/Unfold Selected Segment", cmd_canvas_graph_fold, ""

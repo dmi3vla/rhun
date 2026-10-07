@@ -2261,6 +2261,12 @@ prompt_done:
     PROLOGUE
     mov rbx, rdi
     mov r12d, esi
+    cmp r12d, 12
+    jne .Lprompt_after_radare
+    mov rdi, rbx
+    call radare_import_file
+    jmp 9f
+.Lprompt_after_radare:
     cmp r12d, 11
     jne .Lprompt_after_proposal
     mov rdi, rbx

@@ -194,6 +194,14 @@ canvas_export_skip_key:
 
 # All primitives and references regenerate from IR, metadata is retained above.
 FN canvas_export_excalidraw
+    mov rax, [rdi + SC_analysis]
+    test rax, rax
+    jz .Lexport_not_analysis
+    cmp byte ptr [rax], 0
+    je .Lexport_not_analysis
+    xor eax, eax
+    ret
+.Lexport_not_analysis:
     PROLOGUE 32
     mov rbx, rdi
     mov r12, rsi

@@ -25,6 +25,8 @@ FN scene_free
     call mem_free
     mov rdi, [rbx + SC_graph_view]
     call canvas_graph_free
+    mov rdi, [rbx + SC_analysis]
+    call mem_free
     mov rdi, [rbx + SC_generated]
     call mem_free
     mov rdi, [rbx + SC_proposal]

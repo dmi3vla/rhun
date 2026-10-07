@@ -68,3 +68,20 @@ actual native screenshot; actual r2 smoke; user walkthrough and limitations.
 Acceptance: all new checks, relevant existing canvas/editor/chat checks, clean
 Git tree after commit. Linux x86-64 primary; report unavailable platform checks.
 Commit: test(radare2): verify native analysis trace and review workflows
+
+### Phase 1 acceptance
+
+Native demo contains one function frame, four blocks and four bound green/red
+edges. Function labels and assembly are native text; display shows up to 32
+instructions while full block JSON stays owned in source metadata. The importer
+accepts addr/legacy offset, rejects duplicate block addresses, malformed values
+and input limits, and keeps missing external edge targets only in source JSON.
+Function layout uses two columns with height derived from the largest displayed
+block. Initial zoom 75%; native glyph line spacing is bounded by font metrics.
+
+`./build.sh test`, `build/radare_model_test`, `tests/radare-frames.py` (5), canvas
+edit (18), graph (6), proposals (7), UI (7), exchange (7) passed. Screenshot
+/tmp/rhun-radare2-demo.png inspected. A snapshot clone now copies next-ID and
+revision as well as owned content; undo restore still retains monotonic live IDs.
+Native v6 saves analysis and reads previous versions. Excalidraw export of analysis
+scenes is refused rather than losing analysis/producing colliding external IDs.

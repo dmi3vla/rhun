@@ -150,6 +150,9 @@ FN canvas_draw
     mov rdi, rbx
     mov rsi, r14
     call canvas_detail_summary
+    mov rdi, rbx
+    mov rsi, r14
+    call radare_frame_label
 7:  inc r12
     jmp 4b
 8:  mov rdi, rbx
