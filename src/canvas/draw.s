@@ -576,7 +576,15 @@ FN canvas_paint_element
     call gfx_clip_push
     mov rdi, rbx
     mov rsi, r12
+    call radare_clip_text
+    mov r14d, eax
+    mov rdi, rbx
+    mov rsi, r12
     call canvas_element
+    test r14d, r14d
+    jz .Lpaint_no_block_clip
+    call gfx_clip_pop
+.Lpaint_no_block_clip:
     call gfx_clip_pop
     EPILOGUE
 8:  mov rdi, rbx

@@ -120,7 +120,7 @@ FN radare_import
     cmp eax, 512
     ja .Limp_bad
     mov [rsp + 104], eax
-    mov dword ptr [rsp + 152], 140
+    mov dword ptr [rsp + 152], 180
     xor r14d, r14d
 .Limp_measure:
     cmp r14d, [rsp + 64]
@@ -137,8 +137,8 @@ FN radare_import
     jbe .Limp_measure_size
     mov eax, 32
 .Limp_measure_size:
-    imul eax, 16
-    add eax, 80
+    imul eax, 28
+    add eax, 100
     cmp eax, [rsp + 152]
     jbe .Limp_measure_next
     mov [rsp + 152], eax
@@ -344,7 +344,7 @@ FN radare_import
     sub r9d, 60
     call scene_add
     mov r15, rax
-    mov dword ptr [rax + CE_fontsize], 16
+    mov dword ptr [rax + CE_fontsize], 24
     mov rcx, [rsp + 128]
     mov [rax + CE_group], rcx
     mov rcx, [rsp + 72]
@@ -389,6 +389,7 @@ FN radare_import
     mov r8d, 1
     mov r9d, 1
     call scene_add
+    mov r12, rax
     mov rcx, [r14 + RB_id]
     mov [rax + CE_from], rcx
     mov rcx, [rsp + 112]
@@ -397,8 +398,19 @@ FN radare_import
     mov [rax + CE_frame], rcx
     mov dword ptr [rax + CE_color], 0xff78c88d
     test r15d, r15d
-    jz .Limp_edge_next
+    jnz .Limp_edge_false
+    lea rdi, [rip + .Ltrue_label]
+    cmp qword ptr [r14 + RB_fail], -1
+    jne .Limp_edge_label
+    lea rdi, [rip + .Ljump_label]
+    jmp .Limp_edge_label
+.Limp_edge_false:
     mov dword ptr [rax + CE_color], 0xffe18b83
+    lea rdi, [rip + .Lfalse_label]
+.Limp_edge_label:
+    mov esi, 1
+    call mem_dup
+    mov [r12 + CE_text], rax
 .Limp_edge_next:
     inc r15d
     cmp r15d, 2
@@ -552,3 +564,8 @@ FN radare_import_stream
 .Lstream_return: EPILOGUE
 .Lstream_null: xor eax, eax
     EPILOGUE
+
+.section .rodata
+.Ltrue_label: .asciz "T"
+.Lfalse_label: .asciz "F"
+.Ljump_label: .asciz "J"

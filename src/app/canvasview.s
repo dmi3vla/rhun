@@ -23,6 +23,36 @@ FN cmd_canvas_new
 
 # Canvas consumes ordinary typing; global modified shortcuts remain available.
 FN canvas_key
+    push rbx
+    push r12
+    push r13
+    mov ebx, edi
+    mov r12d, esi
+    mov r13d, edx
+    call canvas_active
+    mov rcx, [rax + SC_analysis]
+    test rcx, rcx
+    jz .Lcanvas_key_regular
+    cmp byte ptr [rcx], 0
+    je .Lcanvas_key_regular
+    cmp qword ptr [rax + SC_text_id], 0
+    jne .Lcanvas_key_regular
+    mov edi, ebx
+    mov esi, r13d
+    call radare_key
+    test eax, eax
+    jz .Lcanvas_key_regular
+    pop r13
+    pop r12
+    pop rbx
+    ret
+.Lcanvas_key_regular:
+    mov edi, ebx
+    mov esi, r12d
+    mov edx, r13d
+    pop r13
+    pop r12
+    pop rbx
     mov rax, [rip + g_file]
     mov rax, [rax + DOC_canvas]
     cmp qword ptr [rax + SC_graph_view], 0
@@ -153,6 +183,12 @@ FN canvas_draw
     mov rdi, rbx
     mov rsi, r14
     call radare_frame_label
+    mov rdi, rbx
+    mov rsi, r14
+    call radare_trace_overlay
+    mov rdi, rbx
+    mov rsi, r14
+    call radare_edge_label
 7:  inc r12
     jmp 4b
 8:  mov rdi, rbx

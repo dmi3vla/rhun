@@ -590,7 +590,55 @@ FN scene_parse
     je .Lparse_bad             # native v1 forbids nested frame cycles
     jmp 3f
 21: cmp dword ptr [r14 + CE_kind], CT_ARROW
+    je .Lparse_arrow_target
+    # v6 analysis annotations use from as a source relationship, not geometry.
+    cmp dword ptr [rsp + 32], 6
+    jb .Lparse_bad
+    cmp r15d, CE_from
     jne .Lparse_bad
+    mov rcx, [rbx + SC_analysis]
+    test rcx, rcx
+    jz .Lparse_bad
+    cmp byte ptr [rcx], 0
+    je .Lparse_bad
+    mov r12, rax
+    mov rdi, [r14 + CE_gxid]
+    test rdi, rdi
+    jz .Lparse_bad
+    cmp dword ptr [r14 + CE_kind], CT_TEXT
+    jne .Lparse_review_frame
+    lea rsi, [rip + r2_note_marker]
+    call strcmp_eq
+    test eax, eax
+    jz .Lparse_bad
+    cmp dword ptr [r12 + CE_kind], CT_RECT
+    jne .Lparse_bad
+    mov rdi, [r12 + CE_gxid]
+    test rdi, rdi
+    jz .Lparse_bad
+    lea rsi, [rip + r2_block_marker]
+    call strcmp_eq
+    test eax, eax
+    jz .Lparse_bad
+    jmp 3f
+.Lparse_review_frame:
+    cmp dword ptr [r14 + CE_kind], CT_FRAME
+    jne .Lparse_bad
+    lea rsi, [rip + r2_review_marker]
+    call strcmp_eq
+    test eax, eax
+    jz .Lparse_bad
+    cmp dword ptr [r12 + CE_kind], CT_FRAME
+    jne .Lparse_bad
+    mov rdi, [r12 + CE_gxid]
+    test rdi, rdi
+    jz .Lparse_bad
+    lea rsi, [rip + r2_function_marker]
+    call strcmp_eq
+    test eax, eax
+    jz .Lparse_bad
+    jmp 3f
+.Lparse_arrow_target:
     cmp dword ptr [rax + CE_kind], CT_ARROW
     je .Lparse_bad
 3:  add r15d, 8

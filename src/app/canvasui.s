@@ -2,6 +2,12 @@
 .include "canvas/canvas.inc"
 .text
 FN canvas_toolbar
+    mov rax, [rdi + SC_analysis]
+    test rax, rax
+    jz .Ltoolbar_no_radare
+    cmp byte ptr [rax], 0
+    jne radare_toolbar
+.Ltoolbar_no_radare:
     cmp qword ptr [rdi + SC_graph_view], 0
     jne canvas_graph_toolbar
     PROLOGUE 16

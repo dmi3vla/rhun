@@ -477,6 +477,13 @@ key_names:
 g_commands:
     COMMAND quick_open, "Go to File", cmd_quick_open, "ctrl+p ctrl+e"
     COMMAND command_palette, "Command Palette", cmd_command_palette, "ctrl+shift+p F1"
+    COMMAND radare_trace_import, "Radare2: Import Address Trace", cmd_radare_trace_import, ""
+    COMMAND radare_trace_next, "Radare2: Next Trace Event", cmd_radare_trace_next, ""
+    COMMAND radare_trace_prev, "Radare2: Previous Trace Event", cmd_radare_trace_prev, ""
+    COMMAND radare_fold, "Radare2: Fold/Unfold Selected Function", cmd_radare_fold, ""
+    COMMAND radare_note, "Radare2: Add Source Review Note", cmd_radare_note, ""
+    COMMAND radare_review_export, "Radare2: Export Review Markdown", cmd_radare_review_export, ""
+    COMMAND radare_review_chat, "Radare2: Send Selected Blocks to Chat for Review", cmd_canvas_request_chat, ""
     COMMAND radare_next_function, "Radare2: Next Function Frame", cmd_radare_next_function, ""
     COMMAND radare_analyze, "Radare2: Analyze Binary Entry CFG", cmd_radare_analyze, ""
     COMMAND radare_address, "Radare2: Analyze Function Address", cmd_radare_address, ""

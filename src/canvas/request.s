@@ -81,9 +81,25 @@ FN canvas_request_build
     inc r15d
 6:  inc r14
     jmp 4b
-7:  mov rdi, r12
+7:  mov rax, [rbx + SC_analysis]
+    test rax, rax
+    jz .Lrequest_canvas_end
+    cmp byte ptr [rax], 0
+    je .Lrequest_canvas_end
+    mov rdi, r12
+    mov esi, ']'
+    call sb_push_byte
+    mov rdi, rbx
+    mov rsi, r12
+    call radare_request_evidence
+    mov rdi, r12
+    lea rsi, [rip + .Lreview_end]
+    call sb_push_cstr
+    jmp .Lrequest_limit
+.Lrequest_canvas_end: mov rdi, r12
     lea rsi, [rip + .Lend]
     call sb_push_cstr
+.Lrequest_limit:
     cmp qword ptr [r12 + SB_len], 48 << 10
     ja 8f
     mov r15d, 1
@@ -164,3 +180,5 @@ FN cmd_canvas_request_chat
 .Lready: .asciz "Selected context request exported; load agent result with Canvas: Load Model Proposal"
 .Lerror: .asciz "Request rejected: select 1-64 elements with total context under 48 KiB"
 .Lchat_error: .asciz "Start a chat and wait until ready, then send selected canvas context again"
+
+.Lreview_end: .asciz ",\"allowed\":[\"add\",\"replace\",\"delete\",\"ui\"],\"task\":\"Review the selected Radare2 source blocks. Distinguish static possible branches from imported address evidence; do not claim unvisited blocks executed. Explain observations and uncertainties, suggest source-linked notes. No target execution or executable commands. Changes require rhun-proposal v1 with this revision and explicit acceptance.\"}"

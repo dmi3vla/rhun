@@ -616,6 +616,19 @@ c_wait_ai:
     xor eax, eax
     ret
 
+c_print_trace:
+    push rbx
+    call canvas_active
+    test rax, rax
+    jz .Lprint_trace_done
+    mov rdi, rax
+    lea rsi, [rip + out]
+    call radare_trace_dump
+.Lprint_trace_done:
+    pop rbx
+    xor eax, eax
+    ret
+
 c_print_radare:
     lea rdi, [rip + out]
     call radare_dump
@@ -1344,6 +1357,7 @@ on_client:
 .Lc_print_gitlog: .asciz "print-gitlog"
 .Lc_print_scm: .asciz "print-scm"
 .Lc_wait_ai: .asciz "wait-ai"
+.Lc_print_trace: .asciz "print-radare-trace"
 .Lc_print_radare: .asciz "print-radare"
 .Lc_print_ai: .asciz "print-ai"
 .Lc_wait_update: .asciz "wait-update"
@@ -1375,6 +1389,7 @@ ctl_table:
     .quad .Lc_print_chat_status, c_print_chat_status
     .quad .Lc_print_graph, c_print_graph
     .quad .Lc_print_ui, c_print_ui
+    .quad .Lc_print_trace, c_print_trace
     .quad .Lc_print_radare, c_print_radare
     .quad .Lc_print_canvas, c_print_canvas
     .quad .Lc_print_state, c_print_state, .Lc_print_syntax, c_print_syntax, .Lc_print_agents, c_print_agents, .Lc_xkey, c_xkey

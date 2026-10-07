@@ -109,3 +109,20 @@ read-only /bin/true entry CFG passed. Fixture tests cover literal hostile filena
 missing r2, nonzero exit, output cap, timeout, cancel while other tabs stay usable,
 numeric command validation and changed source. Runtime dependency was extracted
 outside this repo for testing; it is not bundled in rhun. Linux is verified.
+
+### Phase 3 acceptance
+
+Imported address sequences preserve loops and show unknown/ambiguous addresses
+separately. An owned revision-keyed cache derives block visit counts; navigation
+and collapse do not mutate content. One undo restores trace import or a complete
+source-linked note frame. Native v6 preserves source links and trace on reopening.
+CFG edges are labelled T/F/J; coverage and current-event overlays remain separate
+from static branch colors. Review export uses indented assembly/note text, and
+explicit selected-block chat requests carry review instructions and bounded trace
+evidence through the existing proposal transport.
+
+`./build.sh test`, trace/review checks (6), frame checks (5), proposals (7), canvas
+chat transport (1), and the owned-model binary passed. Review caught borrowed
+numeric JSON tokens: trace input now remains owned until serialization finishes.
+Source reference validation permits only typed review-to-function/note-to-block
+links in analysis scenes; old native formats retain their prior validation.

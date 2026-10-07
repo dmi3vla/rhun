@@ -2280,6 +2280,24 @@ prompt_done:
     PROLOGUE
     mov rbx, rdi
     mov r12d, esi
+    cmp r12d, 15
+    jne .Lprompt_after_r2_trace
+    mov rdi, rbx
+    call radare_trace_import_file
+    jmp 9f
+.Lprompt_after_r2_trace:
+    cmp r12d, 16
+    jne .Lprompt_after_r2_note
+    mov rdi, rbx
+    call radare_note_add
+    jmp 9f
+.Lprompt_after_r2_note:
+    cmp r12d, 17
+    jne .Lprompt_after_r2_review
+    mov rdi, rbx
+    call radare_review_write
+    jmp 9f
+.Lprompt_after_r2_review:
     cmp r12d, 13
     jne .Lprompt_after_r2_binary
     mov rdi, rbx
