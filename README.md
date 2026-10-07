@@ -55,6 +55,8 @@ Fast built-in terminal:
 [Usage, shortcuts, and configuration](docs/guide.md)
 
 [Native drafts, UI export, proposals and distributed-state canvas](docs/native-canvas.md)
+
+[Radare2 native CFG, imported trace and source-linked review](docs/radare2.md)
 are available in the local Linux build; platform and interchange limits are documented there.
 
 ## Contribute

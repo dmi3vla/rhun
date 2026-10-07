@@ -91,7 +91,20 @@ FN radare_note_add
     cmp dword ptr [rax + CE_kind], CT_FRAME
     jne .Lnote_frame_next
     cmp [rax + CE_from], r15
-    je .Lnote_frame_ready
+    jne .Lnote_frame_next
+    mov [rsp + SB_SIZE+8], rcx
+    mov [rsp + SB_SIZE+16], rax
+    mov rdi, [rax + CE_gxid]
+    test rdi, rdi
+    jz .Lnote_frame_restore
+    lea rsi, [rip + r2_review_marker]
+    call strcmp_eq
+    test eax, eax
+    mov rax, [rsp + SB_SIZE+16]
+    mov rcx, [rsp + SB_SIZE+8]
+    jnz .Lnote_frame_ready
+.Lnote_frame_restore:
+    mov rcx, [rsp + SB_SIZE+8]
 .Lnote_frame_next: inc rcx
     jmp .Lnote_frame_scan
 .Lnote_frame_new:

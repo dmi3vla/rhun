@@ -1,6 +1,8 @@
 # Native drafts in rhun
 
 Runtime is native ASM using rhun's rasterizer; there is no browser engine.
+[Radare2 function frames, imported traces and review](radare2.md) use this same
+owned canvas model with a dedicated toolbar and analysis metadata.
 Open the command palette and choose **Canvas: New Draft**, or open a saved
 `.rhun-canvas` file (for example `examples/canvas/native-draft.rhun-canvas`).
 
@@ -31,7 +33,7 @@ session; unnamed drafts need Save As. Undo/redo has 32 snapshots and a combined
 16 MiB budget. Redo is discarded by a new edit. Cancelled previews are not history.
 Viewport/selection changes do not dirty saved content.
 
-Native JSON v5 (with v1–v4 backward reads) validates IDs, references, integer geometry, strict UTF-8, schema
+Native JSON v6 (with v1–v5 backward reads) validates IDs, references, integer geometry, strict UTF-8, schema
 and limits before publishing owned content: 4,096 elements, 8,192 references,
 8,192 stroke points per element, 64 KiB text per element, 8 MiB serialized content.
 World coordinates and element extents are bounded to +/-1,000,000. Edits outside

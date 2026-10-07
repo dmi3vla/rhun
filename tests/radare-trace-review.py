@@ -26,6 +26,19 @@ class RadareTraceReview(m.RadareFrames):
         before=self.scene(['cmd radare_demo']+self.trace())
         after=self.scene(['cmd radare_demo']+self.trace()+['key ]','key n','key f','key f','key ['])
         self.assertEqual(before,after)
+    def test_explicit_proposal_accept_keeps_source_and_trace(self):
+        base=self.scene(['cmd radare_demo']+self.trace())
+        replacement=copy.deepcopy(base['elements'][2]);replacement['text']='Review: branch condition\n'+replacement['text']
+        p=self.work/'proposal.json';p.write_text(json.dumps(dict(type='rhun-proposal',version=1,revision=base['revision'],explanation='Source review',operations=[dict(op='replace',element=replacement)])))
+        actions=['cmd radare_demo']+self.trace()+['cmd canvas_proposal_import','key ctrl+a','type '+str(p),'key Return']
+        self.assertEqual(self.scene(actions),base)
+        accepted=self.scene(actions+['cmd canvas_proposal_accept_all'])
+        self.assertEqual(accepted['analysis'],base['analysis'])
+        self.assertEqual(accepted['elements'][1]['raw'],base['elements'][1]['raw'])
+        self.assertEqual(accepted['elements'][2]['text'],replacement['text'])
+        self.assertEqual(self.scene(actions+['cmd canvas_proposal_accept_all','cmd undo'])['elements'],base['elements'])
+        view=self.trace_view(self.trace()+actions[len(['cmd radare_demo']+self.trace()):]+['cmd canvas_proposal_accept_all'])
+        self.assertEqual([b['visits'] for b in view['blocks']],[2,1,1,2])
     def test_bad_trace_is_atomic(self):
         valid=json.loads(TRACE.read_text());variants=[]
         for field,value in [('binary','other-binary'),('version',2),('type','execution'),('addresses',[1.5]),('addresses',[-1]),('addresses',[None])]:
@@ -41,6 +54,9 @@ class RadareTraceReview(m.RadareFrames):
         self.assertEqual(len(after['elements']),15);n=after['elements'][-1]
         self.assertEqual((n['gxid'],n['from'],n['xid']),('r2:note',2,'4096'))
         self.assertIn('Проверить <script>',n['text']);self.assertEqual(after['elements'][:13],before['elements'])
+        # Function navigation must wrap over source frames, skipping the review frame.
+        out=self.run_editor(['cmd radare_demo']+note+['cmd radare_next_function','cmd radare_next_function','cmd canvas_request_export','key ctrl+a','type '+str(self.work/'next.json'),'key Return'])
+        self.assertEqual(json.loads((self.work/'next.json').read_text())['selected'],[1])
         self.assertEqual(self.scene(['cmd radare_demo']+note+['cmd undo'])['elements'],before['elements'])
         self.assertEqual(self.scene(['cmd radare_demo']+note+['cmd undo','cmd redo'])['elements'],after['elements'])
     def test_export_review_and_selected_request(self):

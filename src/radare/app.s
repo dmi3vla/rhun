@@ -75,7 +75,7 @@ FN radare_frame_label
     EPILOGUE
 .Llabel_ret: ret
 FN cmd_radare_next_function
-    PROLOGUE
+    PROLOGUE 16
     call canvas_active
     mov rbx, rax
     test rax, rax
@@ -103,6 +103,15 @@ FN cmd_radare_next_function
     add rax, [rbx + SC_elements + VEC_ptr]
     cmp dword ptr [rax + CE_kind], CT_FRAME
     jne .Lnext_scan_more
+    mov [rsp], rax
+    mov rdi, [rax + CE_gxid]
+    test rdi, rdi
+    jz .Lnext_scan_more
+    lea rsi, [rip + r2_function_marker]
+    call strcmp_eq
+    test eax, eax
+    jz .Lnext_scan_more
+    mov rax, [rsp]
     test r14, r14
     jnz .Lnext_candidate
     mov r14, rax

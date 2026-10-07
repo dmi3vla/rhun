@@ -87,4 +87,8 @@ python3 tests/canvas-native-smoke.py || fail=1
 for canvas_binary in scene transform boundary math lifecycle; do
     "build/canvas_${canvas_binary}_test" || fail=1
 done
+for radare_test in frames analysis trace-review chat-request; do
+    python3 "tests/radare-$radare_test.py" || fail=1
+done
+build/radare_model_test || fail=1
 exit $fail

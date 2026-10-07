@@ -17,6 +17,13 @@ class RadareFrames(m.CanvasEdit):
         self.assertEqual((edges[1]['from'],edges[1]['to'],edges[1]['color']),(2,4,0xffe18b83))
         self.assertIn('cmp edi, 0',scene['elements'][2]['text'])
         self.assertEqual(json.loads(blocks[0]['raw'])['r2']['addr'],4096)
+    def test_assembly_is_not_overprinted_by_generic_step_label(self):
+        shot=self.work/'blocks.ppm';self.run_editor(['cmd radare_demo','shot '+str(shot)])
+        pixels=shot.read_bytes().split(b'\n',3)[3]
+        def pixel(x,y):return pixels[(y*1000+x)*3:(y*1000+x)*3+3]
+        background=pixel(700,410)
+        # The single-instruction return block has no third assembly line.
+        self.assertTrue(all(pixel(x,y)==background for y in range(403,420) for x in range(536,576)))
     def test_save_reopen_retains_analysis_and_source(self):
         path=self.work/'review.rhun-canvas';self.run_editor(['cmd radare_demo']+self.save(path))
         stored=json.loads(path.read_text());self.assertEqual(stored['version'],6)

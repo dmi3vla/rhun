@@ -46,6 +46,13 @@ class NativeCanvasSmoke(unittest.TestCase):
                 graph=json.loads(command('print-graph'))
                 self.assertEqual(len(graph['nodes']),11)
                 self.assertEqual(graph['versions'],[8,8,8,7])
+                command('cmd radare_demo');time.sleep(.2)
+                command('cmd radare_trace_import');command('key ctrl+a')
+                command('type '+str(ROOT/'examples/radare2/branch-demo.trace.json'));command('key Return');time.sleep(.2)
+                trace=json.loads(command('print-radare-trace'))
+                self.assertEqual((trace['events'],trace['unmapped']),(7,1))
+                command('key ]');trace=json.loads(command('print-radare-trace'))
+                self.assertEqual(trace['cursor'],1)
                 command('quit');self.assertEqual(process.wait(timeout=5),0)
                 self.assertEqual(process.stderr.read(),'')
             finally:

@@ -196,6 +196,17 @@ FN canvas_element
     mov rsi, r12
     call canvas_shape_outline
 .Ldraw_role:
+    # Imported CFG blocks carry step semantics, but their assembly owns the body.
+    cmp qword ptr [rbx + SC_analysis], 0
+    je .Ldraw_role_label
+    mov rdi, [r12 + CE_gxid]
+    test rdi, rdi
+    jz .Ldraw_role_label
+    lea rsi, [rip + r2_block_marker]
+    call strcmp_eq
+    test eax, eax
+    jnz .Ldraw_selected
+.Ldraw_role_label:
     mov rax, [r12 + CE_role]
     test rax, rax
     jz .Ldraw_selected

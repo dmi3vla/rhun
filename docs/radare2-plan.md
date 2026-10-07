@@ -126,3 +126,29 @@ chat transport (1), and the owned-model binary passed. Review caught borrowed
 numeric JSON tokens: trace input now remains owned until serialization finishes.
 Source reference validation permits only typed review-to-function/note-to-block
 links in analysis scenes; old native formats retain their prior validation.
+
+### Phase 4 acceptance
+
+Review corrected function navigation to skip annotation frames and restricted
+reuse to typed source-review frames. Native screenshot review exposed a generic
+step label overlapping assembly; analysis blocks now suppress that label, with
+a pixel regression check. Native rendering inspected in docs/radare2-native.png.
+
+`sh tests/run.sh` completed successfully, including all new Radare2 suites and
+existing editor/chat/canvas regressions (environment-dependent checks skip with
+reasons). Frame checks: 6; trace/review checks: 7, including explicit proposal
+preview/accept/undo retaining source/evidence; ACP review transport: 1. Analyzer
+checks: 8 with the actual backend enabled. Real Radare2 6.2.4 analyzes /bin/true,
+then its CFG saves/reopens, accepts repeated-address evidence plus an unmapped
+event and a source-linked note while preserving raw source. Cancel and shutdown
+checks confirm the analyzer PID is gone. The native owned-model binary performs
+100 trace/cache/clone/history cycles with zero live owned-byte growth.
+
+Opt-in native Wayland and X11 window tests both passed with imported trace and
+next-event navigation. All 7 new Radare2 modules translate to ARM64. Existing
+canvas translator blockers still prevent claiming macOS runtime support; Windows
+runtime/toolchain verification remains unavailable. Mac build dependency tracking
+now includes the Radare2 schema and embedded demo. User guide: docs/radare2.md.
+
+Phase commits: phase 0 e159ac5, phase 1 d17c921, phase 2 ea55803,
+phase 3 0ac0f42; phase 4 uses the final test/documentation commit below.

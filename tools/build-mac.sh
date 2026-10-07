@@ -27,8 +27,9 @@ objs=
 for s in $x86 build/assets.s; do
     o=build/obj/$(name "$s").o
     if stale "$o" "$s" src/rhun.inc tools/arm64.py ||
-        { [ -f "$o" ] && [ -n "$(find src/canvas -name '*.inc' -newer "$o" -print -quit)" ]; } ||
+        { [ -f "$o" ] && [ -n "$(find src/canvas src/radare -name '*.inc' -newer "$o" -print -quit)" ]; } ||
         { [ "$s" = src/canvas/graph.s ] && [ -f "$o" ] && [ examples/canvas/distributed-state.rhun-graph -nt "$o" ]; } ||
+        { [ "$s" = src/radare/app.s ] && [ -f "$o" ] && [ examples/radare2/branch-demo.agfj.json -nt "$o" ]; } ||
         { [ "$s" = build/assets.s ] && [ -n "$(find runtime assets/fonts -newer "$o" -print -quit)" ]; }; then
         todo="$todo $s"
     fi
