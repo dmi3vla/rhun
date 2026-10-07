@@ -460,3 +460,95 @@ FN radare_map_find
 .Lfail: .asciz "fail"
 .Lops: .asciz "ops"
 .Lopcode: .asciz "opcode"
+.text
+# Also accept Radare's agfj @@F JSON-lines output, normalizing copied function objects.
+FN radare_import_stream
+    PROLOGUE 64
+    mov rbx, rdi
+    mov r12, rsi
+    cmp rsi, 8 << 20
+    ja .Lstream_null
+    call radare_import
+    test rax, rax
+    jnz .Lstream_return
+    mov rdi, rsp
+    xor esi, esi
+    mov edx, SB_SIZE
+    call memset
+    mov rdi, rsp
+    mov esi, '['
+    call sb_push_byte
+    xor r13d, r13d
+    xor r14d, r14d
+.Lstream_line:
+    cmp r13, r12
+    jae .Lstream_finish
+    mov r15, r13
+.Lstream_scan:
+    cmp r15, r12
+    jae .Lstream_parse
+    cmp byte ptr [rbx + r15], 10
+    je .Lstream_parse
+    inc r15
+    jmp .Lstream_scan
+.Lstream_parse:
+    mov rsi, r15
+    sub rsi, r13
+    jz .Lstream_next
+    lea rdi, [rbx + r13]
+    call json_parse_complete
+    test rax, rax
+    jz .Lstream_bad
+    cmp dword ptr [rax], JT_ARR
+    jne .Lstream_bad
+    mov [rsp + 24], rax
+    mov [rsp + 32], r15
+    xor r15d, r15d
+.Lstream_item:
+    mov rdi, [rsp + 24]
+    mov esi, r15d
+    call json_at
+    test rax, rax
+    jz .Lstream_line_done
+    inc r14d
+    cmp r14d, 64
+    ja .Lstream_item_bad
+    mov [rsp + 40], rax
+    cmp r14d, 1
+    je .Lstream_dump
+    mov rdi, rsp
+    mov esi, ','
+    call sb_push_byte
+.Lstream_dump:
+    mov rdi, rsp
+    mov rsi, [rsp + 40]
+    call json_dump
+    cmp qword ptr [rsp + SB_len], 8 << 20
+    ja .Lstream_item_bad
+    inc r15
+    jmp .Lstream_item
+.Lstream_line_done:
+    mov r15, [rsp + 32]
+    jmp .Lstream_next
+.Lstream_item_bad:
+    mov r15, [rsp + 32]
+    jmp .Lstream_bad
+.Lstream_next:
+    lea r13, [r15 + 1]
+    jmp .Lstream_line
+.Lstream_finish:
+    mov rdi, rsp
+    mov esi, ']'
+    call sb_push_byte
+    mov rdi, [rsp + SB_ptr]
+    mov rsi, [rsp + SB_len]
+    call radare_import
+    mov r14, rax
+    jmp .Lstream_free
+.Lstream_bad: xor r14d, r14d
+.Lstream_free: mov rdi, rsp
+    call sb_free
+    mov rax, r14
+.Lstream_return: EPILOGUE
+.Lstream_null: xor eax, eax
+    EPILOGUE

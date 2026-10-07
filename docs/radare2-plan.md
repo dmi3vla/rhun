@@ -85,3 +85,27 @@ edit (18), graph (6), proposals (7), UI (7), exchange (7) passed. Screenshot
 revision as well as owned content; undo restore still retains monotonic live IDs.
 Native v6 saves analysis and reads previous versions. Excalidraw export of analysis
 scenes is refused rather than losing analysis/producing colliding external IDs.
+
+### Phase 2 acceptance
+
+Analyze Binary Entry CFG runs fixed `aa;agfj @ entry0`; Analyze Function Address
+accepts only decimal/0x numeric input and builds `aa;af @ ADDR;agfj @ ADDR` for the
+same saved source path. Each result opens a separate tab. Import also normalizes
+`agfj @@F` JSON-lines arrays into copied function objects within the same caps.
+No shell or `-d`, no write mode; absolute regular-file arguments are required.
+User r2 startup scripts are disabled (`-N`), plugins disabled by R2_NOPLUGINS=1,
+and inherited R2_ARGS cleared (real r2 otherwise replaces fixed argv with it).
+
+Nonblocking output has an 8 MiB limit, 30-second deadline, 20-ms pending-job
+poll, explicit cancellation and shutdown reaping. EOF and child exit are separate
+states; UI never waits synchronously for an ordinarily running analyzer. A
+changed project or source mtime discards the result. RHUN_RADARE_TIMEOUT_MS permits
+50–30000 ms for testing; RHUN_RADARE2 overrides executable discovery.
+
+`./build.sh test`, frame tests (5 including JSON-lines), analyzer tests (7),
+unchanged explorer-create checks (6) passed. Real radare2 6.2.4 release 485e5e2,
+verified official package SHA256 7019eedc0e0e87d1f53d6b8f5fc62b898567679c5efdce7fbfc557c9e7655e90,
+read-only /bin/true entry CFG passed. Fixture tests cover literal hostile filenames,
+missing r2, nonzero exit, output cap, timeout, cancel while other tabs stay usable,
+numeric command validation and changed source. Runtime dependency was extracted
+outside this repo for testing; it is not bundled in rhun. Linux is verified.

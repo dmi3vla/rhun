@@ -844,6 +844,10 @@ FN prompt_open
 prompt_initial:
     PROLOGUE
     mov eax, [rip + pal_prompt]
+    cmp eax, 14
+    je 9f
+    cmp eax, 16
+    je 9f
     cmp eax, PROMPT_SAVE_AS
     je 1f
     cmp eax, PROMPT_RENAME
@@ -2078,6 +2082,20 @@ palette_accept:
     call tf_text
     test rdx, rdx
     jz .Lpa_close
+    cmp dword ptr [rip + pal_prompt], 14
+    je .Lpa_raw_radare
+    cmp dword ptr [rip + pal_prompt], 16
+    jne .Lpa_path_radare
+.Lpa_raw_radare:
+    cmp rdx, 3000
+    ja .Lpa_close
+    lea rdi, [rip + pal_path]
+    mov rsi, rax
+    mov rcx, rdx
+    rep movsb
+    mov byte ptr [rdi], 0
+    jmp .Lpa_prompt_dispatch
+.Lpa_path_radare:
     # absolute path: relative input is taken from the project root
 .ifdef WINDOWS
     mov rdi, rax
@@ -2121,6 +2139,7 @@ palette_accept:
     lea rdi, [rip + pal_path]
     call path_normalize
 .endif
+.Lpa_prompt_dispatch:
     mov ebx, [rip + pal_prompt]
     mov dword ptr [rip + pal_mode], PM_NONE
     mov dword ptr [rip + g_focus], FOCUS_EDITOR
@@ -2261,6 +2280,18 @@ prompt_done:
     PROLOGUE
     mov rbx, rdi
     mov r12d, esi
+    cmp r12d, 13
+    jne .Lprompt_after_r2_binary
+    mov rdi, rbx
+    call radare_analyze_file
+    jmp 9f
+.Lprompt_after_r2_binary:
+    cmp r12d, 14
+    jne .Lprompt_after_r2_address
+    mov rdi, rbx
+    call radare_analyze_address
+    jmp 9f
+.Lprompt_after_r2_address:
     cmp r12d, 12
     jne .Lprompt_after_radare
     mov rdi, rbx

@@ -86,6 +86,7 @@ FN main
     jmp .Lm_exit
 3:  call loop_run
 .Lm_exit:
+    call cmd_radare_cancel
     call chat_store_save
     call chat_shutdown
     call ai_shutdown

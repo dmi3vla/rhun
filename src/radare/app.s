@@ -17,7 +17,7 @@ FN cmd_radare_demo
     PROLOGUE
     lea rdi, [rip + .Ldemo]
     mov esi, .Ldemo_end - .Ldemo
-    call radare_import
+    call radare_import_stream
     test rax, rax
     jz .Ldemo_bad
     mov rdi, rax
@@ -39,7 +39,7 @@ FN radare_import_file
     mov rbx, rax
     mov rdi, rax
     mov rsi, rdx
-    call radare_import
+    call radare_import_stream
     mov r12, rax
     mov rdi, rbx
     call mem_free
@@ -74,6 +74,66 @@ FN radare_frame_label
     call ui_text_c
     EPILOGUE
 .Llabel_ret: ret
+FN cmd_radare_next_function
+    PROLOGUE
+    call canvas_active
+    mov rbx, rax
+    test rax, rax
+    jz .Lnext_done
+    cmp qword ptr [rax + SC_analysis], 0
+    je .Lnext_done
+    mov rsi, [rax + SC_selected]
+    mov rdi, rax
+    call scene_find
+    xor r12d, r12d
+    test rax, rax
+    jz .Lnext_scan_start
+    mov r12, [rax + CE_id]
+    cmp dword ptr [rax + CE_kind], CT_FRAME
+    je .Lnext_scan_start
+    mov r12, [rax + CE_frame]
+.Lnext_scan_start:
+    xor r13d, r13d
+    xor r14d, r14d
+    xor r15d, r15d
+.Lnext_scan:
+    cmp r13, [rbx + SC_elements + VEC_len]
+    jae .Lnext_wrap
+    imul rax, r13, CE_SIZE
+    add rax, [rbx + SC_elements + VEC_ptr]
+    cmp dword ptr [rax + CE_kind], CT_FRAME
+    jne .Lnext_scan_more
+    test r14, r14
+    jnz .Lnext_candidate
+    mov r14, rax
+.Lnext_candidate:
+    test r12, r12
+    jz .Lnext_focus
+    test r15d, r15d
+    jnz .Lnext_focus
+    cmp [rax + CE_id], r12
+    jne .Lnext_scan_more
+    mov r15d, 1
+.Lnext_scan_more: inc r13
+    jmp .Lnext_scan
+.Lnext_wrap: mov rax, r14
+    test rax, rax
+    jz .Lnext_done
+.Lnext_focus:
+    mov r12, rax
+    mov rdi, rbx
+    call scene_deselect
+    mov rax, [r12 + CE_id]
+    mov [rbx + SC_selected], rax
+    or dword ptr [r12 + CE_flags], 1
+    mov eax, 20
+    sub eax, [r12 + CE_x]
+    mov [rbx + SC_pan_x], eax
+    mov eax, 20
+    sub eax, [r12 + CE_y]
+    mov [rbx + SC_pan_y], eax
+    mov dword ptr [rip + g_dirty], 1
+.Lnext_done: EPILOGUE
 .section .rodata
 .Ltab: .asciz "Radare2 CFG"
 .Lprompt: .asciz "Import Radare2 agfj JSON"

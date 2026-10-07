@@ -43,6 +43,8 @@ class RadareFrames(m.CanvasEdit):
         scene=self.scene(self.load(p));frames=[e for e in scene['elements'] if e['kind']==5]
         self.assertEqual(len(frames),2);self.assertEqual(frames[1]['text'],'Функция <2>')
         self.assertEqual(len([e for e in scene['elements'] if e['kind']==3]),7)
+        p.write_text('\n'.join(json.dumps([function]) for function in data))
+        self.assertEqual(self.scene(self.load(p)),scene)
     def test_collapse_is_view_only_and_undo_keeps_source(self):
         before=self.scene(['cmd radare_demo']);after=self.scene(['cmd radare_demo','key s','click 65 185','cmd canvas_detail_toggle','cmd canvas_detail_toggle'])
         self.assertEqual(before,after)

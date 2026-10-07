@@ -477,6 +477,10 @@ key_names:
 g_commands:
     COMMAND quick_open, "Go to File", cmd_quick_open, "ctrl+p ctrl+e"
     COMMAND command_palette, "Command Palette", cmd_command_palette, "ctrl+shift+p F1"
+    COMMAND radare_next_function, "Radare2: Next Function Frame", cmd_radare_next_function, ""
+    COMMAND radare_analyze, "Radare2: Analyze Binary Entry CFG", cmd_radare_analyze, ""
+    COMMAND radare_address, "Radare2: Analyze Function Address", cmd_radare_address, ""
+    COMMAND radare_cancel, "Radare2: Cancel Analysis", cmd_radare_cancel, ""
     COMMAND radare_demo, "Radare2: Open CFG Demo", cmd_radare_demo, ""
     COMMAND radare_import, "Radare2: Import agfj JSON", cmd_radare_import, ""
     COMMAND canvas_graph_demo, "Canvas: Open Distributed State Demo", cmd_canvas_graph_demo, ""

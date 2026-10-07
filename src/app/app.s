@@ -1636,7 +1636,15 @@ FN app_timeout
     cmp eax, ebx
     jge 8f
 81: mov ebx, eax
-8:  mov eax, ebx
+8:  call radare_timeout
+    cmp eax, -1
+    je .Ltimeout_radare_done
+    cmp ebx, -1
+    je .Ltimeout_radare_use
+    cmp eax, ebx
+    jge .Ltimeout_radare_done
+.Ltimeout_radare_use: mov ebx, eax
+.Ltimeout_radare_done: mov eax, ebx
     EPILOGUE
 
 FN app_tick
@@ -1657,6 +1665,7 @@ FN app_tick
     call git_tick
     call update_tick
     call ai_tick
+    call radare_tick
     call palette_tick
     EPILOGUE
 
