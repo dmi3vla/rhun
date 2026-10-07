@@ -54,6 +54,9 @@ Fast built-in terminal:
 
 [Usage, shortcuts, and configuration](docs/guide.md)
 
+[Native drafts, UI export, proposals and distributed-state canvas](docs/native-canvas.md)
+are available in the local Linux build; platform and interchange limits are documented there.
+
 ## Contribute
 
 `rhun` welcomes new contributors. Pull requests are open to everyone: it doesn't matter whether a bug fix or a useful addition was created manually or using AI. Every fix matters.

@@ -80,4 +80,11 @@ if [ "$(uname -s)" = Darwin ] || command -v strace >/dev/null; then
     [ "$status" = 0 ] || [ "$status" = 77 ] || fail=1
 fi
 [ -x tests/ui.sh ] && { tests/ui.sh || fail=1; }
+for canvas_test in viewport edit structure exchange ui layout proposals chat-request graph integration final-boundaries; do
+    python3 "tests/canvas-$canvas_test.py" || fail=1
+done
+python3 tests/canvas-native-smoke.py || fail=1
+for canvas_binary in scene transform boundary math lifecycle; do
+    "build/canvas_${canvas_binary}_test" || fail=1
+done
 exit $fail

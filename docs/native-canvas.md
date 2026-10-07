@@ -31,20 +31,19 @@ session; unnamed drafts need Save As. Undo/redo has 32 snapshots and a combined
 16 MiB budget. Redo is discarded by a new edit. Cancelled previews are not history.
 Viewport/selection changes do not dirty saved content.
 
-Native JSON v1 validates IDs, references, integer geometry, strict UTF-8, schema
+Native JSON v5 (with v1–v4 backward reads) validates IDs, references, integer geometry, strict UTF-8, schema
 and limits before publishing owned content: 4,096 elements, 8,192 references,
 8,192 stroke points per element, 64 KiB text per element, 8 MiB serialized content.
 World coordinates and element extents are bounded to +/-1,000,000. Edits outside
 these limits are rejected as a whole. Stable IDs are positive integers below
-2^53; deleted or undone IDs are not reused. Nested frames are not supported in v1.
+2^53; deleted or undone IDs are not reused. Nested frames are not supported.
 Writes use rhun's existing atomic sibling-file replacement. Invalid reloads keep
 the live scene; reload refuses unsaved or pending edits.
 
-Current implementation covers phases 0–2. Frame membership, groups, rotation,
-images, sketch styling, Excalidraw exchange, SVG export, UI semantics and exports,
-AI proposals and the 3D projection remain subsequent phases. A frame is currently
-an outline drawing tool. This is not a claim of complete Excalidraw compatibility.
-Linux x86-64 headless acceptance is tested; real platform/IME gates remain open.
+Phases 0–8 provide drafting, interchange, semantic UI, model proposals and a
+native distributed-state demonstration. This is a native editor with a documented
+Excalidraw subset, not the complete upstream application. Linux x86-64 is verified;
+Windows and macOS gates are listed below. IME remains untested.
 
 ### Groups, frames and export (phase 3)
 
@@ -79,3 +78,43 @@ Proposal image add/replace operations are rejected in this first version; use th
 Canvas: Open Distributed State Demo opens the native graph. The top controls switch 2D/3D, fold/unfold the selected segment and move through events. V switches projection, F folds, [ and ] select events; middle-button drag orbits and the wheel zooms. Click markers for the inspector. Demo event 4 shows DB v8/cache v7; event 5 makes all four replicas v8. The object `order#42` and schema v1 remain distinct from state versions.
 
 Standalone `.rhun-graph` uses `nodes`, `edges`, `segments`, `events`; fields are a closed schema with bounded integer coordinates/versions and copied string IDs. Folded boundary links expose original `sourceIds` in `print-graph`; unfolding restores the source graph. Saving through rhun embeds graph JSON in native v5. Rotation, folds and timeline are view state, so reopening uses default camera/event. This is a demonstration trace, not a live profiler or JavaScript execution.
+
+### Reproducible walkthrough
+
+Build locally with `./build.sh test`, then run `build/rhun . --wait`. Open the
+palette (Ctrl+Shift+P), choose **Canvas: New Draft**, draw a frame (**F**), two
+shapes (**R**, **E**) and an arrow (**A**). Add Russian text with **T**, finish
+with Ctrl+Enter. Select the frame and use Attach Contained Elements to Frame.
+Save as `draft.rhun-canvas`, then reopen it.
+
+Assign Button/Input/Text to selected members. Refresh UI Source Revision, export
+UI HTML and toggle Native UI Preview. To try proposals reproducibly, open
+`examples/canvas/proposal-source.rhun-canvas`, load
+`examples/canvas/detail-proposal.json`, choose Next Proposal Change and Accept
+Selected; undo/redo should remove/restore the accepted dependency set together.
+Use **Canvas: Open Distributed State Demo** for the supplied trace (the palette
+may match by “Distributed”). **V** toggles 2D/3D, **F** folds the selected segment,
+**[ / ]** move through events; middle drag rotates and wheel zooms.
+
+The automated walkthrough is `python3 tests/canvas-integration.py`; run the full
+regression set with `sh tests/run.sh`. Ownership tests include 100 repeated
+scene/proposal/graph/undo lifecycles with zero retained owned-byte growth after
+warm-up. See native-canvas-progress.md for acceptance evidence and
+native-canvas-measurements.json for measured samples.
+
+### Platform and compatibility status
+
+| Area | Implemented / checked | Limit |
+| --- | --- | --- |
+| Linux x86-64 | Headless acceptance plus Wayland/X11 live event-loop smoke | IME, native clipboard ownership on private Xvfb and live AI providers untested |
+| Windows | Build attempted | LLVM `llvm-mc` absent; no binary/runtime acceptance |
+| macOS ARM64 | 24 of 30 new module translations pass | Six translator blockers; assembly/AppKit runtime untested; feature currently unavailable |
+| Excalidraw v2 | Supported primitive round trips and retained opaque metadata | Complex shapes/embedded assets are placeholders; external editor validation unperformed |
+| UI IR | Seven component types, HTML/CSS and native read-only projection | No browser execution, reverse HTML parsing or business-action execution |
+| Model proposals | Strict JSON, preview, dependency-aware acceptance, undo; existing ACP test transport | Results loaded explicitly from JSON files; no automatic chat-response extraction |
+| Graph | Supplied 11-node trace, 2D/3D, events, replica/schema inspector, lossless folds | Demo data, no code analysis or live telemetry |
+
+Native image cache limits apply after decoding: 16 MiB per cached image / 64 MiB
+per scene. The existing decoder can allocate larger transient pixel buffers before
+that cache admission check. Performance samples measure basic rectangle painting,
+not whole UI frame latency or an FPS guarantee.

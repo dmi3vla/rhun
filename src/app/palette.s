@@ -2262,50 +2262,50 @@ prompt_done:
     mov rbx, rdi
     mov r12d, esi
     cmp r12d, 11
-    jne 006f
+    jne .Lprompt_after_proposal
     mov rdi, rbx
     call canvas_proposal_import
     jmp 9f
-006: cmp r12d, 10
-    jne 007f
+.Lprompt_after_proposal: cmp r12d, 10
+    jne .Lprompt_after_request
     mov rdi, rbx
     call canvas_request_write
     jmp 9f
-007: cmp r12d, 8
-    jne 004f
+.Lprompt_after_request: cmp r12d, 8
+    jne .Lprompt_after_html
     mov rdi, rbx
     call canvas_write_html
     jmp 9f
-004: cmp r12d, 9
-    jne 005f
+.Lprompt_after_html: cmp r12d, 9
+    jne .Lprompt_after_ui
     mov rdi, rbx
     call canvas_ui_import
     jmp 9f
-005: cmp r12d, 5
-    jne 003f
+.Lprompt_after_ui: cmp r12d, 5
+    jne .Lprompt_after_image
     mov rdi, rbx
     call canvas_add_image
     jmp 9f
-003: cmp r12d, 7
-    jne 002f
+.Lprompt_after_image: cmp r12d, 7
+    jne .Lprompt_after_svg
     mov rdi, rbx
     call canvas_write_svg
     jmp 9f
-002: cmp r12d, 6
-    jne 001f
+.Lprompt_after_svg: cmp r12d, 6
+    jne .Lprompt_after_exchange
     mov rdi, rbx
     call canvas_write_excalidraw
     jmp 9f
-001: cmp r12d, PROMPT_SAVE_AS
+.Lprompt_after_exchange: cmp r12d, PROMPT_SAVE_AS
     jne 1f
     mov r13, [rip + g_doc]
     test r13, r13
-    jnz 01f
+    jnz .Lprompt_after_save_document
     call canvas_active
     test rax, rax
     jz 9f
     mov r13, [rip + g_file]
-01: mov rdi, r13
+.Lprompt_after_save_document: mov rdi, r13
     mov rsi, rbx
     call doc_set_path
     mov rdi, rbx

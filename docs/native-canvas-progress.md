@@ -137,3 +137,101 @@ Folding rebuilds derived visible nodes/edges, aggregates parallel boundary edges
 Checks: `./build.sh test`, `python3 tests/canvas-graph.py` (6), UI/proposal/exchange regressions. Tests verify v8/v7→v8/v8, source immutability under orbit/timeline, same selection/fold in both views, full expand round trip, parallel-source aggregation, one shared schema, saved/reopened ownership, malformed events/IDs/segments and near-plane bounds. Actual headless native rendering inspected at `/tmp/rhun-native-graph.png`.
 
 Limits: this is the supplied demonstration trace, not live telemetry, AST analysis or reasoning inspection. Projection sorts markers and draws wireframes; it is not a general 3D visibility engine. Labels can overlap. The camera fits visible nodes inside a conservative reference extent; arbitrary large segment frames clip rather than receive browser-style auto-fit. Timeline buttons show the first 16 events, with palette previous/next available for longer traces. View state is shared by 2D/3D for the open tab but resets on reopening. Graph demo and editable draft use separate models/tabs; automatic graph extraction from source code is not implemented.
+
+## Phase 8 — integration, regression, ownership and measured limits
+
+Added an integrated native workflow: create frame/shapes/bindings/Cyrillic text,
+save/reopen, assign UI, preview and partially accept a dependency-aware proposal,
+undo/redo, export escaped HTML, render the native UI and move the graph timeline.
+Repeated mixed-tab lifecycle verifies idle frames stop. New geometry can now be
+assigned to an existing semantic tree. Additional final checks cover sketch seeds
+for large IDs and invalid graph-transaction rollback retaining the graph view.
+
+The broad regression run found a New File dialog crash: GNU assembler numeric
+labels `01` and `1` denote the same label. Canvas prompt dispatch now uses named
+labels, preserving existing file/folder creation and save dialogs. Existing
+explorer tests are kept unchanged. Embedded graph changes and canvas contracts
+now invalidate relevant Linux/macOS build objects.
+
+### Acceptance, 2026-10-07
+
+- `./build.sh test` — final build PASS.
+- `sh tests/run.sh` — completed the broad run; exit 1 due solely to the explorer
+  creation crash described above, log `/tmp/rhun-canvas-final-suite.log`. Other
+  groups passed, including chat providers/input, Git, settings, native units,
+  updates, stress, file faults, session and all original 63 canvas scenarios.
+- After the fix, unchanged `tests/explorer-create.py` — all 6 scenarios PASS;
+  `tests/explorer-delete.py` — 7 PASS; `tests/files.sh`, `tests/file-faults.sh` and
+  `tests/session.sh` (8 scenarios) PASS. `tests/editor-matrix.py` — 18 PASS
+  (58.216 s). No expectations were weakened.
+- Final canvas rerun: viewport 4, edit 18, structure 5, exchange 7, UI 7,
+  layout 5, proposals 7, chat-request 1, graph 6, integration 3, final-boundaries 1:
+  **64 PASS**. Native scene/transform/boundary/math/lifecycle programs PASS;
+  lifecycle includes invalid graph rollback and 100 cycles with zero owned-byte
+  growth. Opt-in native window smoke: **2 PASS** (Wayland and X11).
+- `git diff --check` — PASS. Full broad tests were not redundantly rerun after
+  targeted checks passed; this report distinguishes the initial broad exit from
+  final affected-check results.
+
+### Platform gates
+
+- Linux x86-64: native headless acceptance and opt-in running-window smoke on
+  the user's available Wayland and X11 displays. Each isolated window created a
+  rectangle and opened the 11-node graph, exited 0 with empty stderr. The native
+  test does not touch clipboard ownership or open user files. Drive `--control`
+  after entering the event loop: `--script` before that loop does not establish a
+  native rendered viewport. Reproduce with
+  `RHUN_CANVAS_NATIVE_SMOKE=1 python3 tests/canvas-native-smoke.py`.
+- Windows: `python3 tools/build-windows.py debug` could not build: `llvm-mc` is
+  absent. No Windows runtime result or supported canvas binary is claimed.
+- macOS ARM64: `tools/arm64.py` translated 24 of the 30 new modules. Blockers:
+  `exchange.s` comisd, `export.s` / `hit.s` cvtsi2sd, `number.s` xorpd,
+  `projection.s` inferred flags across a call, `canvasgraph.s` btc. Translation
+  is not assembly or AppKit execution. This feature is currently Linux-only.
+- External Excalidraw UI, IME, live AI providers and private-Xvfb clipboard checks
+  remain unavailable/unperformed. Six clipboard cases skip without private Xvfb.
+
+### Measurements
+
+Raw five-run samples are in `native-canvas-measurements.json`. Same Intel Core
+i7-4500U / Linux x86-64 / four logical CPUs; baseline `b56c5fa`, before canvas.
+Compare stripped binaries. Startup is wall-clock process startup, isolated
+configuration/fonts/project scan, first headless repaint and exit (1000×700,
+project containing a fixed 200-line text file), not an interactive readiness metric. Each sample uses a fresh isolated HOME,
+configuration and state to avoid baseline cache reuse by the current build. `/usr/bin/time` maximum RSS
+includes the process lifetime. The before/after medians are 238.199 / 231.433 ms;
+timing noise prevents claiming a startup speed improvement. Stripped binary size
+is 800,688 / 870,320 bytes (+69,632).
+
+Reproduce with `python3 tools/measure-canvas.py /path/to/b56c5fa/build/rhun`
+after building that baseline in a separate checkout and running `./build.sh test`
+in the current checkout.
+
+`build/canvas_benchmark` separately paints 100 / 1000 unrotated 20×18 rectangles
+on a 40-column, 24-pixel grid into a 1000×700 raster target. Each sample totals
+200 frames using `time_ms`, divided by 200; no file I/O, font draw, network, model,
+or desktop presentation in the timed loop. These primitive timings do not
+represent a complete UI frame or guarantee FPS. The median primitive paint times are 0.045 / 0.455 ms for
+100 / 1000 rectangles. Maximum RSS for the primitive workload is recorded
+separately. Cache admission excludes oversized decoded
+images after decoding; transient decoder memory is not bounded by that cache.
+
+### Phase commits
+
+| Phase | Commit |
+| --- | --- |
+| Preparation | 441b49f |
+| 0 | 297585a |
+| 1 | 6fda8de |
+| 2 | 242023c |
+| 3 | 09d5cd3 |
+| 4 | 68decff |
+| 5 | 1df54ae |
+| 6 | 6be2359 |
+| 7 | f78b3cd |
+| 8 | Final commit: `test(canvas): verify integration portability and document limitations` |
+
+User walkthrough and compatibility table: `native-canvas.md`. Original inputs
+remain preserved in `native-canvas-agent-plan.md` and
+`examples/reference/distributed-state-3d.html`; runtime embeds only the extracted
+Graph/State data and executes native ASM.

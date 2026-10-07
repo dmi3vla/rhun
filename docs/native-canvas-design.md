@@ -5,6 +5,10 @@ The historical rhun SHA in the input plan is not the current implementation.
 No remote is configured. Runtime remains assembly with the existing static
 rasterizer, UTF-8 font renderer, JSON parser, file helpers and process adapters.
 
+This document records the initial contracts. Implemented versions and limitations
+are in native-canvas.md and native-canvas-progress.md; the final scene format is
+v5 with v1–v4 backward reads. Runtime remains entirely native ASM.
+
 ## Document and tab ownership
 
 Add TAB_CANVAS and DOC_canvas (owned pointer). Keep a normal DOC shell so names,

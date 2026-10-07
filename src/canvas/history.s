@@ -231,6 +231,8 @@ FN scene_commit
     mov rax, [r12 + SC_graph]
     mov [rbx + SC_graph], rax
     mov qword ptr [r12 + SC_graph], 0
+    mov rdi, rbx
+    call canvas_graph_validate
     mov rdi, r12
     call scene_free
     lea rdi, [rip + .Lbounds_error]

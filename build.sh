@@ -12,6 +12,7 @@ objs=""
 for s in $(find src -name "*.s" ! -path "src/mac/*" ! -path "src/win/*" | LC_ALL=C sort) build/assets.s; do
     o=build/obj/$(echo "$s" | sed 's|/|_|g; s|\.s$|.o|')
     stale=
+    [ "$s" = src/canvas/graph.s ] && [ -f "$o" ] && [ examples/canvas/distributed-state.rhun-graph -nt "$o" ] && stale=1
     # assets.s only names the embedded files; their contents count too
     [ "$s" = build/assets.s ] && [ -f "$o" ] && [ -n "$(find runtime assets/fonts -newer "$o" -print -quit)" ] && stale=1
     if [ -n "$stale" ] || [ ! -f "$o" ] || [ "$s" -nt "$o" ] || [ -n "$(find src -name '*.inc' -newer "$o" -print -quit)" ]; then

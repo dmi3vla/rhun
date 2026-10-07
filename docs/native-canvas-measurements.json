@@ -1,0 +1,109 @@
+{
+  "hardware": "Intel(R) Core(TM) i7-4500U CPU @ 1.80GHz, Linux x86-64, 4 logical CPUs",
+  "baseline": "b56c5fa",
+  "binary_bytes": {
+    "before": 800688,
+    "after": 870320
+  },
+  "startup": [
+    {
+      "build": "before",
+      "samples": [
+        {
+          "elapsed_ms": 237.515,
+          "max_rss_kib": 3712,
+          "exit": 0
+        },
+        {
+          "elapsed_ms": 238.199,
+          "max_rss_kib": 3584,
+          "exit": 0
+        },
+        {
+          "elapsed_ms": 255.097,
+          "max_rss_kib": 3712,
+          "exit": 0
+        },
+        {
+          "elapsed_ms": 237.31,
+          "max_rss_kib": 3712,
+          "exit": 0
+        },
+        {
+          "elapsed_ms": 560.866,
+          "max_rss_kib": 3712,
+          "exit": 0
+        }
+      ],
+      "median_ms": 238.199
+    },
+    {
+      "build": "after",
+      "samples": [
+        {
+          "elapsed_ms": 239.395,
+          "max_rss_kib": 3712,
+          "exit": 0
+        },
+        {
+          "elapsed_ms": 333.372,
+          "max_rss_kib": 3840,
+          "exit": 0
+        },
+        {
+          "elapsed_ms": 231.433,
+          "max_rss_kib": 3840,
+          "exit": 0
+        },
+        {
+          "elapsed_ms": 184.883,
+          "max_rss_kib": 3840,
+          "exit": 0
+        },
+        {
+          "elapsed_ms": 184.347,
+          "max_rss_kib": 3712,
+          "exit": 0
+        }
+      ],
+      "median_ms": 231.433
+    }
+  ],
+  "primitive_frames": [
+    {
+      "max_rss_kib": 2432,
+      "milliseconds_per_frame": {
+        "100": 0.05,
+        "1000": 0.42
+      }
+    },
+    {
+      "max_rss_kib": 2432,
+      "milliseconds_per_frame": {
+        "100": 0.04,
+        "1000": 0.455
+      }
+    },
+    {
+      "max_rss_kib": 2432,
+      "milliseconds_per_frame": {
+        "100": 0.045,
+        "1000": 0.42
+      }
+    },
+    {
+      "max_rss_kib": 2432,
+      "milliseconds_per_frame": {
+        "100": 0.045,
+        "1000": 0.46
+      }
+    },
+    {
+      "max_rss_kib": 2432,
+      "milliseconds_per_frame": {
+        "100": 0.06,
+        "1000": 0.57
+      }
+    }
+  ]
+}

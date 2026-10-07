@@ -111,6 +111,7 @@ canvas_structure:
     mov ecx, [rax + CE_id]
     imul ecx, 1664525
     add ecx, 1013904223
+    and ecx, 0x7fffffff
     mov [rax + CE_seed], rcx
     mov dword ptr [rax + CE_roughness], 1
     jmp 7f

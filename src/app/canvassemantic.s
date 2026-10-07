@@ -140,7 +140,58 @@ canvas_ui_assign:
     mov rsi, [rbx + SC_selected]
     call canvas_ui_source
     test rax, rax
-    jz .Lassign_free
+    jnz .Lassign_have_node
+    cmp r15d, -1
+    je .Lassign_free
+    cmp qword ptr [r12 + UM_nodes + VEC_len], 512
+    jae .Lassign_free
+    mov rdi, rbx
+    mov rsi, [rbx + SC_selected]
+    call scene_find
+    mov r14, rax
+    lea rdi, [r12 + UM_nodes]
+    mov esi, UC_SIZE
+    call vec_push
+    mov r13, rax
+    mov rdi, rax
+    xor esi, esi
+    mov edx, UC_SIZE
+    call memset
+    mov rax, [r14 + CE_id]
+    mov [r13 + UC_source], rax
+    xor ecx, ecx
+    mov rdx, [r12 + UM_nodes + VEC_ptr]
+    mov r8, [r12 + UM_nodes + VEC_len]
+201: test r8, r8
+    jz 202f
+    cmp rcx, [rdx + UC_id]
+    jae 203f
+    mov rcx, [rdx + UC_id]
+203: add rdx, UC_SIZE
+    dec r8
+    jmp 201b
+202: inc rcx
+    mov [r13 + UC_id], rcx
+    mov rax, [r12 + UM_root]
+    mov [r13 + UC_parent], rax
+    mov dword ptr [r13 + UC_padding], 12
+    mov dword ptr [r13 + UC_gap], 8
+    mov rdi, [r14 + CE_text]
+    test rdi, rdi
+    jnz 204f
+    lea rdi, [rip + .Lempty]
+204: mov [rsp + SB_SIZE], rdi
+    call strlen
+    mov rsi, rax
+    mov rdi, [rsp + SB_SIZE]
+    call mem_dup
+    mov [r13 + UC_text], rax
+    lea rdi, [rip + .Lempty]
+    xor esi, esi
+    call mem_dup
+    mov [r13 + UC_action], rax
+    mov rax, r13
+.Lassign_have_node:
     cmp r15d, -1
     je 1f
     mov [rax + UC_type], r15d
