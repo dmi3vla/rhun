@@ -66,8 +66,11 @@ FN canvas_draw
     call gfx_clip_push
     mov rdi, rbx
     call canvas_view_input
+    cmp dword ptr [rbx + SC_mode], 0
+    jne 101f
     mov rdi, rbx
     call canvas_edit_input
+101:
     # World-aligned grid; bounded screen iteration at every zoom.
     mov r15d, [rbx + SC_zoom]
     imul r15d, 24
@@ -112,7 +115,12 @@ FN canvas_draw
     jmp 2b
 21: add r12d, r15d
     jmp 1b
-3:  xor r12d, r12d
+3:  cmp dword ptr [rbx + SC_mode], 0
+    je 102f
+    mov rdi, rbx
+    call canvas_ui_preview
+    jmp 103f
+102: xor r12d, r12d
 4:  cmp r12, [rbx + SC_elements + VEC_len]
     jae 8f
     imul r14, r12, CE_SIZE
@@ -124,7 +132,7 @@ FN canvas_draw
     jmp 4b
 8:  mov rdi, rbx
     call canvas_overlays
-    call gfx_clip_pop
+103: call gfx_clip_pop
     call gfx_clip_pop
 9:  EPILOGUE
 

@@ -477,6 +477,7 @@ key_names:
 g_commands:
     COMMAND quick_open, "Go to File", cmd_quick_open, "ctrl+p ctrl+e"
     COMMAND command_palette, "Command Palette", cmd_command_palette, "ctrl+shift+p F1"
+    COMMAND canvas_ui_preview, "Canvas: Toggle Native UI Preview", cmd_canvas_ui_preview, ""
     COMMAND canvas_ui_code, "Canvas: Go to Generated Component Code", cmd_canvas_ui_code, ""
     COMMAND canvas_ui_source, "Canvas: Go to Source Figure", cmd_canvas_ui_source, ""
     COMMAND canvas_ui_row, "Canvas: Assign Row", cmd_canvas_ui_row, ""

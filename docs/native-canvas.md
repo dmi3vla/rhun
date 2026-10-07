@@ -57,3 +57,9 @@ Native v2 reads v1 documents. Supported Excalidraw v2 primitives round-trip geom
 Attach shapes to a frame, select a shape, then use Canvas: Assign Button/Input/Text/Card/Row/Column/List. Assignments are separate from geometry and undoable. Canvas: Import UI JSON accepts the documented closed schema; its revision must equal the next scene revision. Canvas: Export UI HTML exports the selected assigned subtree (or UI root), opens the generated code tab, and includes `data-scene-id` and `rhun-component-ID` for navigation. Use Go to Generated Component Code and Go to Source Figure from the component's code line.
 
 After geometry changes, use Refresh UI Source Revision to revalidate the mapping. Clear UI Assignments before deleting referenced source figures. Width/height zero means automatic sizing; padding/gap are integer pixels. Only the seven listed types/properties are accepted; actions remain identifiers. Existing differing HTML is kept separately from newly generated output, and an already-existing alternate is also kept. There is no HTML-to-scene parser.
+
+### Native UI preview (phase 5)
+
+Canvas: Toggle Native UI Preview switches between drawing tools and the semantic projection. Preview clicks select source components; input fields show values without executing actions or editing the sketch. Use the palette command again to return to drawing. Stale UI needs Refresh UI Source Revision before preview/export.
+
+Columns stack auto heights with gap; rows share available width among auto children after explicit widths. Padding belongs to each component. Frame roots clip to their bounds; all containers clip descendants. Width/height zero selects auto sizing, positive values select explicit size. Text measurement uses 8 logical pixels per Unicode scalar and 20 per line; native glyphs remain the IDE font, so HTML and native typography can differ.

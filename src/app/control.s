@@ -650,6 +650,12 @@ c_print_update:
     ret
 
 # print-git: branch, status, change marks of the current file
+c_print_ui:
+    lea rdi, [rip + out]
+    call canvas_ui_dump
+    xor eax, eax
+    ret
+
 c_print_canvas:
     lea rdi, [rip + out]
     call canvas_dump
@@ -1306,6 +1312,7 @@ on_client:
 .Lc_quit: .asciz "quit"
 .Lc_echo: .asciz "echo"
 .Ls_canvas_dirty: .asciz " canvas=1 dirty="
+.Lc_print_ui: .asciz "print-ui"
 .Lc_print_canvas: .asciz "print-canvas"
 .Lc_print_doc: .asciz "print-doc"
 .Lc_print_state: .asciz "print-state"
@@ -1352,6 +1359,7 @@ ctl_table:
     .quad .Lc_cmd, c_cmd, .Lc_shot, c_shot, .Lc_wait, c_wait, .Lc_resize, c_resize
     .quad .Lc_quit, c_quit, .Lc_echo, c_echo, .Lc_print_doc, c_print_doc
     .quad .Lc_print_chat_status, c_print_chat_status
+    .quad .Lc_print_ui, c_print_ui
     .quad .Lc_print_canvas, c_print_canvas
     .quad .Lc_print_state, c_print_state, .Lc_print_syntax, c_print_syntax, .Lc_print_agents, c_print_agents, .Lc_xkey, c_xkey
     .quad .Lc_print_window, c_print_window, .Lc_print_cursor, c_print_cursor, .Lc_print_term, c_print_term

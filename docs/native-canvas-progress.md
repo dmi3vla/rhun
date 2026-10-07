@@ -109,3 +109,11 @@ Added a separate owned `rhun-ui` schema (row/column/card/list/text/button/input)
 HTML export is deterministic, escapes text/attributes, writes stable component and scene attributes and renders actions as identifiers only. The result opens as a normal code tab. Explicit palette navigation goes from the selected source to the generated attribute and back from that code line. Conflicting existing HTML is kept and an alternate `.rhun-generated.html` is written only if absent; inaccessible/oversized existing files are not overwritten.
 
 Checks: `./build.sh test`, `python3 tests/canvas-ui.py` (7), `python3 tests/canvas-edit.py` (18), plus phase-3 exchange regression. Tests exercise valid/invalid trees, cycles, duplicate/missing IDs, unknown properties, escaped Cyrillic text, saved/reopened UI, stale revisions, refresh, navigation, referenced deletion and preservation of manual HTML. Source navigation associations currently live for this tab lifetime; export again after reopening to establish them. No reverse parsing of hand-written HTML or executable business actions.
+
+## Phase 5 — native UI projection
+
+Added recursive native row/column/card/list layout, explicit/auto dimensions, gap/padding and UTF-8 scalar wrapping. Frame root anchors to source bounds. Rows distribute remaining width among automatic children after explicit widths/gaps; columns stack intrinsic heights. Native descendants clip to every ancestor. Preview is an explicit palette mode; hover/source selection works without scene gestures, typing or deletion changing the draft. Both HTML and native drawing consume the same validated semantic model.
+
+Checks: `./build.sh test`; `python3 tests/canvas-layout.py` (5); `python3 tests/canvas-ui.py` (7); editor input regression. Layout tests assert actual native computed coordinates at frame and narrow widths, mixed fixed/auto sizing, multiline Cyrillic, clipping and mode round trip.
+
+Limits: deterministic layout text metric is 8 logical pixels per UTF-8 scalar / 20 per line; rasterized native font has proportional advances, so typography differs from browsers and wrapping can differ. Preview inputs are read-only projections, actions remain identifiers. Container text acts as a heading; explicit height clips overflow. Preview view mode/selection are not content history. Browser/CSS/JS execution is absent.

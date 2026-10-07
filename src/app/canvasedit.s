@@ -44,6 +44,7 @@ FN canvas_set_tool
     call canvas_active
     test rax, rax
     jz 9f
+    mov dword ptr [rax + SC_mode], 0
     mov [rax + SC_tool], r12d
     mov dword ptr [rip + g_dirty], 1
 9:  EPILOGUE
@@ -83,6 +84,12 @@ FN canvas_edit_key
     call canvas_text_commit
     jmp .Lkey_no
 .Lkey_tools:
+    cmp dword ptr [rbx + SC_mode], 0
+    je 101f
+    test r14d, MOD_CTRL | MOD_ALT | MOD_SUPER
+    jnz .Lkey_no
+    jmp .Lkey_yes
+101:
     cmp dword ptr [rbx + SC_gesture], 6
     jne 2f
     lea eax, [r12 - '1']
