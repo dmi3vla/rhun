@@ -14,7 +14,7 @@ for s in $(find src -name "*.s" ! -path "src/mac/*" ! -path "src/win/*" | LC_ALL
     stale=
     # assets.s only names the embedded files; their contents count too
     [ "$s" = build/assets.s ] && [ -f "$o" ] && [ -n "$(find runtime assets/fonts -newer "$o" -print -quit)" ] && stale=1
-    if [ -n "$stale" ] || [ ! -f "$o" ] || [ "$s" -nt "$o" ] || [ src/rhun.inc -nt "$o" ]; then
+    if [ -n "$stale" ] || [ ! -f "$o" ] || [ "$s" -nt "$o" ] || [ -n "$(find src -name '*.inc' -newer "$o" -print -quit)" ]; then
         as $ASFLAGS -o "$o" "$s"
     fi
     objs="$objs $o"

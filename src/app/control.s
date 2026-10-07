@@ -1,5 +1,5 @@
 # scripted control: line commands from a file (--script) or a unix socket (--control)
-#   key ctrl+s | type text | click x y [right|middle] | tap x y | move x y | down | up | scroll dy [ctrl]
+#   key ctrl+s | type text | click x y [right|middle] | tap x y | move x y | down [2=middle] | up [2=middle] | scroll dy [ctrl]
 #   open path | cmd name | shot file.ppm | wait ms | resize w h | print-doc | print-state | echo text | quit
 #   wait-git | print-git | print-gitlog | print-scm | wait-update | print-update | print-project | print-palette
 #   print-menu
@@ -301,7 +301,11 @@ release:
     jmp app_on_button
 
 c_down:
-    mov edi, BTN_LEFT
+    call next_int
+    cmp eax, BTN_MIDDLE
+    je 1f
+    mov eax, BTN_LEFT
+1:  mov edi, eax
     mov esi, 1
     xor edx, edx
     call app_on_button
@@ -309,7 +313,11 @@ c_down:
     ret
 
 c_up:
-    mov edi, BTN_LEFT
+    call next_int
+    cmp eax, BTN_MIDDLE
+    je 1f
+    mov eax, BTN_LEFT
+1:  mov edi, eax
     xor esi, esi
     call release
     xor eax, eax
@@ -642,6 +650,12 @@ c_print_update:
     ret
 
 # print-git: branch, status, change marks of the current file
+c_print_canvas:
+    lea rdi, [rip + out]
+    call canvas_dump
+    xor eax, eax
+    ret
+
 c_print_git:
     lea rdi, [rip + out]
     call git_dump
@@ -1273,6 +1287,7 @@ on_client:
 .Lc_resize: .asciz "resize"
 .Lc_quit: .asciz "quit"
 .Lc_echo: .asciz "echo"
+.Lc_print_canvas: .asciz "print-canvas"
 .Lc_print_doc: .asciz "print-doc"
 .Lc_print_state: .asciz "print-state"
 .Lc_print_syntax: .asciz "print-syntax"
@@ -1318,6 +1333,7 @@ ctl_table:
     .quad .Lc_cmd, c_cmd, .Lc_shot, c_shot, .Lc_wait, c_wait, .Lc_resize, c_resize
     .quad .Lc_quit, c_quit, .Lc_echo, c_echo, .Lc_print_doc, c_print_doc
     .quad .Lc_print_chat_status, c_print_chat_status
+    .quad .Lc_print_canvas, c_print_canvas
     .quad .Lc_print_state, c_print_state, .Lc_print_syntax, c_print_syntax, .Lc_print_agents, c_print_agents, .Lc_xkey, c_xkey
     .quad .Lc_print_window, c_print_window, .Lc_print_cursor, c_print_cursor, .Lc_print_term, c_print_term
     .quad .Lc_print_git, c_print_git, .Lc_wait_git, c_wait_git, .Lc_print_gitlog, c_print_gitlog

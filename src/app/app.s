@@ -1329,6 +1329,17 @@ FN app_on_key
     jnz 9f
 .Lk_bind:
     cmp dword ptr [rip + g_focus], FOCUS_EDITOR
+    jne 101f
+    call canvas_active
+    test rax, rax
+    jz 101f
+    mov edi, r12d
+    mov esi, r13d
+    mov edx, r14d
+    call canvas_key
+    test eax, eax
+    jnz 9f
+101: cmp dword ptr [rip + g_focus], FOCUS_EDITOR
     jne 1f
     mov edi, r12d
     mov esi, r13d
@@ -1987,7 +1998,15 @@ FN center_draw
     mov r8d, [rip + g_editor_rect + 12]
     call iv_draw
     EPILOGUE
-4:  cmp qword ptr [rax + TAB_kind], TAB_GIT
+4:  cmp qword ptr [rax + TAB_kind], TAB_CANVAS
+    jne 41f
+    mov edi, [rip + g_editor_rect]
+    mov esi, [rip + g_editor_rect + 4]
+    mov edx, [rip + g_editor_rect + 8]
+    mov ecx, [rip + g_editor_rect + 12]
+    call canvas_draw
+    EPILOGUE
+41: cmp qword ptr [rax + TAB_kind], TAB_GIT
     jne 1f
     mov edi, [rip + g_editor_rect]
     mov esi, [rip + g_editor_rect + 4]

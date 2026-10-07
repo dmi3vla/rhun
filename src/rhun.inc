@@ -530,6 +530,7 @@ F DOC_disk_seen, 8      # last external stamp handled
 F DOC_disk_until, 8     # editor's external reload highlight fades until this time
 F DOC_disk_lo, 8        # first changed line in the reloaded text
 F DOC_disk_hi, 8        # line past the changed range (deletions highlight their surviving neighbor)
+F DOC_canvas, 8         # owned native scene for TAB_CANVAS, otherwise null
 ENDSTRUCT DOC_SIZE
 
 .equ DISK_FADE_MS, 800
@@ -750,6 +751,7 @@ ENDSTRUCT IMG_SIZE
 .equ TAB_SETTINGS, 2
 .equ TAB_IMAGE, 3               # TAB_doc is a DOC without text; DOC_img holds the view
 .equ TAB_GIT, 4
+.equ TAB_CANVAS, 5
 STRUCT
 F TAB_kind, 8
 F TAB_doc, 8

@@ -32,7 +32,7 @@ world geometry. Importing fractional geometry needs an explicit conversion and
 compatibility diagnostic. Scene origin is independent of tab/window layout.
 
 Screen = viewport origin + (world + pan) * zoom / 65536. Zoom preserves the world
-point under the mouse, modulo at most one world unit of integer rounding. Pan
+point under the mouse, modulo at most one screen pixel (up to four world units at minimum zoom) of integer rounding. Pan
 uses middle mouse; scroll zooms. Clip stack is balanced for every draw path.
 
 Elements: id, kind, x/y/w/h, seed, stroke/fill, owned UTF-8 text, frame/group IDs,

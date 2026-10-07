@@ -61,6 +61,8 @@ FN doc_free
     call mem_free
     mov rdi, [rbx + DOC_path]
     call mem_free
+    mov rdi, [rbx + DOC_canvas]
+    call scene_free
     mov rdi, [rbx + DOC_img]
     call iv_free
     mov rdi, rbx
