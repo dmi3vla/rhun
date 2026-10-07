@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Граф распределённого состояния</title><style>body{margin:0;padding:20px;background:#111722}button,select,input{font:inherit}</style></head>
+<body>
+<div id="distributed-state-3d">
+  <style>
+    #distributed-state-3d{color-scheme:light dark;font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.45}
+    #distributed-state-3d *{box-sizing:border-box}
+    #distributed-state-3d .ds-app{--ds-bg:light-dark(#f4f6f9,#111722);--ds-panel:light-dark(#ffffff,#192230);--ds-text:light-dark(#253044,#e5ecf5);--ds-muted:light-dark(#596a7e,#a2b2c7);--ds-line:light-dark(#c4cfdd,#45566d);--ds-soft:light-dark(#e9eef5,#243246);--ds-good:light-dark(#35785f,#78c4a3);--ds-wait:light-dark(#a6681e,#e1b36a);--ds-shared:light-dark(#7852a9,#c1a1ec);background:var(--ds-bg);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:12px;overflow:hidden}
+    #distributed-state-3d .ds-header{padding:16px 20px;background:var(--ds-panel);border-bottom:1px solid var(--ds-line);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    #distributed-state-3d .ds-brand{font-weight:500;letter-spacing:.09em}
+    #distributed-state-3d .ds-small{font-size:12px;color:var(--ds-muted)}
+    #distributed-state-3d .ds-toolbar{display:flex;align-items:center;gap:8px;padding:12px 20px;flex-wrap:wrap;border-bottom:1px solid var(--ds-line)}
+    #distributed-state-3d button,#distributed-state-3d select{font:inherit;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:6px;min-height:36px;padding:7px 10px}
+    #distributed-state-3d button:hover{background:var(--ds-soft)}
+    #distributed-state-3d button[aria-pressed="true"]{border-color:var(--ds-good);background:var(--ds-soft)}
+    #distributed-state-3d .ds-select{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+    #distributed-state-3d select{max-width:100%;min-width:0}
+    #distributed-state-3d .ds-content{display:grid;grid-template-columns:minmax(0,1fr) 250px}
+    #distributed-state-3d .ds-stage{position:relative;min-width:0}
+    #distributed-state-3d canvas{display:block;width:100%;height:535px;touch-action:none}
+    #distributed-state-3d .ds-scene-controls{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:0 16px 12px}
+    #distributed-state-3d .ds-orbit{display:flex;align-items:center;gap:6px}
+    #distributed-state-3d .ds-orbit button{min-width:36px}
+    #distributed-state-3d .ds-inspector{padding:20px;background:var(--ds-panel);border-left:1px solid var(--ds-line);min-width:0}
+    #distributed-state-3d h3,#distributed-state-3d h4,#distributed-state-3d p{font-size:inherit;margin:0;font-weight:400}
+    #distributed-state-3d h4{font-weight:500;margin:8px 0 12px;overflow-wrap:anywhere}
+    #distributed-state-3d .ds-inspector p{margin:10px 0;overflow-wrap:anywhere}
+    #distributed-state-3d .ds-inspector hr{border:0;border-top:1px solid var(--ds-line);margin:18px 0}
+    #distributed-state-3d .ds-inspector code{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+    #distributed-state-3d .ds-value{display:flex;justify-content:space-between;gap:12px;margin:8px 0;flex-wrap:wrap}
+    #distributed-state-3d .ds-time{padding:14px 20px;background:var(--ds-panel);border-top:1px solid var(--ds-line)}
+    #distributed-state-3d .ds-time-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    #distributed-state-3d .ds-time-controls{display:flex;align-items:center;gap:12px}
+    #distributed-state-3d .ds-time-controls input{flex:1;min-width:50px;accent-color:var(--ds-good)}
+    #distributed-state-3d .ds-legend{display:flex;gap:16px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid var(--ds-line);font-size:12px;color:var(--ds-muted)}
+    #distributed-state-3d .ds-legend span{display:flex;align-items:center;gap:6px}
+    #distributed-state-3d .ds-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ds-good)}
+    #distributed-state-3d .ds-dot.wait{background:var(--ds-wait)}
+    #distributed-state-3d .ds-dot.shared{background:var(--ds-shared)}
+    #distributed-state-3d .ds-probes{position:absolute;visibility:hidden;pointer-events:none;width:0;height:0;overflow:hidden}
+    #distributed-state-3d .ds-tag{display:inline-block;padding:3px 6px;border-radius:4px;background:var(--ds-soft);font-size:12px}
+    @media(max-width:750px){#distributed-state-3d .ds-content{grid-template-columns:minmax(0,1fr)}#distributed-state-3d .ds-inspector{border-left:0;border-top:1px solid var(--ds-line);display:grid;grid-template-columns:1fr 1fr;gap:12px}#distributed-state-3d .ds-inspector hr{display:none}#distributed-state-3d canvas{height:490px}}
+    @media(max-width:450px){#distributed-state-3d .ds-header,#distributed-state-3d .ds-toolbar,#distributed-state-3d .ds-time,#distributed-state-3d .ds-legend{padding:12px}#distributed-state-3d .ds-inspector{display:block;padding:14px}#distributed-state-3d canvas{height:450px}#distributed-state-3d button,#distributed-state-3d select{min-height:44px}#distributed-state-3d .ds-select{width:100%}#distributed-state-3d .ds-select select{flex:1}}
+  </style>
+  <div class="ds-app">
+    <header class="ds-header"><div><div class="ds-brand">КРЕМНИЙ / STATE SPACE</div><div class="ds-small">3D · сегменты · причинные связи · версии объекта</div></div><span class="ds-tag">Учебная трасса</span></header>
+    <div class="ds-toolbar"><span class="ds-small">Свернуть:</span><button type="button" class="cursor-interaction" data-segment="front" aria-pressed="false">Фронт</button><button type="button" class="cursor-interaction" data-segment="service" aria-pressed="false">Сервис</button><button type="button" class="cursor-interaction" data-segment="storage" aria-pressed="false">Данные</button><label class="ds-select" for="ds-node-select"><span class="ds-small">Узел</span><select id="ds-node-select"></select></label></div>
+    <div class="ds-content">
+      <div class="ds-stage"><canvas id="ds-canvas" aria-label="Вращаемый трёхмерный граф. Выбор узла доступен также в списке; поворот — кнопками под графом.">Граф связывает фронт, сервис и хранилище. На третьем событии база содержит v8, а кэш ещё v7.</canvas><div class="ds-scene-controls"><span class="ds-small">Перетаскивание — поворот · колесо — масштаб · клик — узел</span><div class="ds-orbit"><button type="button" class="cursor-interaction" id="ds-left" aria-label="Повернуть влево">↶</button><button type="button" class="cursor-interaction" id="ds-right" aria-label="Повернуть вправо">↷</button><button type="button" class="cursor-interaction" id="ds-up" aria-label="Наклонить вверх">↑</button><button type="button" class="cursor-interaction" id="ds-down" aria-label="Наклонить вниз">↓</button></div></div></div>
+      <aside id="ds-inspector" class="ds-inspector" aria-live="polite"></aside>
+    </div>
+    <div class="ds-time"><div class="ds-time-head"><span id="ds-event-name" aria-live="polite"></span><span class="ds-small" id="ds-event-counter"></span></div><div class="ds-time-controls"><button type="button" class="cursor-interaction" id="ds-prev" aria-label="Предыдущее событие">←</button><input id="ds-timeline" type="range" min="0" max="5" step="1" value="3" aria-label="Событие учебной трассы"><button type="button" class="cursor-interaction" id="ds-next" aria-label="Следующее событие">→</button></div></div>
+    <div class="ds-legend"><span><i class="ds-dot"></i>Текущая версия</span><span><i class="ds-dot wait"></i>Предыдущая версия</span><span><i class="ds-dot shared"></i>Общий контракт</span><span>Стрелки — поток событий · пунктир — использование контракта</span></div>
+    <div class="ds-probes" aria-hidden="true"><span data-color="bg" style="color:var(--ds-bg)"></span><span data-color="panel" style="color:var(--ds-panel)"></span><span data-color="text" style="color:var(--ds-text)"></span><span data-color="muted" style="color:var(--ds-muted)"></span><span data-color="line" style="color:var(--ds-line)"></span><span data-color="good" style="color:var(--ds-good)"></span><span data-color="wait" style="color:var(--ds-wait)"></span><span data-color="shared" style="color:var(--ds-shared)"></span></div>
+  </div>
+  <script>
+  (()=>{
+    const root=document.getElementById('distributed-state-3d'),canvas=document.getElementById('ds-canvas'),ctx=canvas.getContext('2d'),picker=document.getElementById('ds-node-select');
+    if(!ctx){document.getElementById('ds-inspector').textContent='Отрисовка недоступна в этом браузере.';return;}
+    const segments={front:{label:'Фронт',c:[-220,10,-95],half:[94,100,70]},service:{label:'Сервис',c:[5,15,65],half:[102,110,78]},storage:{label:'Данные',c:[225,0,-50],half:[91,115,70]}};
+    const nodes=[
+      {id:'form',name:'OrderForm',g:'front',p:[-265,75,-100],kind:'method',desc:'Изменяет исходные параметры заказа.'},
+      {id:'front-copy',name:'order#42 · UI',g:'front',p:[-175,5,-100],kind:'replica',realm:'front',desc:'Локальное представление объекта в интерфейсе.'},
+      {id:'input',name:'parseInput()',g:'front',p:[-250,-65,-65],kind:'method',desc:'Проверяет формат пользовательского ввода.'},
+      {id:'command',name:'UpdateOrder',g:'service',p:[-40,85,60],kind:'method',desc:'Команда передаёт изменение в сервис.'},
+      {id:'validate',name:'validate()',g:'service',p:[-65,0,90],kind:'method',desc:'Проверяет команду по общему контракту.'},
+      {id:'service-copy',name:'order#42 · API',g:'service',p:[65,25,75],kind:'replica',realm:'service',desc:'Рабочее состояние объекта в сервисе.'},
+      {id:'calculate',name:'calculate()',g:'service',p:[15,-65,40],kind:'method',desc:'В демо: выручка 1250 минус затраты 800 или 650.'},
+      {id:'db-copy',name:'order#42 · DB',g:'storage',p:[200,65,-50],kind:'replica',realm:'db',desc:'Зафиксированная запись объекта в базе.'},
+      {id:'cache-copy',name:'order#42 · cache',g:'storage',p:[275,-5,-30],kind:'replica',realm:'cache',desc:'Кэш обновляется после обработки события из outbox.'},
+      {id:'outbox',name:'Outbox',g:'storage',p:[190,-80,-65],kind:'method',desc:'В демо передаёт событие зафиксированного изменения.'},
+      {id:'schema',name:'Order · schema v1',g:null,p:[0,205,-155],kind:'shared',desc:'Единый узел контракта, используемый разными сегментами.'}
+    ];
+    const edges=[
+      ['form','input','flow'],['input','front-copy','flow'],['front-copy','command','flow'],['command','validate','flow'],['validate','calculate','flow'],['calculate','service-copy','flow'],['service-copy','db-copy','flow'],['db-copy','outbox','flow'],['outbox','cache-copy','flow'],['cache-copy','calculate','flow'],['service-copy','front-copy','flow'],
+      ['front-copy','schema','contract'],['validate','schema','contract'],['db-copy','schema','contract']
+    ].map((e,i)=>({id:'e'+i,a:e[0],b:e[1],kind:e[2]}));
+    const events=[
+      {label:'Согласованное исходное состояние',versions:[7,7,7,7],active:[],actor:'Снимок',note:'Все четыре представления содержат v7: затраты 800, маржа 450.'},
+      {label:'UI отправил изменение затрат',versions:[8,7,7,7],active:['e2'],actor:'Фронт',note:'UI показывает v8: затраты 650, маржа 600. Остальные представления ещё содержат v7.'},
+      {label:'Сервис проверил и пересчитал объект',versions:[8,8,7,7],active:['e6'],actor:'Сервис',note:'Сервис вычислил v8 и передаёт её для записи. База и кэш пока v7.'},
+      {label:'База зафиксировала v8; кэш ещё v7',versions:[8,8,8,7],active:['e7'],actor:'Данные / DB',note:'Запись v8 зафиксирована. Событие обновления кэша находится в outbox.'},
+      {label:'Кэш обработал событие обновления',versions:[8,8,8,8],active:['e8'],actor:'Данные / cache',note:'Кэш получил v8. Все четыре представления содержат одинаковую версию.'},
+      {label:'Подтверждение вернулось во фронт',versions:[8,8,8,8],active:['e10'],actor:'Сервис → фронт',note:'В демо UI получает подтверждение сохранения v8.'}
+    ];
+    const realms=['front','service','db','cache'],state={event:3,yaw:-.38,pitch:.24,zoom:1,selected:'cache-copy',collapsed:new Set()};
+    const inspector=document.getElementById('ds-inspector'),timeline=document.getElementById('ds-timeline');
+    let colors={},hit=[],width=640,height=535,pointer=null,drawPending=false;
+    const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function refreshColors(){root.querySelectorAll('[data-color]').forEach(n=>colors[n.dataset.color]=getComputedStyle(n).color);}
+    function version(n){return n.kind==='replica'?events[state.event].versions[realms.indexOf(n.realm)]:null;}
+    function expected(){return state.event===0?7:8;}
+    function color(n){return n.kind==='shared'?colors.shared:n.kind==='replica'?(version(n)===expected()?colors.good:colors.wait):colors.muted;}
+    function visibleGraph(){
+      const mapped=new Map(nodes.map(n=>[n.id,n.g&&state.collapsed.has(n.g)?'segment:'+n.g:n.id]));
+      const visible=nodes.filter(n=>!n.g||!state.collapsed.has(n.g));
+      for(const g of state.collapsed){visible.push({id:'segment:'+g,name:segments[g].label,g,p:segments[g].c,kind:'segment',members:nodes.filter(n=>n.g===g)});}
+      const projected=new Map();
+      for(const edge of edges){const a=mapped.get(edge.a),b=mapped.get(edge.b);if(a===b)continue;const key=a+'|'+b+'|'+edge.kind;
+        if(!projected.has(key))projected.set(key,{a,b,kind:edge.kind,sourceIds:[]});projected.get(key).sourceIds.push(edge.id);}
+      return {nodes:visible,edges:[...projected.values()]};
+    }
+    function rotate(p){const cy=Math.cos(state.yaw),sy=Math.sin(state.yaw),cp=Math.cos(state.pitch),sp=Math.sin(state.pitch);const x=p[0]*cy+p[2]*sy,z=-p[0]*sy+p[2]*cy;return [x,p[1]*cp-z*sp,p[1]*sp+z*cp];}
+    function perspective(p){const r=rotate(p),f=950/(950+r[2]);return {x:r[0]*f,y:-r[1]*f,z:r[2]};}
+    function cube(g){const s=segments[g],points=[];for(const x of[-1,1])for(const y of[-1,1])for(const z of[-1,1])points.push([s.c[0]+x*s.half[0],s.c[1]+y*s.half[1],s.c[2]+z*s.half[2]]);return points;}
+    function projector(){const all=nodes.map(n=>n.p).concat(...Object.keys(segments).map(cube));const raw=all.map(perspective);const minx=Math.min(...raw.map(p=>p.x)),maxx=Math.max(...raw.map(p=>p.x)),miny=Math.min(...raw.map(p=>p.y)),maxy=Math.max(...raw.map(p=>p.y));const scale=Math.min((width-90)/(maxx-minx),(height-85)/(maxy-miny))*state.zoom;const mx=(minx+maxx)/2,my=(miny+maxy)/2;return p=>{const v=perspective(p);return {x:width/2+(v.x-mx)*scale,y:height/2+(v.y-my)*scale,z:v.z};};}
+    function resize(){const rect=canvas.getBoundingClientRect();width=Math.max(260,rect.width);height=rect.height||535;const dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);refreshColors();render();}
+    function line(a,b,colorValue,dashed=false,weight=1){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=colorValue;ctx.lineWidth=weight;ctx.setLineDash(dashed?[4,5]:[]);ctx.stroke();ctx.setLineDash([]);}
+    function drawFrame(g,project){const c=cube(g).map(project),faces=[[0,1,3,2],[4,5,7,6],[0,1,5,4],[2,3,7,6],[0,2,6,4],[1,3,7,5]];faces.sort((a,b)=>b.reduce((v,i)=>v+c[i].z,0)-a.reduce((v,i)=>v+c[i].z,0));
+      for(const f of faces){ctx.beginPath();ctx.moveTo(c[f[0]].x,c[f[0]].y);for(const i of f.slice(1))ctx.lineTo(c[i].x,c[i].y);ctx.closePath();ctx.globalAlpha=.12;ctx.fillStyle=colors.panel;ctx.fill();ctx.globalAlpha=.55;ctx.strokeStyle=colors.line;ctx.lineWidth=.8;ctx.stroke();}ctx.globalAlpha=1;
+      const anchor=c.reduce((best,p)=>p.y<best.y?p:best,c[0]);ctx.fillStyle=colors.muted;ctx.font='500 12px system-ui';ctx.textAlign='center';ctx.fillText(segments[g].label,Math.max(50,Math.min(width-50,anchor.x)),Math.max(18,anchor.y-9));
+    }
+    function arrow(a,b,colorValue,dashed,active){const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(len<25)return;const ux=dx/len,uy=dy/len,start={x:a.x+ux*(a.radius+3),y:a.y+uy*(a.radius+3)},end={x:b.x-ux*(b.radius+6),y:b.y-uy*(b.radius+6)};
+      ctx.globalAlpha=active?1:.63;line(start,end,colorValue,dashed,active?2:1);if(!dashed){ctx.beginPath();ctx.moveTo(end.x,end.y);ctx.lineTo(end.x-ux*7-uy*3,end.y-uy*7+ux*3);ctx.lineTo(end.x-ux*7+uy*3,end.y-uy*7-ux*3);ctx.closePath();ctx.fillStyle=colorValue;ctx.fill();}
+      if(active){const t=.5;const x=start.x+(end.x-start.x)*t,y=start.y+(end.y-start.y)*t;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle=colorValue;ctx.fill();}ctx.globalAlpha=1;
+    }
+    function render(){
+      ctx.clearRect(0,0,width,height);const project=projector(),graph=visibleGraph();hit=[];
+      const groups=Object.keys(segments).filter(g=>!state.collapsed.has(g)).sort((a,b)=>project(segments[b].c).z-project(segments[a].c).z);groups.forEach(g=>drawFrame(g,project));
+      const screen=new Map(graph.nodes.map(n=>[n.id,{...project(n.p),radius:n.kind==='segment'?24:n.kind==='shared'?11:n.kind==='replica'?10:6,n}]));
+      const targetSelection=state.selected;const activeIds=events[state.event].active;
+      for(const e of graph.edges){const a=screen.get(e.a),b=screen.get(e.b),active=e.sourceIds.some(id=>activeIds.includes(id)),selected=e.a===targetSelection||e.b===targetSelection;arrow(a,b,active?colors.good:e.kind==='contract'?colors.shared:selected?colors.muted:colors.line,e.kind==='contract',active);}
+      const projected=[...screen.values()].sort((a,b)=>b.z-a.z),labels=[];
+      for(const p of projected){const n=p.n,c=n.kind==='segment'?(n.members.some(m=>m.kind==='replica'&&version(m)!==expected())?colors.wait:colors.good):color(n);const gradient=ctx.createRadialGradient(p.x-p.radius*.3,p.y-p.radius*.3,0,p.x,p.y,p.radius);gradient.addColorStop(0,colors.panel);gradient.addColorStop(.38,c);gradient.addColorStop(1,c);ctx.beginPath();ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);ctx.fillStyle=gradient;ctx.fill();if(n.id===targetSelection){ctx.beginPath();ctx.arc(p.x,p.y,p.radius+5,0,Math.PI*2);ctx.strokeStyle=colors.text;ctx.lineWidth=1.5;ctx.stroke();}
+        if(n.kind==='segment'){ctx.fillStyle=colors.panel;ctx.font='500 12px system-ui';ctx.textAlign='center';ctx.fillText(String(n.members.length),p.x,p.y+4);}
+        hit.push({id:n.id,x:p.x,y:p.y,r:Math.max(p.radius+9,17),z:p.z});
+        const short=n.kind==='segment'?n.name+' · '+[...new Set(n.members.filter(m=>m.kind==='replica').map(m=>'v'+version(m)))].join('/') :n.kind==='replica'?(n.realm==='service'?'API':n.realm==='front'?'UI':n.realm==='cache'?'cache':'DB')+' · v'+version(n):n.name;
+        labels.push({p,text:width<420&&n.kind==='method'&&n.id!==state.selected?null:short});
+      }
+      ctx.font='400 12px system-ui';const placed=[];
+      labels.sort((a,b)=>(b.p.n.id===targetSelection?1:0)-(a.p.n.id===targetSelection?1:0));
+      for(const item of labels){if(!item.text)continue;const p=item.p,tw=ctx.measureText(item.text).width+8;let best=null;
+        const options=[[p.x+p.radius+8,p.y-7],[p.x-tw-p.radius-8,p.y-7],[p.x-tw/2,p.y+p.radius+9],[p.x-tw/2,p.y-p.radius-23],[p.x+p.radius+8,p.y+12]];
+        for(const [ox,oy]of options){const x=Math.max(5,Math.min(width-tw-5,ox)),y=Math.max(5,Math.min(height-20,oy));const box={x,y,w:tw,h:18};if(!placed.some(q=>x<q.x+q.w+3&&x+tw+3>q.x&&y<q.y+q.h+3&&y+18+3>q.y)&&!projected.some(q=>q.n.id!==p.n.id&&q.x+q.radius>x&&q.x-q.radius<x+tw&&q.y+q.radius>y&&q.y-q.radius<y+18)){best=box;break;}}
+        if(!best)continue;placed.push(best);ctx.globalAlpha=.9;ctx.fillStyle=colors.bg;ctx.fillRect(best.x,best.y,best.w,best.h);ctx.globalAlpha=1;ctx.fillStyle=colors.text;ctx.textAlign='left';ctx.fillText(item.text,best.x+4,best.y+13);
+      }
+    }
+    function queueRender(){if(drawPending)return;drawPending=true;requestAnimationFrame(()=>{drawPending=false;render();});}
+    function updatePicker(){const graph=visibleGraph();picker.innerHTML=graph.nodes.map(n=>'<option value="'+esc(n.id)+'">'+esc(n.name)+'</option>').join('');picker.value=state.selected;}
+    function updateInspector(){const event=events[state.event],graph=visibleGraph(),n=graph.nodes.find(n=>n.id===state.selected)||graph.nodes[0];state.selected=n.id;picker.value=n.id;
+      let body='';
+      if(n.kind==='replica'){const v=version(n);body='<span class="ds-tag">'+(v===expected()?'Текущая версия':'Предыдущая версия')+'</span><div class="ds-value"><span class="ds-small">Версия</span><span>v'+v+'</span></div><div class="ds-value"><span class="ds-small">Затраты</span><span>'+(v===7?800:650)+'</span></div><div class="ds-value"><span class="ds-small">Маржа</span><span>'+(v===7?450:600)+'</span></div><p class="ds-small">Логический объект</p><p><code>order#42</code></p><p class="ds-small">Отдельная копия</p><p><code>'+esc(n.realm)+':order#42</code></p>';}
+      else if(n.kind==='segment'){const copies=n.members.filter(x=>x.kind==='replica');body='<span class="ds-tag">'+n.members.length+' скрытых узла</span><p>'+copies.map(x=>esc(x.name)+' · v'+version(x)).join('<br>')+'</p><p class="ds-small">Граничные стрелки сохраняют ссылки на исходные связи.</p>';}
+      else body='<span class="ds-tag">'+(n.kind==='shared'?'Общий контракт':'Операция')+'</span><p>'+esc(n.desc)+'</p><p><code>'+esc(n.id)+'</code></p>';
+      inspector.innerHTML='<div><div class="ds-small">Выбранный узел</div><h4>'+esc(n.name)+'</h4>'+body+'</div><div><hr><div class="ds-small">Причинное событие '+state.event+'</div><p>'+esc(event.note)+'</p><p class="ds-small">Источник: '+esc(event.actor)+'</p></div>';
+      document.getElementById('ds-event-name').textContent=event.label;document.getElementById('ds-event-counter').textContent=state.event+' / '+(events.length-1);timeline.value=state.event;
+      document.getElementById('ds-prev').disabled=state.event===0;document.getElementById('ds-next').disabled=state.event===events.length-1;
+      timeline.setAttribute('aria-valuetext','Событие '+state.event+': '+event.label);
+    }
+    function setEvent(i){state.event=Math.max(0,Math.min(events.length-1,Number(i)));updateInspector();render();}
+    function select(id){state.selected=id;updateInspector();render();}
+    picker.addEventListener('change',()=>select(picker.value));timeline.addEventListener('input',()=>setEvent(timeline.value));
+    document.getElementById('ds-prev').addEventListener('click',()=>setEvent(state.event-1));document.getElementById('ds-next').addEventListener('click',()=>setEvent(state.event+1));
+    root.querySelectorAll('[data-segment]').forEach(b=>b.addEventListener('click',()=>{const g=b.dataset.segment;if(state.collapsed.has(g)){state.collapsed.delete(g);if(state.selected==='segment:'+g)state.selected=nodes.find(n=>n.g===g&&n.kind==='replica').id;}else{state.collapsed.add(g);if(nodes.find(n=>n.id===state.selected)?.g===g)state.selected='segment:'+g;}b.setAttribute('aria-pressed',String(state.collapsed.has(g)));updatePicker();updateInspector();render();}));
+    const orbit=(dy,dp)=>{state.yaw+=dy;state.pitch=Math.max(-1.1,Math.min(1.1,state.pitch+dp));render();};
+    document.getElementById('ds-left').addEventListener('click',()=>orbit(-.25,0));document.getElementById('ds-right').addEventListener('click',()=>orbit(.25,0));document.getElementById('ds-up').addEventListener('click',()=>orbit(0,.18));document.getElementById('ds-down').addEventListener('click',()=>orbit(0,-.18));
+    canvas.addEventListener('pointerdown',e=>{if(pointer)return;pointer={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId);});
+    canvas.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;pointer.moved=pointer.moved||Math.hypot(e.clientX-pointer.startX,e.clientY-pointer.startY)>5;if(pointer.moved){state.yaw+=dx*.008;state.pitch=Math.max(-1.1,Math.min(1.1,state.pitch+dy*.006));queueRender();}pointer.x=e.clientX;pointer.y=e.clientY;});
+    canvas.addEventListener('pointerup',e=>{if(!pointer||pointer.id!==e.pointerId)return;const moved=pointer.moved;pointer=null;if(!moved){const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;const candidates=hit.filter(p=>Math.hypot(p.x-x,p.y-y)<p.r).sort((a,b)=>a.z-b.z);if(candidates.length)select(candidates[0].id);}});
+    canvas.addEventListener('pointercancel',()=>pointer=null);
+    canvas.addEventListener('wheel',e=>{e.preventDefault();state.zoom=Math.max(.65,Math.min(1.3,state.zoom*Math.exp(-e.deltaY*.001)));queueRender();},{passive:false});
+    const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(canvas);
+    const appearance=matchMedia('(prefers-color-scheme: dark)');appearance.addEventListener('change',()=>{refreshColors();render();});
+    updatePicker();updateInspector();resize();
+  })();
+  </script>
+</div>
+
+</body></html>
