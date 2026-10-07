@@ -36,6 +36,9 @@ F SC_exchange, 8
 F SC_ui, 8
 F SC_generated, 8
 F SC_mode, 4
+F SC_proposal, 8
+F SC_proposal_selected, 8
+F SC_fold, VEC_SIZE
 F SC_revision, 8
 F SC_next_id, 8
 F SC_selected, 8
@@ -106,3 +109,16 @@ ENDSTRUCT UM_SIZE
 .equ U_TEXT, 4
 .equ U_BUTTON, 5
 .equ U_INPUT, 6
+
+STRUCT
+F PO_kind, 4
+F PO_selected, 4
+F PO_id, 8
+F PO_raw, 8
+ENDSTRUCT PO_SIZE
+STRUCT
+F CP_ops, VEC_SIZE
+F CP_revision, 8
+F CP_explanation, 8
+F CP_candidate, 8
+ENDSTRUCT CP_SIZE

@@ -23,6 +23,10 @@ FN scene_free
     call mem_free
     mov rdi, [rbx + SC_generated]
     call mem_free
+    mov rdi, [rbx + SC_proposal]
+    call canvas_proposal_free
+    lea rdi, [rbx + SC_fold]
+    call vec_free
     mov rdi, rbx
     call scene_clear_elements
     lea rdi, [rbx + SC_undo]

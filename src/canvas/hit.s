@@ -14,6 +14,11 @@ FN scene_hit
     imul r13, r12, CE_SIZE
     add r13, [rbx + SC_elements + VEC_ptr]
     mov rsi, [r13 + CE_frame]
+    mov rdi, rbx
+    call canvas_folded
+    test eax, eax
+    jnz 1b
+    mov rsi, [r13 + CE_frame]
     test rsi, rsi
     jz 10f
     mov rdi, rbx

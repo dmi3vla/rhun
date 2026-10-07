@@ -248,12 +248,15 @@ FN scene_parse
     cmp rax, 2
     je 102f
     cmp rax, 3
+    je 102f
+    cmp rax, 4
     jne .Lparse_null
 102: mov [rsp + 32], eax
-    add eax, 3
-    cmp eax, 6
-    jne 108f
-    inc eax
+    cmp eax, 3
+    jb 111f
+    mov eax, 7
+    jmp 108f
+111: add eax, 3
 108: cmp [r12 + 4], eax
     jne .Lparse_null
     mov qword ptr [rsp + 40], 0
@@ -292,7 +295,7 @@ FN scene_parse
     call scene_new
     mov rbx, rax
     cmp dword ptr [rsp + 32], 3
-    jne 109f
+    jb 109f
     mov rdi, [rsp + 48]
     lea rsi, [rip + .Lui]
     call json_get
@@ -337,6 +340,9 @@ FN scene_parse
     cmp dword ptr [rsp + 32], 1
     je 105f
     mov eax, 23
+    cmp dword ptr [rsp + 32], 4
+    jb 105f
+    inc eax
 105: cmp [r14 + 4], eax
     jne .Lparse_bad
     lea rdi, [rbx + SC_elements]
@@ -357,7 +363,12 @@ FN scene_parse
     lea rax, [rip + .Lfields_extra_numeric]
     cmp r15, rax
     je .Lparse_text
-110:
+110: cmp dword ptr [rsp + 32], 4
+    jae 112f
+    lea rax, [rip + .Lfields_progress]
+    cmp r15, rax
+    je .Lparse_text
+112:
     mov rdi, r14
     mov rsi, [r15]
     call json_get
@@ -628,7 +639,7 @@ FN canvas_path
 8:  xor eax, eax
 9:  EPILOGUE
 .section .rodata
-.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":3,\"next\":"
+.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":4,\"next\":"
 .Lscene_elements: .asciz ",\"elements\":["
 .Lscene_end: .asciz "]}\n"
 .Ltext_key: .asciz "\"text\":"
@@ -681,6 +692,8 @@ FN canvas_path
     .quad .Lrough, CE_roughness, 4, 0, 3
     .quad .Lfill, CE_fill, 4, 0, 4294967295
     .quad .Lfont, CE_fontsize, 4, 8, 200
+.Lfields_progress:
+    .quad .Lprogress, CE_reserved, 4, 0, 2
     .quad 0
 .Lrough: .asciz "roughness"
 .Lfill: .asciz "fill"
@@ -722,3 +735,6 @@ FN scene_owned_json_string
 .Lui: .asciz "ui"
 .Lrevision_key: .asciz ",\"revision\":"
 .Lui_key: .asciz ",\"ui\":"
+
+.section .rodata
+.Lprogress: .asciz "progress"

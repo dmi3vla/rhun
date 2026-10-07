@@ -63,3 +63,13 @@ After geometry changes, use Refresh UI Source Revision to revalidate the mapping
 Canvas: Toggle Native UI Preview switches between drawing tools and the semantic projection. Preview clicks select source components; input fields show values without executing actions or editing the sketch. Use the palette command again to return to drawing. Stale UI needs Refresh UI Source Revision before preview/export.
 
 Columns stack auto heights with gap; rows share available width among auto children after explicit widths. Padding belongs to each component. Frame roots clip to their bounds; all containers clip descendants. Width/height zero selects auto sizing, positive values select explicit size. Text measurement uses 8 logical pixels per Unicode scalar and 20 per line; native glyphs remain the IDE font, so HTML and native typography can differ.
+
+### Model proposals and detail (phase 6)
+
+Open `examples/canvas/proposal-source.rhun-canvas`, then Load Model Proposal with `detail-proposal.json`. Proposed shapes appear at 50% opacity. Select Next Proposal Change (or click a proposed figure), then Accept Selected Proposal Change: a proposed arrow also accepts any required new endpoint/frame. Accept All applies the full set. Reject leaves the document unchanged; acceptance is one undo. Any content edit makes a pending proposal stale.
+
+Export Selected Context Request creates bounded JSON; Send Selected Context to Ready Chat sends it through the chosen existing chat provider after the chat is ready. Ask the agent to save the `rhun-proposal` response as a JSON file, then load that file. The request carries no project-wide context automatically. add/replace records use the complete current native element schema; delete has `id`; ui has `value` with the closed UI IR. UI source revision must describe the accepted next scene revision.
+
+Steps have progress 0/1/2 (pending/done/blocked), changed by the palette commands. Expand/Collapse Selected Frame hides/restores direct members without deleting/recreating them. The folded summary counts direct `role=1` steps, completed steps and blocked steps. All semantic content stays saved in native v4; collapse is a view choice.
+
+Proposal image add/replace operations are rejected in this first version; use the explicit local image insertion command. UI proposals must carry the next accepted scene revision. Alpha compositing uses at most 16 MiB of viewport backup; larger viewports fall back to the distinct tinted overlay.

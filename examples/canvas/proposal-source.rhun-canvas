@@ -1,0 +1,36 @@
+{
+  "type": "rhun-canvas",
+  "version": 4,
+  "next": 2,
+  "exchange": "",
+  "revision": 1,
+  "ui": "",
+  "elements": [
+    {
+      "role": 0,
+      "id": 1,
+      "kind": 2,
+      "x": 100,
+      "y": 84,
+      "w": 120,
+      "h": 80,
+      "color": 4287472895,
+      "from": 0,
+      "to": 0,
+      "frame": 0,
+      "group": 0,
+      "seed": 0,
+      "angle": 0,
+      "roughness": 0,
+      "fill": 0,
+      "fontsize": 24,
+      "progress": 0,
+      "text": "",
+      "points": [],
+      "xid": "",
+      "raw": "",
+      "image": "",
+      "gxid": ""
+    }
+  ]
+}
