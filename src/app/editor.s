@@ -1644,6 +1644,9 @@ FN cmd_toggle_comment
     EPILOGUE
 
 FN cmd_undo
+    call canvas_active
+    test rax, rax
+    jnz canvas_undo
     READONLY_RET
     mov rdi, [rip + g_doc]
     test rdi, rdi
@@ -1653,6 +1656,9 @@ FN cmd_undo
 1:  ret
 
 FN cmd_redo
+    call canvas_active
+    test rax, rax
+    jnz canvas_redo
     READONLY_RET
     mov rdi, [rip + g_doc]
     test rdi, rdi

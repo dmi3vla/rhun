@@ -849,7 +849,7 @@ prompt_initial:
     cmp eax, PROMPT_RENAME
     je 3f
     jmp 2f
-1:  mov rax, [rip + g_doc]
+1:  mov rax, [rip + g_file]
     test rax, rax
     jz 2f
     mov rsi, [rax + DOC_path]
@@ -2265,8 +2265,12 @@ prompt_done:
     jne 1f
     mov r13, [rip + g_doc]
     test r13, r13
+    jnz 01f
+    call canvas_active
+    test rax, rax
     jz 9f
-    mov rdi, r13
+    mov r13, [rip + g_file]
+01: mov rdi, r13
     mov rsi, rbx
     call doc_set_path
     mov rdi, rbx

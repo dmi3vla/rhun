@@ -1,5 +1,6 @@
 # application shell: init, tabs, layout, chrome (titlebar, tabs, status bar), input routing
 .include "rhun.inc"
+.include "canvas/canvas.inc"
 
 .equ ID_TITLE, 0x2000
 .equ ID_WMIN, 0x2001
@@ -380,9 +381,11 @@ switch_continue:
     jae 3f
     mov rdi, rbx
     call tab_at
+    cmp qword ptr [rax + TAB_kind], TAB_CANVAS
+    je 12f
     cmp qword ptr [rax + TAB_kind], TAB_DOC
     jne 2f
-    mov rdi, [rax + TAB_doc]
+12: mov rdi, [rax + TAB_doc]
     call doc_dirty
     test eax, eax
     jz 2f
@@ -725,6 +728,25 @@ FN app_open_file
 12: mov r14d, TAB_DOC
     call doc_new
     mov rbx, rax
+    mov rdi, r12
+    call canvas_path
+    test eax, eax
+    jz .Lopen_not_canvas
+    mov rdi, r12
+    call scene_load
+    test rax, rax
+    jz .Lopen_bad_canvas
+    mov [rbx + DOC_canvas], rax
+    mov [rax + SC_doc], rbx
+    mov rdi, rbx
+    mov rsi, r12
+    call doc_set_path
+    mov r14d, TAB_CANVAS
+    jmp 3f
+.Lopen_bad_canvas:
+    lea r15, [rip + .Lcanvas_invalid]
+    jmp .Lof_failed
+.Lopen_not_canvas:
     # images open in an image tab, decoded when first shown
     mov rdi, r12
     call image_probe
@@ -921,9 +943,11 @@ FN app_close_tab
     PROLOGUE
     mov rbx, rdi
     call tab_at
+    cmp qword ptr [rax + TAB_kind], TAB_CANVAS
+    je 12f
     cmp qword ptr [rax + TAB_kind], TAB_DOC
     jne 1f
-    mov rdi, [rax + TAB_doc]
+12: mov rdi, [rax + TAB_doc]
     call doc_dirty
     test eax, eax
     jz 1f
@@ -979,7 +1003,14 @@ FN cmd_prev_tab
 FN cmd_save
     READONLY_RET
     PROLOGUE
-    mov rbx, [rip + g_doc]
+    call canvas_active
+    test rax, rax
+    jz 11f
+    call canvas_text_commit
+    mov rbx, [rip + g_file]
+    jmp 12f
+11: mov rbx, [rip + g_doc]
+12:
     test rbx, rbx
     jz 9f
     cmp qword ptr [rbx + DOC_path], 0
@@ -1026,6 +1057,9 @@ FN app_after_save
     EPILOGUE
 
 FN cmd_save_as
+    push rax
+    call canvas_text_commit
+    pop rax
     READONLY_RET
     lea rdi, [rip + .Lsave_as]
     mov esi, PROMPT_SAVE_AS
@@ -1044,9 +1078,11 @@ FN cmd_quit
     jae 3f
     mov rdi, rbx
     call tab_at
+    cmp qword ptr [rax + TAB_kind], TAB_CANVAS
+    je 12f
     cmp qword ptr [rax + TAB_kind], TAB_DOC
     jne 2f
-    mov rdi, [rax + TAB_doc]
+12: mov rdi, [rax + TAB_doc]
     call doc_dirty
     test eax, eax
     jz 2f
@@ -1195,7 +1231,14 @@ FN app_on_paste
     jmp 9f
 2:  cmp dword ptr [rip + g_focus], FOCUS_EDITOR
     jne 9f
+    call canvas_active
+    test rax, rax
+    jz 21f
     mov rdi, rbx
+    mov rsi, r12
+    call canvas_paste
+    jmp 9f
+21: mov rdi, rbx
     mov rsi, r12
     call ed_paste
 9:  mov dword ptr [rip + g_dirty], 1
@@ -2707,9 +2750,11 @@ FN tabs_draw
     call ui_btn
     mov [rsp + 32], eax
     xor r14d, r14d              # modified?
+    cmp qword ptr [r15 + TAB_kind], TAB_CANVAS
+    je 821f
     cmp qword ptr [r15 + TAB_kind], TAB_DOC
     jne 82f
-    mov rdi, [r15 + TAB_doc]
+821: mov rdi, [r15 + TAB_doc]
     call doc_dirty
     mov r14d, eax
 82: test dword ptr [rsp + 32], UB_HOVER
@@ -4302,3 +4347,6 @@ FN app_open_path
     mov rdi, rbx
     call mem_free
 9:  EPILOGUE
+
+.section .rodata
+.Lcanvas_invalid: .asciz "Invalid or unsupported native canvas; document unchanged"

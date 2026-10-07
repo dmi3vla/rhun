@@ -15,7 +15,7 @@ class CanvasViewport(module.EditorMatrix):
             'scroll -1', 'print-canvas', 'cmd canvas_new', 'print-canvas',
             'cmd prev_tab', 'print-canvas', 'cmd close_tab', 'print-canvas',
             'cmd close_tab', 'print-doc'])
-        states = re.findall(r'canvas elements=2 zoom=(\d+) pan=(-?\d+),(-?\d+)', out)
+        states = re.findall(r'canvas elements=0 zoom=(\d+) pan=(-?\d+),(-?\d+)', out)
         self.assertEqual(len(states), 5, out)
         self.assertEqual(states[0], ('65536', '0', '0'))
         self.assertEqual(states[2], states[0])

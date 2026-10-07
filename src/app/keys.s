@@ -477,6 +477,7 @@ key_names:
 g_commands:
     COMMAND quick_open, "Go to File", cmd_quick_open, "ctrl+p ctrl+e"
     COMMAND command_palette, "Command Palette", cmd_command_palette, "ctrl+shift+p F1"
+    COMMAND canvas_reload, "Canvas: Reload Saved Draft", cmd_canvas_reload, ""
     COMMAND canvas_new, "Canvas: New Draft", cmd_canvas_new, ""
     COMMAND new_file, "New File", cmd_new_file, "ctrl+n"
     COMMAND save, "Save", cmd_save, "ctrl+s"

@@ -502,6 +502,8 @@ disk_range:
 
 # app_reload_doc(doc) -> 1 if text changed, 0 if identical, unreadable or an image; keep cursor and scroll
 FN app_reload_doc
+    cmp qword ptr [rdi + DOC_canvas], 0
+    jne canvas_reload_doc
     PROLOGUE 32
     mov rbx, rdi
     mov rdi, [rbx + DOC_path]

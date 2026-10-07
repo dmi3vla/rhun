@@ -41,9 +41,9 @@ FN main
     # Owned fixture lifecycle, stable monotonically allocated IDs.
     call scene_new
     mov rbx, rax
-    cmp qword ptr [rbx + SC_elements + VEC_len], 2
+    cmp qword ptr [rbx + SC_elements + VEC_len], 0
     jne .Lfail
-    cmp qword ptr [rbx + SC_next_id], 3
+    cmp qword ptr [rbx + SC_next_id], 1
     jne .Lfail
     mov rdi, rbx
     call scene_free

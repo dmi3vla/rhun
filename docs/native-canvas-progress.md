@@ -44,3 +44,50 @@ and scene persistence are phase 2. No canvas content is claimed to survive resta
 Integer transforms quantize by at most one screen pixel (four world units at 25%).
 The headless control protocol accepts `down 2` / `up 2` for middle-button tests;
 plain `down` / `up` retains its existing left-button behavior.
+
+## Phase 2 — draft editor, bindings, history and persistence
+
+New drafts start empty (the phase-1 fixtures are now in the owned example file).
+Implemented all seven drawing tools, geometric reverse-order hit testing,
+zoom-dependent line/stroke tolerance, Shift and marquee selection, move/resize
+previews, native UTF-8 multiline text and paste, bound arrows, selected-node plus
+and role choice, whole-gesture cancellation and transactions. Arrow bindings keep
+center coordinates in IR and render at rectangle/ellipse boundaries.
+
+Owned deep snapshots retain strings and stroke points. IDs never recycle; content
+checkpoints determine dirty state and revisions increase through undo/redo. The
+combined history is capped at 32 entries / 16 MiB. Native JSON validates complete
+schema, integer ranges, IDs, duplicate IDs, references, UTF-8 and limits into a
+new owned scene. The same validator rejects an invalid content transaction before
+history publication. Save uses atomic file replacement. Watch/reload has a canvas
+path, rejects unstable/invalid or unsaved documents, and preserves live content.
+Close/quit/project-switch prompts, dirty tab dots and saved session paths include
+canvases. Pending text cannot be silently discarded by a mouse close.
+
+Acceptance:
+- `./build.sh test` — PASS.
+- `python3 tests/canvas-edit.py` — 18 PASS: drawing, one-step history,
+  cancellation, bound movement/deletion, resize, Cyrillic/newlines/paste, strokes,
+  save/open, 12 corrupt-field cases, invalid live reload, session restoration,
+  history limit, pending-text close and image Save As isolation.
+- `python3 tests/canvas-viewport.py` — 4 PASS (updated empty-draft expectation).
+- `build/canvas_scene_test` — PASS: parser-arena independence, owned Cyrillic,
+  revision checkpoints, undo/redo branch and non-reused IDs.
+- `build/canvas_transform_test`, `build/canvas_boundary_test` and
+  `build/textarea_test` — PASS.
+- `python3 tests/editor-matrix.py` — 18 PASS (40.503 s), log
+  `/tmp/rhun-canvas-phase2-editor.log`.
+- `sh tests/session.sh` — 8 PASS, log `/tmp/rhun-canvas-phase2-session.log`.
+- `python3 tests/chat-drop.py` — 6 PASS.
+- `python3 tests/chat-clipboard.py` — 13 PASS on isolated full rerun (10.655 s).
+  A concurrent run timed out waiting for the question fixture's reply; that case
+  separately passed and the isolated entire group passed without code changes.
+- `build/image_test tests/data/images/palette-trns.png tests/data/images/exif-rotated.jpg`
+  — decoded PNG 13x9 and EXIF-oriented JPEG 16x24; pixel hashes b311c4f5/d10b36ae.
+- Native headless screenshot `/tmp/rhun-frame-arrow.png` visually inspected;
+  reopened and selected bound arrows were checked, with a pixel test for visible
+  arrowheads and a native unit test for rectangle/ellipse boundary coordinates.
+- `git diff --check` — PASS.
+
+Usage and current limits: `docs/native-canvas.md`. Frame membership and external
+interchange are phase 3; no IME or desktop-platform acceptance is claimed yet.

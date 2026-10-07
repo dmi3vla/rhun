@@ -859,6 +859,24 @@ c_print_state:
     mov rbx, [rip + g_file]
     test rbx, rbx
     jz 1f
+    cmp qword ptr [rbx + DOC_canvas], 0
+    je .Lps_regular_image
+    lea rdi, [rip + out]
+    lea rsi, [rip + .Ls_active]
+    call sb_push_cstr
+    lea rdi, [rip + out]
+    mov rsi, [rbx + DOC_name]
+    call sb_push_cstr
+    lea rdi, [rip + out]
+    lea rsi, [rip + .Ls_canvas_dirty]
+    call sb_push_cstr
+    mov rdi, rbx
+    call doc_dirty
+    mov esi, eax
+    lea rdi, [rip + out]
+    call sb_push_u64
+    jmp 1f
+.Lps_regular_image:
     cmp qword ptr [rbx + DOC_img], 0
     je 1f
     lea rdi, [rip + out]
@@ -1287,6 +1305,7 @@ on_client:
 .Lc_resize: .asciz "resize"
 .Lc_quit: .asciz "quit"
 .Lc_echo: .asciz "echo"
+.Ls_canvas_dirty: .asciz " canvas=1 dirty="
 .Lc_print_canvas: .asciz "print-canvas"
 .Lc_print_doc: .asciz "print-doc"
 .Lc_print_state: .asciz "print-state"

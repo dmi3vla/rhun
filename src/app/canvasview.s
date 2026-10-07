@@ -23,12 +23,7 @@ FN cmd_canvas_new
 
 # Canvas consumes ordinary typing; global modified shortcuts remain available.
 FN canvas_key
-    test edx, MOD_CTRL | MOD_ALT | MOD_SUPER
-    jnz 1f
-    mov eax, 1
-    ret
-1:  xor eax, eax
-    ret
+    jmp canvas_edit_key
 
 FN canvas_draw
     PROLOGUE 32
@@ -49,17 +44,21 @@ FN canvas_draw
     mov [rbx + SC_w], eax
     mov eax, [rsp + 12]
     sub eax, [rip + g_mt + 4*MI_40]
+    xor ecx, ecx
+    test eax, eax
+    cmovs eax, ecx
     mov [rbx + SC_h], eax
+    mov ecx, [rsp + 12]
     COLOR r8d, T_BG
     call gfx_fill
-    lea rdi, [rip + g_face_small]
-    mov esi, [rsp]
-    add esi, [rip + g_mt + 4*MI_12]
-    mov edx, [rsp + 4]
-    M ecx, MI_40
-    lea r8, [rip + .Lviewport_hint]
-    COLOR r9d, T_MUTED
-    call ui_text_c
+    mov edi, [rsp]
+    mov esi, [rsp + 4]
+    mov edx, [rsp + 8]
+    mov ecx, [rsp + 12]
+    call gfx_clip_push
+    mov rdi, rbx
+    mov esi, [rsp + 4]
+    call canvas_toolbar
     mov edi, [rbx + SC_x]
     mov esi, [rbx + SC_y]
     mov edx, [rbx + SC_w]
@@ -67,6 +66,8 @@ FN canvas_draw
     call gfx_clip_push
     mov rdi, rbx
     call canvas_view_input
+    mov rdi, rbx
+    call canvas_edit_input
     # World-aligned grid; bounded screen iteration at every zoom.
     mov r15d, [rbx + SC_zoom]
     imul r15d, 24
@@ -117,38 +118,14 @@ FN canvas_draw
     imul r14, r12, CE_SIZE
     add r14, [rbx + SC_elements + VEC_ptr]
     mov rdi, rbx
-    mov esi, [r14 + CE_x]
-    mov edx, [r14 + CE_y]
-    call scene_to_screen
-    mov [rsp + 16], eax
-    mov [rsp + 20], edx
-    mov eax, [r14 + CE_w]
-    mov ecx, [rbx + SC_zoom]
-    imul rax, rcx
-    shr rax, 16
-    mov [rsp + 24], eax
-    mov eax, [r14 + CE_h]
-    imul rax, rcx
-    shr rax, 16
-    mov ecx, eax
-    mov edi, [rsp + 16]
-    mov esi, [rsp + 20]
-    mov edx, [rsp + 24]
-    cmp dword ptr [r14 + CE_kind], CT_ELLIPSE
-    jne 5f
-    mov r8d, [r14 + CE_color]
-    call canvas_ellipse
-    jmp 7f
-5:  M r8d, MI_RADIUS
-    mov r9d, [r14 + CE_color]
-    COLOR eax, T_PANEL
-    push rax
-    push rax
-    call gfx_frame
-    add rsp, 16
+    mov rsi, r14
+    call canvas_element
 7:  inc r12
     jmp 4b
-8:  call gfx_clip_pop
+8:  mov rdi, rbx
+    call canvas_overlays
+    call gfx_clip_pop
+    call gfx_clip_pop
 9:  EPILOGUE
 
 # Mid-button pan and pointer-anchored bounded zoom; never mutates scene content.
@@ -333,6 +310,9 @@ FN canvas_dump
     mov rdi, r12
     mov esi, 10
     call sb_push_byte
+    mov rdi, rbx
+    mov rsi, r12
+    call scene_serialize
 9:  EPILOGUE
 FN canvas_dump_int
     test rsi, rsi
@@ -349,7 +329,7 @@ FN canvas_dump_int
     EPILOGUE
 .section .rodata
 .Ldraft_name: .asciz "Draft"
-.Lviewport_hint: .asciz "Native draft fixture | middle drag: pan | wheel: zoom | editing follows in phase 2"
+.Lviewport_hint: .asciz ""
 .Lhalf: .float 0.5
 .Lone: .float 1.0
 

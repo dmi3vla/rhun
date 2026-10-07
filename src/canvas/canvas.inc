@@ -1,5 +1,24 @@
 # Owned scene and fixed-point viewport. Included after rhun.inc.
 STRUCT
+F CE_id, 8
+F CE_kind, 4
+F CE_x, 4
+F CE_y, 4
+F CE_w, 4
+F CE_h, 4
+F CE_color, 4
+F CE_text, 8
+F CE_from, 8
+F CE_to, 8
+F CE_frame, 8
+F CE_group, 8
+F CE_seed, 8
+F CE_angle, 4
+F CE_flags, 4
+F CE_role, 8
+F CE_points, VEC_SIZE
+ENDSTRUCT CE_SIZE
+STRUCT
 F SC_elements, VEC_SIZE
 F SC_undo, VEC_SIZE
 F SC_redo, VEC_SIZE
@@ -20,25 +39,20 @@ F SC_drag_y, 4
 F SC_start_x, 4
 F SC_start_y, 4
 F SC_tool, 4
+F SC_hash, 8
+F SC_saved_hash, 8
+F SC_bytes, 8
+F SC_gesture, 4
+F SC_gx, 4
+F SC_gy, 4
+F SC_dx, 4
+F SC_dy, 4
+F SC_node_type, 4
+F SC_before, 8
+F SC_text_id, 8
+F SC_preview, CE_SIZE
 F SC_edit, TF_SIZE
 ENDSTRUCT SC_SIZE
-STRUCT
-F CE_id, 8
-F CE_kind, 4
-F CE_x, 4
-F CE_y, 4
-F CE_w, 4
-F CE_h, 4
-F CE_color, 4
-F CE_text, 8
-F CE_from, 8
-F CE_to, 8
-F CE_frame, 8
-F CE_group, 8
-F CE_seed, 8
-F CE_angle, 4
-F CE_pad, 4
-ENDSTRUCT CE_SIZE
 .equ CT_SELECT, 0
 .equ CT_RECT, 1
 .equ CT_ELLIPSE, 2

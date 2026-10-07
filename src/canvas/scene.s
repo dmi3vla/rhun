@@ -8,20 +8,6 @@ FN scene_new
     mov rbx, rax
     mov dword ptr [rbx + SC_zoom], 65536
     mov qword ptr [rbx + SC_next_id], 1
-    mov rdi, rbx
-    mov esi, CT_RECT
-    mov edx, 64
-    mov ecx, 72
-    mov r8d, 180
-    mov r9d, 92
-    call scene_add
-    mov rdi, rbx
-    mov esi, CT_ELLIPSE
-    mov edx, 296
-    mov ecx, 110
-    mov r8d, 130
-    mov r9d, 80
-    call scene_add
     mov rax, rbx
     EPILOGUE
 
@@ -31,20 +17,15 @@ FN scene_free
     mov rbx, rdi
     test rbx, rbx
     jz 9f
-    xor r12d, r12d
-1:  cmp r12, [rbx + SC_elements + VEC_len]
-    jae 2f
-    imul rax, r12, CE_SIZE
-    add rax, [rbx + SC_elements + VEC_ptr]
-    mov rdi, [rax + CE_text]
-    call mem_free
-    inc r12
-    jmp 1b
-2:  lea rdi, [rbx + SC_elements]
-    call vec_free
+    mov rdi, rbx
+    call scene_clear_elements
     lea rdi, [rbx + SC_undo]
-    call vec_free
+    call scene_history_clear
     lea rdi, [rbx + SC_redo]
+    call scene_history_clear
+    mov rdi, [rbx + SC_before]
+    call scene_free
+    lea rdi, [rbx + SC_preview + CE_points]
     call vec_free
     lea rdi, [rbx + SC_edit + TF_sb]
     call sb_free
@@ -52,7 +33,7 @@ FN scene_free
     call mem_free
 9:  EPILOGUE
 
-# scene_add(scene,kind,x,y,w,h) -> owned CE*. Phase 1 fixture only.
+# scene_add(scene,kind,x,y,w,h) -> owned CE*; callers enforce limits.
 FN scene_add
     PROLOGUE 32
     mov rbx, rdi
@@ -64,6 +45,12 @@ FN scene_add
     lea rdi, [rbx + SC_elements]
     mov esi, CE_SIZE
     call vec_push
+    mov r12, rax
+    mov rdi, rax
+    xor esi, esi
+    mov edx, CE_SIZE
+    call memset
+    mov rax, r12
     mov rcx, [rbx + SC_next_id]
     mov [rax + CE_id], rcx
     inc qword ptr [rbx + SC_next_id]

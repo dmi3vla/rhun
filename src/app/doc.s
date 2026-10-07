@@ -914,6 +914,12 @@ FN doc_redo
 
 # doc_dirty(doc) -> 1 if modified since load/save
 FN doc_dirty
+    mov rax, [rdi + DOC_canvas]
+    test rax, rax
+    jz 1f
+    mov rdi, rax
+    jmp scene_dirty
+1:
     mov rax, [rdi + DOC_undo + VEC_len]
     cmp rax, [rdi + DOC_savepoint]
     setne al
@@ -1093,6 +1099,8 @@ FN doc_load
 
 # doc_save(doc) -> 0 or -errno
 FN doc_save
+    cmp qword ptr [rdi + DOC_canvas], 0
+    jne canvas_doc_save
     PROLOGUE 32
     mov rbx, rdi
     cmp qword ptr [rbx + DOC_path], 0
