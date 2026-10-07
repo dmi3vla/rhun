@@ -1,0 +1,385 @@
+{
+  "type": "rhun-graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "form",
+      "name": "OrderForm",
+      "description": "Изменяет исходные параметры заказа.",
+      "object": "",
+      "position": [
+        -265,
+        75,
+        -100
+      ],
+      "segment": 1,
+      "kind": 0,
+      "realm": -1,
+      "schema": 1
+    },
+    {
+      "id": "front-copy",
+      "name": "order#42 · UI",
+      "description": "Локальное представление объекта в интерфейсе.",
+      "object": "order#42",
+      "position": [
+        -175,
+        5,
+        -100
+      ],
+      "segment": 1,
+      "kind": 1,
+      "realm": 0,
+      "schema": 1
+    },
+    {
+      "id": "input",
+      "name": "parseInput()",
+      "description": "Проверяет формат пользовательского ввода.",
+      "object": "",
+      "position": [
+        -250,
+        -65,
+        -65
+      ],
+      "segment": 1,
+      "kind": 0,
+      "realm": -1,
+      "schema": 1
+    },
+    {
+      "id": "command",
+      "name": "UpdateOrder",
+      "description": "Команда передаёт изменение в сервис.",
+      "object": "",
+      "position": [
+        -40,
+        85,
+        60
+      ],
+      "segment": 2,
+      "kind": 0,
+      "realm": -1,
+      "schema": 1
+    },
+    {
+      "id": "validate",
+      "name": "validate()",
+      "description": "Проверяет команду по общему контракту.",
+      "object": "",
+      "position": [
+        -65,
+        0,
+        90
+      ],
+      "segment": 2,
+      "kind": 0,
+      "realm": -1,
+      "schema": 1
+    },
+    {
+      "id": "service-copy",
+      "name": "order#42 · API",
+      "description": "Рабочее состояние объекта в сервисе.",
+      "object": "order#42",
+      "position": [
+        65,
+        25,
+        75
+      ],
+      "segment": 2,
+      "kind": 1,
+      "realm": 1,
+      "schema": 1
+    },
+    {
+      "id": "calculate",
+      "name": "calculate()",
+      "description": "В демо: выручка 1250 минус затраты 800 или 650.",
+      "object": "",
+      "position": [
+        15,
+        -65,
+        40
+      ],
+      "segment": 2,
+      "kind": 0,
+      "realm": -1,
+      "schema": 1
+    },
+    {
+      "id": "db-copy",
+      "name": "order#42 · DB",
+      "description": "Зафиксированная запись объекта в базе.",
+      "object": "order#42",
+      "position": [
+        200,
+        65,
+        -50
+      ],
+      "segment": 3,
+      "kind": 1,
+      "realm": 2,
+      "schema": 1
+    },
+    {
+      "id": "cache-copy",
+      "name": "order#42 · cache",
+      "description": "Кэш обновляется после обработки события из outbox.",
+      "object": "order#42",
+      "position": [
+        275,
+        -5,
+        -30
+      ],
+      "segment": 3,
+      "kind": 1,
+      "realm": 3,
+      "schema": 1
+    },
+    {
+      "id": "outbox",
+      "name": "Outbox",
+      "description": "В демо передаёт событие зафиксированного изменения.",
+      "object": "",
+      "position": [
+        190,
+        -80,
+        -65
+      ],
+      "segment": 3,
+      "kind": 0,
+      "realm": -1,
+      "schema": 1
+    },
+    {
+      "id": "schema",
+      "name": "Order · schema v1",
+      "description": "Единый узел контракта, используемый разными сегментами.",
+      "object": "Order",
+      "position": [
+        0,
+        205,
+        -155
+      ],
+      "segment": 0,
+      "kind": 2,
+      "realm": -1,
+      "schema": 1
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "a": "form",
+      "b": "input",
+      "kind": 0
+    },
+    {
+      "id": "e1",
+      "a": "input",
+      "b": "front-copy",
+      "kind": 0
+    },
+    {
+      "id": "e2",
+      "a": "front-copy",
+      "b": "command",
+      "kind": 0
+    },
+    {
+      "id": "e3",
+      "a": "command",
+      "b": "validate",
+      "kind": 0
+    },
+    {
+      "id": "e4",
+      "a": "validate",
+      "b": "calculate",
+      "kind": 0
+    },
+    {
+      "id": "e5",
+      "a": "calculate",
+      "b": "service-copy",
+      "kind": 0
+    },
+    {
+      "id": "e6",
+      "a": "service-copy",
+      "b": "db-copy",
+      "kind": 0
+    },
+    {
+      "id": "e7",
+      "a": "db-copy",
+      "b": "outbox",
+      "kind": 0
+    },
+    {
+      "id": "e8",
+      "a": "outbox",
+      "b": "cache-copy",
+      "kind": 0
+    },
+    {
+      "id": "e9",
+      "a": "cache-copy",
+      "b": "calculate",
+      "kind": 0
+    },
+    {
+      "id": "e10",
+      "a": "service-copy",
+      "b": "front-copy",
+      "kind": 0
+    },
+    {
+      "id": "e11",
+      "a": "front-copy",
+      "b": "schema",
+      "kind": 1
+    },
+    {
+      "id": "e12",
+      "a": "validate",
+      "b": "schema",
+      "kind": 1
+    },
+    {
+      "id": "e13",
+      "a": "db-copy",
+      "b": "schema",
+      "kind": 1
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "name": "Фронт",
+      "center": [
+        -220,
+        10,
+        -95
+      ],
+      "half": [
+        94,
+        100,
+        70
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Сервис",
+      "center": [
+        5,
+        15,
+        65
+      ],
+      "half": [
+        102,
+        110,
+        78
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Данные",
+      "center": [
+        225,
+        0,
+        -50
+      ],
+      "half": [
+        91,
+        115,
+        70
+      ]
+    }
+  ],
+  "events": [
+    {
+      "label": "Согласованное исходное состояние",
+      "versions": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "active": [],
+      "actor": "Снимок",
+      "note": "Все четыре представления содержат v7: затраты 800, маржа 450."
+    },
+    {
+      "label": "UI отправил изменение затрат",
+      "versions": [
+        8,
+        7,
+        7,
+        7
+      ],
+      "active": [
+        "e2"
+      ],
+      "actor": "Фронт",
+      "note": "UI показывает v8: затраты 650, маржа 600. Остальные представления ещё содержат v7."
+    },
+    {
+      "label": "Сервис проверил и пересчитал объект",
+      "versions": [
+        8,
+        8,
+        7,
+        7
+      ],
+      "active": [
+        "e6"
+      ],
+      "actor": "Сервис",
+      "note": "Сервис вычислил v8 и передаёт её для записи. База и кэш пока v7."
+    },
+    {
+      "label": "База зафиксировала v8; кэш ещё v7",
+      "versions": [
+        8,
+        8,
+        8,
+        7
+      ],
+      "active": [
+        "e7"
+      ],
+      "actor": "Данные / DB",
+      "note": "Запись v8 зафиксирована. Событие обновления кэша находится в outbox."
+    },
+    {
+      "label": "Кэш обработал событие обновления",
+      "versions": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "active": [
+        "e8"
+      ],
+      "actor": "Данные / cache",
+      "note": "Кэш получил v8. Все четыре представления содержат одинаковую версию."
+    },
+    {
+      "label": "Подтверждение вернулось во фронт",
+      "versions": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "active": [
+        "e10"
+      ],
+      "actor": "Сервис → фронт",
+      "note": "В демо UI получает подтверждение сохранения v8."
+    }
+  ]
+}

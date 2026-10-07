@@ -2,6 +2,8 @@
 .include "canvas/canvas.inc"
 .text
 FN canvas_toolbar
+    cmp qword ptr [rdi + SC_graph_view], 0
+    jne canvas_graph_toolbar
     PROLOGUE 16
     mov rbx, rdi
     mov r12d, esi
@@ -232,6 +234,16 @@ FN canvas_reload_doc
     mov rax, [r12 + SC_ui]
     mov [r13 + SC_ui], rax
     mov qword ptr [r12 + SC_ui], 0
+    mov rdi, [r13 + SC_graph]
+    call mem_free
+    mov rdi, [r13 + SC_graph_view]
+    call canvas_graph_free
+    mov rax, [r12 + SC_graph]
+    mov [r13 + SC_graph], rax
+    mov qword ptr [r12 + SC_graph], 0
+    mov rax, [r12 + SC_graph_view]
+    mov [r13 + SC_graph_view], rax
+    mov qword ptr [r12 + SC_graph_view], 0
     mov rdi, r12
     call scene_free
     mov rdi, r13

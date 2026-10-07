@@ -45,6 +45,19 @@ FN scene_serialize
 109: mov rdi, r12
     call chat_json_quote
     mov rdi, r12
+    lea rsi, [rip + .Lgraph_key]
+    call sb_push_cstr
+    mov rsi, [rbx + SC_graph]
+    xor edx, edx
+    test rsi, rsi
+    jz 113f
+    mov rdi, rsi
+    call strlen
+    mov rdx, rax
+    mov rsi, [rbx + SC_graph]
+113: mov rdi, r12
+    call chat_json_quote
+    mov rdi, r12
     lea rsi, [rip + .Lscene_elements]
     call sb_push_cstr
     xor r13d, r13d
@@ -226,6 +239,8 @@ FN scene_parse
     cmp dword ptr [r12 + 4], 5
     je 101f
     cmp dword ptr [r12 + 4], 7
+    je 101f
+    cmp dword ptr [r12 + 4], 8
     jne .Lparse_null
 101:
     mov rdi, r12
@@ -250,11 +265,16 @@ FN scene_parse
     cmp rax, 3
     je 102f
     cmp rax, 4
+    je 102f
+    cmp rax, 5
     jne .Lparse_null
 102: mov [rsp + 32], eax
     cmp eax, 3
     jb 111f
+    cmp eax, 5
     mov eax, 7
+    jb 108f
+    inc eax
     jmp 108f
 111: add eax, 3
 108: cmp [r12 + 4], eax
@@ -316,6 +336,18 @@ FN scene_parse
     js .Lparse_bad
     mov [rbx + SC_revision], rax
 109:
+    cmp dword ptr [rsp + 32], 5
+    jb 113f
+    mov rdi, [rsp + 48]
+    lea rsi, [rip + .Lgraph]
+    call json_get
+    mov rdi, rax
+    mov esi, 1 << 20
+    call scene_owned_json_string
+    test rax, rax
+    jz .Lparse_bad
+    mov [rbx + SC_graph], rax
+113:
     cmp dword ptr [rsp + 32], 2
     jb 104f
     mov rdi, [rsp + 40]
@@ -549,6 +581,10 @@ FN scene_parse
     call canvas_ui_valid
     test eax, eax
     jz .Lparse_bad
+    mov rdi, rbx
+    call canvas_graph_validate
+    test eax, eax
+    jz .Lparse_bad
     mov rax, rbx
     EPILOGUE
 .Lparse_bad:
@@ -574,6 +610,11 @@ FN scene_load
     mov rsi, r13
     mov rdi, rbx
     call canvas_import_excalidraw
+    test rax, rax
+    jnz 1f
+    mov rdi, rbx
+    mov rsi, r13
+    call canvas_graph_import
 1:  mov r12, rax
     mov rdi, rbx
     call mem_free
@@ -635,11 +676,17 @@ FN canvas_path
     lea rdi, [rbx + r12 - 11]
     lea rsi, [rip + .Lexsuffix]
     call strcmp_eq
+    test eax, eax
+    jnz 9f
+    lea rdi, [rbx + r12 - 11]
+    lea rsi, [rip + .Lgraph_suffix]
+    call strcmp_eq
     jmp 9f
 8:  xor eax, eax
 9:  EPILOGUE
 .section .rodata
-.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":4,\"next\":"
+.Lgraph_suffix: .asciz ".rhun-graph"
+.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":5,\"next\":"
 .Lscene_elements: .asciz ",\"elements\":["
 .Lscene_end: .asciz "]}\n"
 .Ltext_key: .asciz "\"text\":"
@@ -738,3 +785,7 @@ FN scene_owned_json_string
 
 .section .rodata
 .Lprogress: .asciz "progress"
+
+.section .rodata
+.Lgraph: .asciz "graph"
+.Lgraph_key: .asciz ",\"graph\":"

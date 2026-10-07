@@ -23,6 +23,10 @@ FN cmd_canvas_new
 
 # Canvas consumes ordinary typing; global modified shortcuts remain available.
 FN canvas_key
+    mov rax, [rip + g_file]
+    mov rax, [rax + DOC_canvas]
+    cmp qword ptr [rax + SC_graph_view], 0
+    jne canvas_graph_key
     jmp canvas_edit_key
 
 FN canvas_draw
@@ -64,7 +68,12 @@ FN canvas_draw
     mov edx, [rbx + SC_w]
     mov ecx, [rbx + SC_h]
     call gfx_clip_push
+    cmp qword ptr [rbx + SC_graph_view], 0
+    je 104f
     mov rdi, rbx
+    call canvas_graph_draw
+    jmp 103f
+104: mov rdi, rbx
     call canvas_view_input
     cmp dword ptr [rbx + SC_mode], 0
     jne 101f

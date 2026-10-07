@@ -73,3 +73,9 @@ Export Selected Context Request creates bounded JSON; Send Selected Context to R
 Steps have progress 0/1/2 (pending/done/blocked), changed by the palette commands. Expand/Collapse Selected Frame hides/restores direct members without deleting/recreating them. The folded summary counts direct `role=1` steps, completed steps and blocked steps. All semantic content stays saved in native v4; collapse is a view choice.
 
 Proposal image add/replace operations are rejected in this first version; use the explicit local image insertion command. UI proposals must carry the next accepted scene revision. Alpha compositing uses at most 16 MiB of viewport backup; larger viewports fall back to the distinct tinted overlay.
+
+### Distributed state demo (phase 7)
+
+Canvas: Open Distributed State Demo opens the native graph. The top controls switch 2D/3D, fold/unfold the selected segment and move through events. V switches projection, F folds, [ and ] select events; middle-button drag orbits and the wheel zooms. Click markers for the inspector. Demo event 4 shows DB v8/cache v7; event 5 makes all four replicas v8. The object `order#42` and schema v1 remain distinct from state versions.
+
+Standalone `.rhun-graph` uses `nodes`, `edges`, `segments`, `events`; fields are a closed schema with bounded integer coordinates/versions and copied string IDs. Folded boundary links expose original `sourceIds` in `print-graph`; unfolding restores the source graph. Saving through rhun embeds graph JSON in native v5. Rotation, folds and timeline are view state, so reopening uses default camera/event. This is a demonstration trace, not a live profiler or JavaScript execution.

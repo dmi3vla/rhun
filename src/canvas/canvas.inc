@@ -34,6 +34,8 @@ F SC_redo, VEC_SIZE
 F SC_doc, 8
 F SC_exchange, 8
 F SC_ui, 8
+F SC_graph, 8
+F SC_graph_view, 8
 F SC_generated, 8
 F SC_mode, 4
 F SC_proposal, 8

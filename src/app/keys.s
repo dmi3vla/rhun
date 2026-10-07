@@ -477,6 +477,12 @@ key_names:
 g_commands:
     COMMAND quick_open, "Go to File", cmd_quick_open, "ctrl+p ctrl+e"
     COMMAND command_palette, "Command Palette", cmd_command_palette, "ctrl+shift+p F1"
+    COMMAND canvas_graph_demo, "Canvas: Open Distributed State Demo", cmd_canvas_graph_demo, ""
+    COMMAND canvas_graph_mode, "Canvas: Toggle Graph 2D/3D", cmd_canvas_graph_mode, ""
+    COMMAND canvas_graph_fold, "Canvas: Fold/Unfold Selected Segment", cmd_canvas_graph_fold, ""
+    COMMAND canvas_graph_next_event, "Canvas: Next State Event", cmd_canvas_graph_next_event, ""
+    COMMAND canvas_graph_prev_event, "Canvas: Previous State Event", cmd_canvas_graph_prev_event, ""
+    COMMAND canvas_graph_select_next, "Canvas: Select Next Graph Node", cmd_canvas_graph_select_next, ""
     COMMAND canvas_detail_toggle, "Canvas: Expand/Collapse Selected Frame", cmd_canvas_detail_toggle, ""
     COMMAND canvas_progress_todo, "Canvas: Set Step Pending", cmd_canvas_progress_todo, ""
     COMMAND canvas_progress_done, "Canvas: Set Step Done", cmd_canvas_progress_done, ""

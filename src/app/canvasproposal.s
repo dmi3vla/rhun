@@ -183,6 +183,16 @@ FN canvas_scene_take
     mov rax, [r12 + SC_exchange]
     mov [rbx + SC_exchange], rax
     mov qword ptr [r12 + SC_exchange], 0
+    mov rdi, [rbx + SC_graph]
+    call mem_free
+    mov rdi, [rbx + SC_graph_view]
+    call canvas_graph_free
+    mov rax, [r12 + SC_graph]
+    mov [rbx + SC_graph], rax
+    mov qword ptr [r12 + SC_graph], 0
+    mov rax, [r12 + SC_graph_view]
+    mov [rbx + SC_graph_view], rax
+    mov qword ptr [r12 + SC_graph_view], 0
     mov rax, [r12 + SC_next_id]
     cmp rax, [rbx + SC_next_id]
     jbe 9f
