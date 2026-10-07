@@ -17,6 +17,8 @@ FN scene_free
     mov rbx, rdi
     test rbx, rbx
     jz 9f
+    mov rdi, [rbx + SC_exchange]
+    call mem_free
     mov rdi, rbx
     call scene_clear_elements
     lea rdi, [rbx + SC_undo]
@@ -65,6 +67,7 @@ FN scene_add
     mov ecx, [rsp + 16]
     mov [rax + CE_h], ecx
     mov dword ptr [rax + CE_color], 0xff8da4ff
+    mov dword ptr [rax + CE_fontsize], 24
     EPILOGUE
 
 # rdi scene, esi world x, edx world y -> eax screen x, edx screen y.

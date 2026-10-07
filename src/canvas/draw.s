@@ -129,6 +129,10 @@ FN canvas_element
     sar rcx, 16
     mov [rsp + 12], ecx
     mov eax, [r12 + CE_kind]
+    cmp eax, CT_IMAGE
+    je .Ldraw_image
+    cmp eax, CT_UNSUPPORTED
+    je .Ldraw_placeholder
     cmp eax, CT_ARROW
     je .Ldraw_edge
     cmp eax, CT_LINE
@@ -137,6 +141,10 @@ FN canvas_element
     je .Ldraw_stroke
     cmp eax, CT_TEXT
     je .Ldraw_text
+    cmp dword ptr [r12 + CE_angle], 0
+    jne .Ldraw_native_outline
+    cmp dword ptr [r12 + CE_roughness], 0
+    jne .Ldraw_native_outline
     # Normalize preview extents while keeping committed geometry untouched.
     cmp dword ptr [rsp + 8], 0
     jge 2f
@@ -166,6 +174,27 @@ FN canvas_element
     push rax
     call gfx_frame
     add rsp, 16
+    jmp .Ldraw_role
+.Ldraw_native_outline:
+    cmp dword ptr [r12 + CE_angle], 0
+    jne 10f
+    mov r8d, [r12 + CE_fill]
+    test r8d, r8d
+    jz 10f
+    cmp dword ptr [r12 + CE_kind], CT_FRAME
+    je 10f
+    mov edi, [rsp]
+    mov esi, [rsp + 4]
+    mov edx, [rsp + 8]
+    mov ecx, [rsp + 12]
+    cmp dword ptr [r12 + CE_kind], CT_ELLIPSE
+    jne 11f
+    call canvas_ellipse
+    jmp 10f
+11: call gfx_fill
+10: mov rdi, rbx
+    mov rsi, r12
+    call canvas_shape_outline
 .Ldraw_role:
     mov rax, [r12 + CE_role]
     test rax, rax
@@ -182,12 +211,32 @@ FN canvas_element
     COLOR r9d, T_FG
     call ui_text_c
     jmp .Ldraw_selected
+.Ldraw_image:
+    mov rdi, rbx
+    mov rsi, r12
+    call canvas_paint_image
+    test eax, eax
+    jz .Ldraw_placeholder
+    jmp .Ldraw_selected
+.Ldraw_placeholder:
+    mov rdi, rbx
+    mov rsi, r12
+    call canvas_shape_outline
+    lea rdi, [rip + g_face_small]
+    mov esi, [rsp]
+    add esi, 4
+    mov edx, [rsp + 4]
+    mov ecx, 28
+    lea r8, [rip + .Lunsupported_label]
+    COLOR r9d, T_MUTED
+    call ui_text_c
+    jmp .Ldraw_selected
 .Ldraw_text:
     mov r13, [r12 + CE_text]
     test r13, r13
     jz .Ldraw_selected
     xor r14d, r14d
-    mov r15d, 24
+    mov r15d, [r12 + CE_fontsize]
     imul r15d, [rbx + SC_zoom]
     shr r15d, 16
     cmp r15d, 8
@@ -484,3 +533,51 @@ FN canvas_bound_point
 .Lfixed_half: .float 131072.0
 .p2align 4
 .Labs_mask: .long 0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff
+.text
+# Clip a frame member using the document's world transform, then restore target.
+FN canvas_paint_element
+    PROLOGUE 16
+    mov rbx, rdi
+    mov r12, rsi
+    mov rsi, [r12 + CE_frame]
+    test rsi, rsi
+    jz 8f
+    mov rdi, rbx
+    call scene_find
+    test rax, rax
+    jz 8f
+    mov r13, rax
+    mov esi, [rax + CE_x]
+    mov edx, [rax + CE_y]
+    test dword ptr [rax + CE_flags], 1
+    jz 1f
+    cmp dword ptr [rbx + SC_gesture], 2
+    jne 1f
+    add esi, [rbx + SC_dx]
+    add edx, [rbx + SC_dy]
+1:  mov rdi, rbx
+    call scene_to_screen
+    mov edi, eax
+    mov esi, edx
+    movsxd rax, dword ptr [r13 + CE_w]
+    mov ecx, [rbx + SC_zoom]
+    imul rax, rcx
+    sar rax, 16
+    mov edx, eax
+    movsxd rax, dword ptr [r13 + CE_h]
+    imul rax, rcx
+    sar rax, 16
+    mov ecx, eax
+    call gfx_clip_push
+    mov rdi, rbx
+    mov rsi, r12
+    call canvas_element
+    call gfx_clip_pop
+    EPILOGUE
+8:  mov rdi, rbx
+    mov rsi, r12
+    call canvas_element
+    EPILOGUE
+
+.section .rodata
+.Lunsupported_label: .asciz "[unsupported]"

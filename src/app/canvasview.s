@@ -119,7 +119,7 @@ FN canvas_draw
     add r14, [rbx + SC_elements + VEC_ptr]
     mov rdi, rbx
     mov rsi, r14
-    call canvas_element
+    call canvas_paint_element
 7:  inc r12
     jmp 4b
 8:  mov rdi, rbx

@@ -13,6 +13,19 @@ FN scene_serialize
     mov rsi, [rbx + SC_next_id]
     call sb_push_u64
     mov rdi, r12
+    lea rsi, [rip + .Lexchange_key]
+    call sb_push_cstr
+    mov rsi, [rbx + SC_exchange]
+    xor edx, edx
+    test rsi, rsi
+    jz 10f
+    mov rdi, rsi
+    call strlen
+    mov rdx, rax
+    mov rsi, [rbx + SC_exchange]
+10: mov rdi, r12
+    call chat_json_quote
+    mov rdi, r12
     lea rsi, [rip + .Lscene_elements]
     call sb_push_cstr
     xor r13d, r13d
@@ -99,8 +112,40 @@ FN scene_serialize
     inc r15
     jmp 4b
 7:  mov rdi, r12
-    lea rsi, [rip + .Lelement_end]
-    call sb_push_cstr
+    mov esi, ']'
+    call sb_push_byte
+    lea r15, [rip + .Lextra_fields]
+71: cmp qword ptr [r15], 0
+    je 74f
+    mov rdi, r12
+    mov esi, ','
+    call sb_push_byte
+    mov rdi, [r15]
+    call strlen
+    mov rdx, rax
+    mov rdi, r12
+    mov rsi, [r15]
+    call chat_json_quote
+    mov rdi, r12
+    mov esi, ':'
+    call sb_push_byte
+    mov rcx, [r15 + 8]
+    mov rsi, [r14 + rcx]
+    xor edx, edx
+    test rsi, rsi
+    jz 72f
+    mov rdi, rsi
+    call strlen
+    mov rdx, rax
+    mov rcx, [r15 + 8]
+    mov rsi, [r14 + rcx]
+72: mov rdi, r12
+    call chat_json_quote
+    add r15, 16
+    jmp 71b
+74: mov rdi, r12
+    mov esi, '}'
+    call sb_push_byte
     inc r13
     jmp 1b
 8:  mov rdi, r12
@@ -148,7 +193,7 @@ FN scene_json_int
 
 # Parse(bytes,len) -> new owned scene or NULL. Complete validation before publish.
 FN scene_parse
-    PROLOGUE 32
+    PROLOGUE 48
     cmp rsi, 8 << 20
     ja .Lparse_null
     call json_parse_complete
@@ -158,7 +203,10 @@ FN scene_parse
     cmp dword ptr [r12], JT_OBJ
     jne .Lparse_null
     cmp dword ptr [r12 + 4], 4
+    je 101f
+    cmp dword ptr [r12 + 4], 5
     jne .Lparse_null
+101:
     mov rdi, r12
     lea rsi, [rip + .Ltype]
     call json_get
@@ -175,8 +223,23 @@ FN scene_parse
     test edx, edx
     jz .Lparse_null
     cmp rax, 1
+    je 102f
+    cmp rax, 2
     jne .Lparse_null
+102: mov [rsp + 32], eax
+    add eax, 3
+    cmp [r12 + 4], eax
+    jne .Lparse_null
+    mov qword ptr [rsp + 40], 0
+    cmp dword ptr [rsp + 32], 2
+    jne 103f
     mov rdi, r12
+    lea rsi, [rip + .Lexchange]
+    call json_get
+    mov [rsp + 40], rax
+    test rax, rax
+    jz .Lparse_null
+103: mov rdi, r12
     lea rsi, [rip + .Lnext]
     call json_get
     mov rdi, rax
@@ -201,7 +264,15 @@ FN scene_parse
     mov [rsp + 8], eax
     call scene_new
     mov rbx, rax
-    mov rax, [rsp]
+    cmp dword ptr [rsp + 32], 2
+    jne 104f
+    mov rdi, [rsp + 40]
+    mov esi, 3 << 20
+    call scene_owned_json_string
+    test rax, rax
+    jz .Lparse_bad
+    mov [rbx + SC_exchange], rax
+104: mov rax, [rsp]
     mov [rbx + SC_next_id], rax
     xor r13d, r13d
 .Lparse_element:
@@ -213,7 +284,11 @@ FN scene_parse
     mov r14, rax
     cmp dword ptr [r14], JT_OBJ
     jne .Lparse_bad
-    cmp dword ptr [r14 + 4], 16
+    mov eax, 16
+    cmp dword ptr [rsp + 32], 1
+    je 105f
+    mov eax, 23
+105: cmp [r14 + 4], eax
     jne .Lparse_bad
     lea rdi, [rbx + SC_elements]
     mov esi, CE_SIZE
@@ -223,9 +298,17 @@ FN scene_parse
     xor esi, esi
     mov edx, CE_SIZE
     call memset
+    mov rax, [rsp + 16]
+    mov dword ptr [rax + CE_fontsize], 24
     lea r15, [rip + .Lfields]
 1:  cmp qword ptr [r15], 0
     je .Lparse_text
+    cmp dword ptr [rsp + 32], 1
+    jne 110f
+    lea rax, [rip + .Lfields_extra_numeric]
+    cmp r15, rax
+    je .Lparse_text
+110:
     mov rdi, r14
     mov rsi, [r15]
     call json_get
@@ -247,6 +330,7 @@ FN scene_parse
 3:  add r15, 40
     jmp 1b
 .Lparse_text:
+    mov [rsp + 40], r14
     mov rdi, r14
     lea rsi, [rip + .Ltext]
     call json_get
@@ -333,7 +417,25 @@ FN scene_parse
     inc r15
     jmp .Lparse_point
 .Lparse_next:
-    inc r13
+    cmp dword ptr [rsp + 32], 1
+    je 108f
+    lea r15, [rip + .Lextra_fields]
+106: cmp qword ptr [r15], 0
+    je 108f
+    mov rdi, [rsp + 40]
+    mov rsi, [r15]
+    call json_get
+    mov rdi, rax
+    mov esi, 65536
+    call scene_owned_json_string
+    test rax, rax
+    jz .Lparse_bad
+    mov rcx, [rsp + 16]
+    add rcx, [r15 + 8]
+    mov [rcx], rax
+    add r15, 16
+    jmp 106b
+108: inc r13
     jmp .Lparse_element
 .Lparse_refs:
     xor r13d, r13d
@@ -379,6 +481,10 @@ FN scene_parse
     call scene_geometry_valid
     test eax, eax
     jz .Lparse_bad
+    mov rdi, rbx
+    call scene_metadata_valid
+    test eax, eax
+    jz .Lparse_bad
     mov rax, rbx
     EPILOGUE
 .Lparse_bad:
@@ -395,10 +501,16 @@ FN scene_load
     test rax, rax
     jz 8f
     mov rbx, rax
+    mov r13, rdx
     mov rdi, rax
     mov rsi, rdx
     call scene_parse
-    mov r12, rax
+    test rax, rax
+    jnz 1f
+    mov rsi, r13
+    mov rdi, rbx
+    call canvas_import_excalidraw
+1:  mov r12, rax
     mov rdi, rbx
     call mem_free
     mov rax, r12
@@ -411,9 +523,9 @@ FN canvas_doc_save
     mov rbx, rdi
     call canvas_active
     cmp rax, [rbx + DOC_canvas]
-    jne 01f
+    jne 101f
     call canvas_text_commit
-01: mov rdi, rsp
+101: mov rdi, rsp
     xor esi, esi
     mov edx, SB_SIZE
     call memset
@@ -446,21 +558,31 @@ FN canvas_path
     PROLOGUE
     mov rbx, rdi
     call strlen
+    mov r12, rax
     cmp rax, 12
     jb 1f
     lea rdi, [rbx + rax - 12]
     lea rsi, [rip + .Lsuffix]
     call strcmp_eq
-    EPILOGUE
-1:  xor eax, eax
-    EPILOGUE
+    test eax, eax
+    jnz 9f
+1:  cmp r12, 11
+    jb 8f
+    lea rdi, [rbx + r12 - 11]
+    lea rsi, [rip + .Lexsuffix]
+    call strcmp_eq
+    jmp 9f
+8:  xor eax, eax
+9:  EPILOGUE
 .section .rodata
-.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":1,\"next\":"
+.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":2,\"next\":"
 .Lscene_elements: .asciz ",\"elements\":["
 .Lscene_end: .asciz "]}\n"
 .Ltext_key: .asciz "\"text\":"
 .Lpoints_key: .asciz ",\"points\":["
 .Lelement_end: .asciz "]}"
+.Lexchange_key: .asciz ",\"exchange\":"
+.Lexchange: .asciz "exchange"
 .Ltype: .asciz "type"
 .Lnative_type: .asciz "rhun-canvas"
 .Lversion: .asciz "version"
@@ -469,6 +591,7 @@ FN canvas_path
 .Ltext: .asciz "text"
 .Lpoints: .asciz "points"
 .Lsuffix: .asciz ".rhun-canvas"
+.Lexsuffix: .asciz ".excalidraw"
 
 .Lfield_id: .asciz "id"
 .Lfield_kind: .asciz "kind"
@@ -489,7 +612,7 @@ FN canvas_path
 .Lfields:
     .quad .Lfield_role, CE_role, 8, 0, 4
     .quad .Lfield_id, CE_id, 8, 1, 9007199254740990
-    .quad .Lfield_kind, CE_kind, 4, 1, 7
+    .quad .Lfield_kind, CE_kind, 4, 1, 9
     .quad .Lfield_x, CE_x, 4, -1000000, 1000000
     .quad .Lfield_y, CE_y, 4, -1000000, 1000000
     .quad .Lfield_w, CE_w, 4, -1000000, 1000000
@@ -501,4 +624,42 @@ FN canvas_path
     .quad .Lfield_group, CE_group, 8, 0, 9007199254740990
     .quad .Lfield_seed, CE_seed, 8, 0, 9007199254740990
     .quad .Lfield_angle, CE_angle, 4, -360, 360
+ .Lfields_extra_numeric:
+    .quad .Lrough, CE_roughness, 4, 0, 3
+    .quad .Lfill, CE_fill, 4, 0, 4294967295
+    .quad .Lfont, CE_fontsize, 4, 8, 200
     .quad 0
+.Lrough: .asciz "roughness"
+.Lfill: .asciz "fill"
+.Lfont: .asciz "fontsize"
+
+.Lxid: .asciz "xid"
+.Lraw: .asciz "raw"
+.Limage: .asciz "image"
+.Lgxid: .asciz "gxid"
+.p2align 3
+.Lextra_fields:
+    .quad .Lxid, CE_xid, .Lraw, CE_raw, .Limage, CE_image, .Lgxid, CE_gxid, 0
+.text
+# String copy with strict UTF-8 and no retained parser pointer.
+FN scene_owned_json_string
+    PROLOGUE
+    mov r12d, esi
+    call json_str
+    test rax, rax
+    jz 8f
+    cmp rdx, r12
+    ja 8f
+    mov rbx, rax
+    mov r13, rdx
+    mov rdi, rax
+    mov rsi, rdx
+    call chat_text_valid
+    test eax, eax
+    jnz 8f
+    mov rdi, rbx
+    mov rsi, r13
+    call mem_dup
+    EPILOGUE
+8:  xor eax, eax
+    EPILOGUE

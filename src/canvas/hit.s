@@ -13,9 +13,38 @@ FN scene_hit
     dec r12
     imul r13, r12, CE_SIZE
     add r13, [rbx + SC_elements + VEC_ptr]
-    mov eax, [rsp]
-    sub eax, [r13 + CE_x]
+    mov rsi, [r13 + CE_frame]
+    test rsi, rsi
+    jz 10f
+    mov rdi, rbx
+    call scene_find
+    test rax, rax
+    jz 1b
+    mov ecx, [rsp]
+    cmp ecx, [rax + CE_x]
+    jl 1b
+    mov edx, [rax + CE_x]
+    add edx, [rax + CE_w]
+    cmp ecx, edx
+    jg 1b
+    mov ecx, [rsp + 4]
+    cmp ecx, [rax + CE_y]
+    jl 1b
+    mov edx, [rax + CE_y]
+    add edx, [rax + CE_h]
+    cmp ecx, edx
+    jg 1b
+10: cmp dword ptr [r13 + CE_angle], 0
+    je 11f
+    mov rdi, r13
+    mov esi, [rsp]
     mov edx, [rsp + 4]
+    mov ecx, -1
+    call canvas_rotate_point
+    jmp 12f
+11: mov eax, [rsp]
+    mov edx, [rsp + 4]
+12: sub eax, [r13 + CE_x]
     sub edx, [r13 + CE_y]
     mov ecx, [r13 + CE_kind]
     cmp ecx, CT_ARROW

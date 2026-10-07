@@ -11,6 +11,16 @@ FN scene_clear_elements
     add r13, [rbx + SC_elements + VEC_ptr]
     mov rdi, [r13 + CE_text]
     call mem_free
+    mov rdi, [r13 + CE_xid]
+    call mem_free
+    mov rdi, [r13 + CE_raw]
+    call mem_free
+    mov rdi, [r13 + CE_image]
+    call mem_free
+    mov rdi, [r13 + CE_gxid]
+    call mem_free
+    mov rdi, [r13 + CE_bitmap]
+    call canvas_image_free
     lea rdi, [r13 + CE_points]
     call vec_free
     inc r12
@@ -30,6 +40,17 @@ FN scene_clone
     mov rax, [rbx + SC_selected]
     mov [r12 + SC_selected], rax
     mov qword ptr [r12 + SC_bytes], SC_SIZE
+    mov rdi, [rbx + SC_exchange]
+    test rdi, rdi
+    jz 10f
+    call strlen
+    lea rcx, [rax + 1]
+    add [r12 + SC_bytes], rcx
+    mov rsi, rax
+    mov rdi, [rbx + SC_exchange]
+    call mem_dup
+    mov [r12 + SC_exchange], rax
+10:
     xor r13d, r13d
 1:  cmp r13, [rbx + SC_elements + VEC_len]
     jae 9f
@@ -44,6 +65,12 @@ FN scene_clone
     mov edx, CE_SIZE
     call memcpy
     mov qword ptr [r15 + CE_text], 0
+    mov qword ptr [r15 + CE_xid], 0
+    mov qword ptr [r15 + CE_raw], 0
+    mov qword ptr [r15 + CE_image], 0
+    mov qword ptr [r15 + CE_gxid], 0
+    mov qword ptr [r15 + CE_bitmap], 0
+    and dword ptr [r15 + CE_flags], -3
     lea rdi, [r15 + CE_points]
     xor esi, esi
     mov edx, VEC_SIZE
@@ -59,7 +86,11 @@ FN scene_clone
     mov rdi, [r14 + CE_text]
     call mem_dup
     mov [r15 + CE_text], rax
-2:  mov rsi, [r14 + CE_points + VEC_len]
+2:  mov rdi, r12
+    mov rsi, r14
+    mov rdx, r15
+    call scene_clone_extra
+    mov rsi, [r14 + CE_points + VEC_len]
     test rsi, rsi
     jz 3f
     shl rsi, 3
@@ -160,6 +191,11 @@ FN scene_commit
     call memset
     mov rax, [r12 + SC_selected]
     mov [rbx + SC_selected], rax
+    mov rdi, [rbx + SC_exchange]
+    call mem_free
+    mov rax, [r12 + SC_exchange]
+    mov [rbx + SC_exchange], rax
+    mov qword ptr [r12 + SC_exchange], 0
     mov rdi, r12
     call scene_free
     lea rdi, [rip + .Lbounds_error]
@@ -204,6 +240,11 @@ scene_history_restore:
     mov rax, [r14 + SC_selected]
     mov [rbx + SC_selected], rax
     inc qword ptr [rbx + SC_revision]
+    mov rdi, [rbx + SC_exchange]
+    call mem_free
+    mov rax, [r14 + SC_exchange]
+    mov [rbx + SC_exchange], rax
+    mov qword ptr [r14 + SC_exchange], 0
     mov rdi, r14
     call scene_free
     mov rdi, rbx
@@ -304,3 +345,26 @@ FN scene_update_bindings
 
 .section .rodata
 .Lbounds_error: .asciz "Canvas edit rejected: geometry, reference or memory limit"
+
+.text
+# Copy extended owned metadata. dst scene, source element, destination element.
+FN scene_clone_extra
+    PROLOGUE
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, rdx
+    mov r14d, CE_xid
+1:  mov rdi, [r12 + r14]
+    test rdi, rdi
+    jz 2f
+    call strlen
+    lea rcx, [rax + 1]
+    add [rbx + SC_bytes], rcx
+    mov rsi, rax
+    mov rdi, [r12 + r14]
+    call mem_dup
+    mov [r13 + r14], rax
+2:  add r14d, 8
+    cmp r14d, CE_gxid
+    jbe 1b
+    EPILOGUE

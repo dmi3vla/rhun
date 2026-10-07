@@ -2261,7 +2261,22 @@ prompt_done:
     PROLOGUE
     mov rbx, rdi
     mov r12d, esi
-    cmp r12d, PROMPT_SAVE_AS
+    cmp r12d, 5
+    jne 003f
+    mov rdi, rbx
+    call canvas_add_image
+    jmp 9f
+003: cmp r12d, 7
+    jne 002f
+    mov rdi, rbx
+    call canvas_write_svg
+    jmp 9f
+002: cmp r12d, 6
+    jne 001f
+    mov rdi, rbx
+    call canvas_write_excalidraw
+    jmp 9f
+001: cmp r12d, PROMPT_SAVE_AS
     jne 1f
     mov r13, [rip + g_doc]
     test r13, r13

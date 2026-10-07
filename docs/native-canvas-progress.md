@@ -91,3 +91,13 @@ Acceptance:
 
 Usage and current limits: `docs/native-canvas.md`. Frame membership and external
 interchange are phase 3; no IME or desktop-platform acceptance is claimed yet.
+
+## Phase 3 — frames, styling and interchange
+
+Implemented owned Excalidraw source metadata and external IDs; strict native v2 (v1 remains readable), groups, stable z-order, frame membership/clipping and group movement. Rectangles/ellipses rotate in 15-degree steps. Seeded outlines are our own bounded deterministic algorithm, not a RoughJS port. Local images use rhun's existing native decoders with per-scene caching; snapshots exclude pixel buffers and reload on undo/reopen. SVG exports the selected frame or scene, escapes XML, separates text lines and embeds local PNG/JPEG bytes.
+
+Checks: `./build.sh test`; `build/canvas_math_test`; `python3 tests/canvas-structure.py` (5); `python3 tests/canvas-exchange.py` (7); `python3 tests/canvas-edit.py` (18). The exchange suite checks semantic round trips, unknown-element/root metadata retention, groups, inverse arrow bindings, radians, integer projection, SVG XML/frame selection and image/text save/undo/redo.
+
+Compatibility limits: integer geometry rounds fractional coordinates; native font metrics differ; only the primary imported group controls native selection (all original group IDs retained on export). Complex multi-point arrows, diamonds and embedded Excalidraw images retain their full source as visible placeholders. Root assets are retained, not decoded from Excalidraw. Deleted upstream elements remain opaque source records. Local native image scenes require SVG/native export: Excalidraw export rejects them instead of writing broken image references. Rotation editing is limited to rectangle/ellipse; frame clipping remains axis aligned. SVG is a portable geometry snapshot, not an exact reproduction of the native seed jitter/font rasterization; PNG export is not added. Opening the generated file in the external Excalidraw app has not been performed.
+
+Provenance: researched the upstream MIT-licensed format at https://github.com/excalidraw/excalidraw and official `packages/element/src/types.ts` / `packages/excalidraw/data/json.ts`. No upstream algorithm source was copied.

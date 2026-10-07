@@ -45,3 +45,9 @@ images, sketch styling, Excalidraw exchange, SVG export, UI semantics and export
 AI proposals and the 3D projection remain subsequent phases. A frame is currently
 an outline drawing tool. This is not a claim of complete Excalidraw compatibility.
 Linux x86-64 headless acceptance is tested; real platform/IME gates remain open.
+
+### Groups, frames and export (phase 3)
+
+The command palette exposes Canvas: Group/Ungroup Selection, Bring Selection Forward/Send Selection Back, Rotate Selection 15 Degrees (rectangle/ellipse), Toggle Seeded Sketch, Attach Contained Elements to Frame, Select Frame Contents, Insert Local Image, Export Frame SVG and Export Excalidraw. Click a frame's empty area before attaching/exporting its contents. Group and frame selection moves members together; these edits are undoable. Local image paths must remain available on reopening; SVG embeds PNG/JPEG for portability.
+
+Native v2 reads v1 documents. Supported Excalidraw v2 primitives round-trip geometry, text, groups, frames, seeds, colors and two-point arrow bindings, retaining unknown metadata. Unsupported primitives appear as placeholders with retained original JSON. Imported embedded assets remain retained source data. A scene with native local images cannot export Excalidraw; use SVG or the native format. Native fonts, rough outlines and SVG typography differ from Excalidraw. Frames cannot nest; rotation editing covers rectangles/ellipses. External Excalidraw UI validation remains unperformed.

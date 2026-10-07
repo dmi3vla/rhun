@@ -222,7 +222,12 @@ FN canvas_reload_doc
     cmp rax, [r13 + SC_next_id]
     jbe 1f
     mov [r13 + SC_next_id], rax
-1:  mov rdi, r12
+1:  mov rdi, [r13 + SC_exchange]
+    call mem_free
+    mov rax, [r12 + SC_exchange]
+    mov [r13 + SC_exchange], rax
+    mov qword ptr [r12 + SC_exchange], 0
+    mov rdi, r12
     call scene_free
     mov rdi, r13
     mov rsi, r14
@@ -258,3 +263,146 @@ FN canvas_reload_doc
 .p2align 3
 .Ltools: .quad .Ls, .Lr, .Le, .La, .Lt, .Lf, .Ll, .Lp
 .Lnode_roles: .quad .Ln1, .Ln2, .Ln3, .Ln4
+.text
+FN cmd_canvas_export_excalidraw
+    lea rdi, [rip + .Lex_export_prompt]
+    mov esi, 6
+    jmp prompt_open
+FN canvas_write_excalidraw
+    PROLOGUE 32
+    mov r12, rdi
+    call canvas_active
+    mov rbx, rax
+    test rbx, rbx
+    jz 9f
+    mov rdi, rsp
+    xor esi, esi
+    mov edx, SB_SIZE
+    call memset
+    mov rdi, rbx
+    mov rsi, rsp
+    call canvas_export_excalidraw
+    test eax, eax
+    jz 8f
+    mov rdi, r12
+    mov rsi, [rsp + SB_ptr]
+    mov rdx, [rsp + SB_len]
+    call file_write_all
+    test rax, rax
+    js 8f
+    lea rdi, [rip + .Lex_export_ok]
+    call app_toast
+    jmp 7f
+8:  lea rdi, [rip + .Lex_export_error]
+    call app_toast
+7:  mov rdi, rsp
+    call sb_free
+9:  EPILOGUE
+.section .rodata
+.Lex_export_prompt: .asciz "Export Excalidraw to path"
+.Lex_export_ok: .asciz "Excalidraw scene exported"
+.Lex_export_error: .asciz "Excalidraw export failed"
+.text
+FN cmd_canvas_export_svg
+    lea rdi, [rip + .Lsvg_prompt]
+    mov esi, 7
+    jmp prompt_open
+FN canvas_write_svg
+    PROLOGUE 32
+    mov r12, rdi
+    call canvas_active
+    mov rbx, rax
+    test rbx, rbx
+    jz 9f
+    mov rdi, rsp
+    xor esi, esi
+    mov edx, SB_SIZE
+    call memset
+    mov rdi, rbx
+    mov rsi, rsp
+    call canvas_export_svg
+    test eax, eax
+    jz 8f
+    mov rdi, r12
+    mov rsi, [rsp + SB_ptr]
+    mov rdx, [rsp + SB_len]
+    call file_write_all
+    test rax, rax
+    js 8f
+    lea rdi, [rip + .Lsvg_ok]
+    call app_toast
+    jmp 7f
+8:  lea rdi, [rip + .Lsvg_error]
+    call app_toast
+7:  mov rdi, rsp
+    call sb_free
+9:  EPILOGUE
+.section .rodata
+.Lsvg_prompt: .asciz "Export selected frame (or scene) to SVG path"
+.Lsvg_ok: .asciz "SVG exported"
+.Lsvg_error: .asciz "SVG export failed"
+.text
+FN cmd_canvas_add_image
+    lea rdi, [rip + .Limage_prompt]
+    mov esi, 5
+    jmp prompt_open
+FN canvas_add_image
+    PROLOGUE
+    mov r12, rdi
+    call canvas_active
+    mov rbx, rax
+    test rbx, rbx
+    jz 9f
+    cmp qword ptr [rbx + SC_before], 0
+    jne 9f
+    cmp qword ptr [rbx + SC_elements + VEC_len], 4096
+    jae 9f
+    mov rdi, r12
+    call image_probe
+    test eax, eax
+    jz 9f
+    mov rdi, rbx
+    call scene_clone
+    mov r13, rax
+    mov rdi, rbx
+    mov esi, CT_IMAGE
+    mov edx, 80
+    mov ecx, 80
+    mov r8d, 240
+    mov r9d, 180
+    call scene_add
+    mov r14, rax
+    mov rdi, r12
+    call strlen
+    mov rsi, rax
+    mov rdi, r12
+    call mem_dup
+    mov [r14 + CE_image], rax
+    mov rdi, rbx
+    mov rsi, r14
+    call canvas_image_get
+    test rax, rax
+    jz 8f
+    mov rdi, rbx
+    mov rsi, r13
+    call scene_commit
+    jmp 9f
+8:  # Invalid decoding follows the same whole-transaction rollback path.
+    mov rdi, rbx
+    call scene_clear_elements
+    lea rdi, [rbx + SC_elements]
+    lea rsi, [r13 + SC_elements]
+    mov edx, VEC_SIZE
+    call memcpy
+    lea rdi, [r13 + SC_elements]
+    xor esi, esi
+    mov edx, VEC_SIZE
+    call memset
+    mov rdi, r13
+    call scene_free
+    lea rdi, [rip + .Limage_error]
+    call app_toast
+9:  EPILOGUE
+.section .rodata
+.Limage_prompt: .asciz "Insert local image path"
+.Limage_error: .asciz "Image decode failed or native canvas image limit exceeded"

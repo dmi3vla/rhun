@@ -151,3 +151,60 @@ FN scene_trim_history
     call memmove
     jmp 1b
 9:  EPILOGUE
+.text
+# Called only once all input has been copied; parser resets cannot invalidate IR.
+FN scene_metadata_valid
+    PROLOGUE
+    mov rbx, rdi
+    mov rdi, [rbx + SC_exchange]
+    test rdi, rdi
+    jz 1f
+    cmp byte ptr [rdi], 0
+    je 1f
+    call strlen
+    mov rsi, rax
+    mov rdi, [rbx + SC_exchange]
+    call json_parse_complete
+    test rax, rax
+    jz 9f
+    cmp dword ptr [rax], JT_OBJ
+    jne 9f
+1:  xor r12d, r12d
+2:  cmp r12, [rbx + SC_elements + VEC_len]
+    jae 8f
+    imul r13, r12, CE_SIZE
+    add r13, [rbx + SC_elements + VEC_ptr]
+    mov rdi, [r13 + CE_raw]
+    test rdi, rdi
+    jz 3f
+    cmp byte ptr [rdi], 0
+    je 3f
+    call strlen
+    mov rsi, rax
+    mov rdi, [r13 + CE_raw]
+    call json_parse_complete
+    test rax, rax
+    jz 9f
+    cmp dword ptr [rax], JT_OBJ
+    jne 9f
+    mov rdi, rax
+    lea rsi, [rip + .Lmetadata_id]
+    call json_get
+    mov rdi, rax
+    mov rsi, [r13 + CE_xid]
+    test rsi, rsi
+    jz 9f
+    call json_is
+    test eax, eax
+    jz 9f
+    jmp 4f
+3:  cmp dword ptr [r13 + CE_kind], CT_UNSUPPORTED
+    je 9f
+4:  inc r12
+    jmp 2b
+8:  mov eax, 1
+    EPILOGUE
+9:  xor eax, eax
+    EPILOGUE
+.section .rodata
+.Lmetadata_id: .asciz "id"

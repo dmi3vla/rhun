@@ -150,6 +150,16 @@ FN canvas_delete
     jz 2f
     mov rdi, [r14 + CE_text]
     call mem_free
+    mov rdi, [r14 + CE_xid]
+    call mem_free
+    mov rdi, [r14 + CE_raw]
+    call mem_free
+    mov rdi, [r14 + CE_image]
+    call mem_free
+    mov rdi, [r14 + CE_gxid]
+    call mem_free
+    mov rdi, [r14 + CE_bitmap]
+    call canvas_image_free
     lea rdi, [r14 + CE_points]
     call vec_free
     dec qword ptr [rbx + SC_elements + VEC_len]
@@ -188,6 +198,11 @@ FN canvas_text_begin
     call memcpy
     # Preview borrows geometry only, never an owned pointer.
     mov qword ptr [rbx + SC_preview + CE_text], 0
+    mov qword ptr [rbx + SC_preview + CE_xid], 0
+    mov qword ptr [rbx + SC_preview + CE_raw], 0
+    mov qword ptr [rbx + SC_preview + CE_image], 0
+    mov qword ptr [rbx + SC_preview + CE_gxid], 0
+    mov qword ptr [rbx + SC_preview + CE_bitmap], 0
     lea rdi, [rbx + SC_preview + CE_points]
     xor esi, esi
     mov edx, VEC_SIZE
@@ -409,6 +424,8 @@ FN canvas_edit_input
 3:  xor dword ptr [r14 + CE_flags], 1
 4:  mov rax, [r14 + CE_id]
     mov [rbx + SC_selected], rax
+    mov rdi, rbx
+    call scene_expand_selection
     mov rdi, rbx
     call scene_clone
     mov [rbx + SC_before], rax

@@ -16,6 +16,15 @@ F CE_seed, 8
 F CE_angle, 4
 F CE_flags, 4
 F CE_role, 8
+F CE_xid, 8
+F CE_raw, 8
+F CE_image, 8
+F CE_gxid, 8
+F CE_bitmap, 8
+F CE_roughness, 4
+F CE_fill, 4
+F CE_fontsize, 4
+F CE_reserved, 4
 F CE_points, VEC_SIZE
 ENDSTRUCT CE_SIZE
 STRUCT
@@ -23,6 +32,7 @@ F SC_elements, VEC_SIZE
 F SC_undo, VEC_SIZE
 F SC_redo, VEC_SIZE
 F SC_doc, 8
+F SC_exchange, 8
 F SC_revision, 8
 F SC_next_id, 8
 F SC_selected, 8
@@ -61,3 +71,6 @@ ENDSTRUCT SC_SIZE
 .equ CT_FRAME, 5
 .equ CT_LINE, 6
 .equ CT_STROKE, 7
+
+.equ CT_IMAGE, 8
+.equ CT_UNSUPPORTED, 9
