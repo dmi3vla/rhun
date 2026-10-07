@@ -227,6 +227,11 @@ FN canvas_reload_doc
     mov rax, [r12 + SC_exchange]
     mov [r13 + SC_exchange], rax
     mov qword ptr [r12 + SC_exchange], 0
+    mov rdi, [r13 + SC_ui]
+    call mem_free
+    mov rax, [r12 + SC_ui]
+    mov [r13 + SC_ui], rax
+    mov qword ptr [r12 + SC_ui], 0
     mov rdi, r12
     call scene_free
     mov rdi, r13

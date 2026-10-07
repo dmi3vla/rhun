@@ -51,6 +51,17 @@ FN scene_clone
     call mem_dup
     mov [r12 + SC_exchange], rax
 10:
+    mov rdi, [rbx + SC_ui]
+    test rdi, rdi
+    jz 11f
+    call strlen
+    lea rcx, [rax + 1]
+    add [r12 + SC_bytes], rcx
+    mov rsi, rax
+    mov rdi, [rbx + SC_ui]
+    call mem_dup
+    mov [r12 + SC_ui], rax
+11:
     xor r13d, r13d
 1:  cmp r13, [rbx + SC_elements + VEC_len]
     jae 9f
@@ -196,6 +207,11 @@ FN scene_commit
     mov rax, [r12 + SC_exchange]
     mov [rbx + SC_exchange], rax
     mov qword ptr [r12 + SC_exchange], 0
+    mov rdi, [rbx + SC_ui]
+    call mem_free
+    mov rax, [r12 + SC_ui]
+    mov [rbx + SC_ui], rax
+    mov qword ptr [r12 + SC_ui], 0
     mov rdi, r12
     call scene_free
     lea rdi, [rip + .Lbounds_error]
@@ -245,6 +261,11 @@ scene_history_restore:
     mov rax, [r14 + SC_exchange]
     mov [rbx + SC_exchange], rax
     mov qword ptr [r14 + SC_exchange], 0
+    mov rdi, [rbx + SC_ui]
+    call mem_free
+    mov rax, [r14 + SC_ui]
+    mov [rbx + SC_ui], rax
+    mov qword ptr [r14 + SC_ui], 0
     mov rdi, r14
     call scene_free
     mov rdi, rbx

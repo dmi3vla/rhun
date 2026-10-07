@@ -33,6 +33,9 @@ F SC_undo, VEC_SIZE
 F SC_redo, VEC_SIZE
 F SC_doc, 8
 F SC_exchange, 8
+F SC_ui, 8
+F SC_generated, 8
+F SC_mode, 4
 F SC_revision, 8
 F SC_next_id, 8
 F SC_selected, 8
@@ -74,3 +77,32 @@ ENDSTRUCT SC_SIZE
 
 .equ CT_IMAGE, 8
 .equ CT_UNSUPPORTED, 9
+
+STRUCT
+F UC_id, 8
+F UC_source, 8
+F UC_parent, 8
+F UC_type, 4
+F UC_width, 4
+F UC_height, 4
+F UC_padding, 4
+F UC_gap, 4
+F UC_text, 8
+F UC_action, 8
+F UC_x, 4
+F UC_y, 4
+F UC_w, 4
+F UC_h, 4
+ENDSTRUCT UC_SIZE
+STRUCT
+F UM_nodes, VEC_SIZE
+F UM_root, 8
+F UM_revision, 8
+ENDSTRUCT UM_SIZE
+.equ U_ROW, 0
+.equ U_COLUMN, 1
+.equ U_CARD, 2
+.equ U_LIST, 3
+.equ U_TEXT, 4
+.equ U_BUTTON, 5
+.equ U_INPUT, 6

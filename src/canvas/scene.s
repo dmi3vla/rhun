@@ -19,6 +19,10 @@ FN scene_free
     jz 9f
     mov rdi, [rbx + SC_exchange]
     call mem_free
+    mov rdi, [rbx + SC_ui]
+    call mem_free
+    mov rdi, [rbx + SC_generated]
+    call mem_free
     mov rdi, rbx
     call scene_clear_elements
     lea rdi, [rbx + SC_undo]

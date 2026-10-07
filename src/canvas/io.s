@@ -26,6 +26,25 @@ FN scene_serialize
 10: mov rdi, r12
     call chat_json_quote
     mov rdi, r12
+    lea rsi, [rip + .Lrevision_key]
+    call sb_push_cstr
+    mov rdi, r12
+    mov rsi, [rbx + SC_revision]
+    call sb_push_u64
+    mov rdi, r12
+    lea rsi, [rip + .Lui_key]
+    call sb_push_cstr
+    mov rsi, [rbx + SC_ui]
+    xor edx, edx
+    test rsi, rsi
+    jz 109f
+    mov rdi, rsi
+    call strlen
+    mov rdx, rax
+    mov rsi, [rbx + SC_ui]
+109: mov rdi, r12
+    call chat_json_quote
+    mov rdi, r12
     lea rsi, [rip + .Lscene_elements]
     call sb_push_cstr
     xor r13d, r13d
@@ -193,7 +212,7 @@ FN scene_json_int
 
 # Parse(bytes,len) -> new owned scene or NULL. Complete validation before publish.
 FN scene_parse
-    PROLOGUE 48
+    PROLOGUE 80
     cmp rsi, 8 << 20
     ja .Lparse_null
     call json_parse_complete
@@ -205,6 +224,8 @@ FN scene_parse
     cmp dword ptr [r12 + 4], 4
     je 101f
     cmp dword ptr [r12 + 4], 5
+    je 101f
+    cmp dword ptr [r12 + 4], 7
     jne .Lparse_null
 101:
     mov rdi, r12
@@ -225,21 +246,27 @@ FN scene_parse
     cmp rax, 1
     je 102f
     cmp rax, 2
+    je 102f
+    cmp rax, 3
     jne .Lparse_null
 102: mov [rsp + 32], eax
     add eax, 3
-    cmp [r12 + 4], eax
+    cmp eax, 6
+    jne 108f
+    inc eax
+108: cmp [r12 + 4], eax
     jne .Lparse_null
     mov qword ptr [rsp + 40], 0
     cmp dword ptr [rsp + 32], 2
-    jne 103f
+    jb 103f
     mov rdi, r12
     lea rsi, [rip + .Lexchange]
     call json_get
     mov [rsp + 40], rax
     test rax, rax
     jz .Lparse_null
-103: mov rdi, r12
+103: mov [rsp + 48], r12
+    mov rdi, r12
     lea rsi, [rip + .Lnext]
     call json_get
     mov rdi, rax
@@ -264,8 +291,30 @@ FN scene_parse
     mov [rsp + 8], eax
     call scene_new
     mov rbx, rax
+    cmp dword ptr [rsp + 32], 3
+    jne 109f
+    mov rdi, [rsp + 48]
+    lea rsi, [rip + .Lui]
+    call json_get
+    mov rdi, rax
+    mov esi, 1 << 20
+    call scene_owned_json_string
+    test rax, rax
+    jz .Lparse_bad
+    mov [rbx + SC_ui], rax
+    mov rdi, [rsp + 48]
+    lea rsi, [rip + .Lrevision]
+    call json_get
+    mov rdi, rax
+    call scene_json_int
+    test edx, edx
+    jz .Lparse_bad
+    test rax, rax
+    js .Lparse_bad
+    mov [rbx + SC_revision], rax
+109:
     cmp dword ptr [rsp + 32], 2
-    jne 104f
+    jb 104f
     mov rdi, [rsp + 40]
     mov esi, 3 << 20
     call scene_owned_json_string
@@ -485,6 +534,10 @@ FN scene_parse
     call scene_metadata_valid
     test eax, eax
     jz .Lparse_bad
+    mov rdi, rbx
+    call canvas_ui_valid
+    test eax, eax
+    jz .Lparse_bad
     mov rax, rbx
     EPILOGUE
 .Lparse_bad:
@@ -575,7 +628,7 @@ FN canvas_path
 8:  xor eax, eax
 9:  EPILOGUE
 .section .rodata
-.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":2,\"next\":"
+.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":3,\"next\":"
 .Lscene_elements: .asciz ",\"elements\":["
 .Lscene_end: .asciz "]}\n"
 .Ltext_key: .asciz "\"text\":"
@@ -663,3 +716,9 @@ FN scene_owned_json_string
     EPILOGUE
 8:  xor eax, eax
     EPILOGUE
+
+.section .rodata
+.Lrevision: .asciz "revision"
+.Lui: .asciz "ui"
+.Lrevision_key: .asciz ",\"revision\":"
+.Lui_key: .asciz ",\"ui\":"

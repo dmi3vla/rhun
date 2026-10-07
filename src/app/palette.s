@@ -2261,7 +2261,17 @@ prompt_done:
     PROLOGUE
     mov rbx, rdi
     mov r12d, esi
-    cmp r12d, 5
+    cmp r12d, 8
+    jne 004f
+    mov rdi, rbx
+    call canvas_write_html
+    jmp 9f
+004: cmp r12d, 9
+    jne 005f
+    mov rdi, rbx
+    call canvas_ui_import
+    jmp 9f
+005: cmp r12d, 5
     jne 003f
     mov rdi, rbx
     call canvas_add_image

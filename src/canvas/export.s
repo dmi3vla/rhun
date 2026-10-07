@@ -31,6 +31,7 @@ FN canvas_quote_element_id
     EPILOGUE
 
 # Append a JSON integer property ending with comma, own geometry already bounded.
+.globl canvas_export_number
 canvas_export_number:
     PROLOGUE
     mov rbx, rdi
