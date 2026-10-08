@@ -29,6 +29,9 @@ FN canvas_key
     mov ebx, edi
     mov r12d, esi
     mov r13d, edx
+    call diff_key
+    test eax, eax
+    jnz .Lcanvas_diff_key_done
     call canvas_active
     mov rcx, [rax + SC_memory]
     test rcx, rcx
@@ -42,6 +45,12 @@ FN canvas_key
     pop r12
     pop rbx
     jmp memory_key
+.Lcanvas_diff_key_done:
+    # Only reached from successful Diff navigation; ordinary paths jump below.
+    pop r13
+    pop r12
+    pop rbx
+    ret
 .Lcanvas_key_no_memory:
     mov rcx, [rax + SC_analysis]
     test rcx, rcx
@@ -217,7 +226,9 @@ FN canvas_draw
     call canvas_overlays
     mov rdi, rbx
     call canvas_proposal_overlay
-103: call gfx_clip_pop
+103: mov rdi, rbx
+    call diff_overlay
+    call gfx_clip_pop
     call gfx_clip_pop
 9:  EPILOGUE
 

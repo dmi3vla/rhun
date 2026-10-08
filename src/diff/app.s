@@ -153,9 +153,23 @@ FN diff_report_write
     xor esi, esi
     mov edx, SB_SIZE
     call memset
+    mov rdi, r12
+    call strlen
+    cmp rax, 3
+    jb .Lreport_json
+    cmp byte ptr [r12 + rax - 3], '.'
+    jne .Lreport_json
+    cmp word ptr [r12 + rax - 2], 0x646d
+    jne .Lreport_json
+    mov rdi, rbx
+    mov rsi, rsp
+    call diff_markdown_dump
+    jmp .Lreport_write
+.Lreport_json:
     mov rdi, rbx
     mov rsi, rsp
     call diff_dump
+.Lreport_write:
     mov rdi, r12
     mov rsi, [rsp + SB_ptr]
     mov rdx, [rsp + SB_len]
@@ -174,7 +188,7 @@ FN diff_report_write
 .section .rodata
 .Lcontext_prompt: .asciz "Export current CFG/snapshot scope as Agent Claims JSON"
 .Lload_prompt: .asciz "Compare structured Agent Claims JSON path"
-.Lexport_prompt: .asciz "Export Visual Diff JSON report path"
+.Lexport_prompt: .asciz "Export Visual Diff report path (.json / .md)"
 .Lcontext_ready: .asciz "Diff: source-bound agent template exported; review scope and completeness"
 .Lready: .asciz "Diff: comparison ready; Base is supplied evidence, not complete ELF truth"
 .Lreport_ready: .asciz "Diff: report exported"

@@ -65,6 +65,28 @@ class VisualDiff(m.CanvasEdit):
         target['nodes'][0]['address'] = '0x1001'
         self.assertEqual(self.compare(target)['results'][0]['status'], 2)
 
+    def test_navigation_filter_toggle_and_export_keep_source(self):
+        target = self.context()
+        target['nodes'][0]['size'] = 64
+        target['nodes'][1]['address'] = '0xffffffffffffffff'
+        target['nodes'].append(dict(target['nodes'][0], id='ghost', label='AI phantom'))
+        path = self.work / 'claims-nav.json';path.write_text(json.dumps(target))
+        actions = ['cmd radare_demo'] + self.prompt('diff_load', path)
+        report = self.compare(target, tail=['key d'])
+        self.assertEqual(report['results'][report['cursor']]['reason'], 2)
+        filtered = self.compare(target, tail=['cmd diff_filter','key d'])
+        self.assertEqual(filtered['results'][filtered['cursor']]['status'], 4)
+        report = self.compare(target, tail=['key d','key shift+d'])
+        self.assertNotEqual(report['cursor'], -1)
+        a,b = self.work/'overlay.ppm',self.work/'plain.ppm'
+        exported = self.work/'report.json'
+        output=self.run_editor(actions+['shot '+str(a),'cmd diff_toggle','shot '+str(b)]+
+                               self.prompt('diff_export',exported)+['print-canvas'])
+        self.assertNotEqual(a.read_bytes(),b.read_bytes())
+        self.assertEqual(json.loads(exported.read_text())['show'],0)
+        actual=json.loads(next(l for l in output.splitlines() if l.startswith('{"type":"rhun-canvas"')))
+        self.assertEqual(actual,self.scene(['cmd radare_demo']))
+
     def test_bad_input_is_atomic(self):
         original = self.context();good = self.work / 'good.json';good.write_text(json.dumps(original))
         for change in [dict(base='wrong'), dict(profile=1), dict(snapshot='other'), dict(scope=['missing']),
