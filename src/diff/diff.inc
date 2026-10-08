@@ -43,4 +43,5 @@ F DF_snapshot, 4
 F DF_show, 4
 F DF_filter, 4
 F DF_cursor, 4
+F DF_counts, 20
 ENDSTRUCT DF_SIZE

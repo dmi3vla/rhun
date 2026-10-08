@@ -103,6 +103,48 @@ class VisualDiff(m.CanvasEdit):
         self.assertNotEqual(b.read_bytes(),c.read_bytes())
         self.assertEqual(self.compare(target,actions=actions,tail=['key d','key v','key f'])['stale'],0)
 
+    def test_known_properties_confidence_and_unknown_liveness(self):
+        source=json.loads((Path(__file__).resolve().parents[1]/'examples/memory/rhun-lifecycle.rhun-memory').read_text())
+        source['provenance']=1
+        source['snapshots']=[source['snapshots'][4]]
+        h=next(n for n in source['snapshots'][0]['nodes'] if n['id']=='H1');h['certainty']=0
+        path=self.work/'declared.rhun-memory';path.write_text(json.dumps(source))
+        actions=self.prompt('memory_import',path)
+        target=self.context(actions)
+        self.assertTrue(all(r['status']==0 for r in self.compare(target,actions=actions)['results']))
+        for field,value,reason in [('kind',2,3),('size',32,4),('capacity',64,5),('state',1,6)]:
+            bad=copy.deepcopy(target);node=next(n for n in bad['nodes'] if n['id']=='H1')
+            node[field]=value;node['confidence']=100
+            report=self.compare(bad,actions=actions)
+            self.assertTrue(any(r['status']==2 and r['reason']==reason for r in report['results']))
+        h['state']=2
+        for edge in source['snapshots'][0]['links']:
+            if edge['to']=='H1' and edge['kind']==1:edge['kind']=2
+        path.write_text(json.dumps(source));target=self.context(actions)
+        next(n for n in target['nodes'] if n['id']=='H1')['state']=0
+        self.assertTrue(any(r['status']==4 for r in self.compare(target,actions=actions)['results']))
+
+    def test_limits_unknown_fields_references_and_markdown(self):
+        target=self.context()
+        variants=[]
+        for field,value in [('address','0x10000000000000000'),('address','0xno'),('confidence',101),('label','x'*4097)]:
+            bad=copy.deepcopy(target);bad['nodes'][0][field]=value;variants.append(bad)
+        bad=copy.deepcopy(target);bad['links'][0]['from']='absent';variants.append(bad)
+        bad=copy.deepcopy(target);bad['nodes'][0]['extra']=1;variants.append(bad)
+        bad=copy.deepcopy(target);bad['scope']*=2;variants.append(bad)
+        bad=copy.deepcopy(target);bad['nodes']*=129;variants.append(bad)
+        bad=copy.deepcopy(target);bad['scope']=bad['scope'][:1];variants.append(bad)
+        for bad in variants:
+            path=self.work/'invalid.json';path.write_text(json.dumps(bad))
+            self.assertEqual(self.compare(target,tail=self.prompt('diff_load',path))['targetGraph'],target)
+        report_path=self.work/'diff.md'
+        self.compare(target,tail=self.prompt('diff_export',report_path))
+        text=report_path.read_text()
+        self.assertIn('# Native Visual Diff',text)
+        self.assertIn('Confidence is model metadata',text)
+        self.assertIn('Base:',text)
+        self.assertIn('AI:',text)
+
     def test_bad_input_is_atomic(self):
         original = self.context();good = self.work / 'good.json';good.write_text(json.dumps(original))
         for change in [dict(base='wrong'), dict(profile=1), dict(snapshot='other'), dict(scope=['missing']),

@@ -181,6 +181,26 @@ FN diff_dump
     movsxd rsi, dword ptr [r13 + DF_cursor]
     call canvas_dump_int
     mov rdi, r12
+    lea rsi, [rip + .Lcounts]
+    call sb_push_cstr
+    xor r14d, r14d
+.Lcount:
+    test r14d, r14d
+    jz .Lcount_value
+    mov rdi, r12
+    mov esi, ','
+    call sb_push_byte
+.Lcount_value:
+    mov rdi, r12
+    mov esi, [r13 + DF_counts + r14*4]
+    call sb_push_u64
+    inc r14d
+    cmp r14d, 5
+    jb .Lcount
+    mov rdi, r12
+    mov esi, ']'
+    call sb_push_byte
+    mov rdi, r12
     lea rsi, [rip + .Lbasegraph]
     call sb_push_cstr
     mov rdi, [r13 + DF_base]
@@ -215,7 +235,7 @@ FN diff_dump
     jmp .Litem
 .Ldone:
     mov rdi, r12
-    lea rsi, [rip + .Lend]
+    lea rsi, [rip + .Lreport_end]
     call sb_push_cstr
     EPILOGUE
 .Lnone: mov rdi, r12
@@ -235,10 +255,12 @@ FN diff_dump
 .Lshow: .asciz ",\"show\":"
 .Lfilter: .asciz ",\"filter\":"
 .Lcursor: .asciz ",\"cursor\":"
+.Lcounts: .asciz ",\"counts\":["
 .Lbasegraph: .asciz ",\"baseGraph\":"
 .Ltargetgraph: .asciz ",\"targetGraph\":"
 .Lresults: .asciz ",\"results\":["
-.Lnull: .asciz "null"
+.Lreport_end: .asciz "]}\n"
+.Lnull: .asciz "null\n"
 .Lresultfields:
 .quad .Lbaseindex, DR_base, 2, 0, 0
 .quad .Ltargetindex, DR_target, 2, 0, 0

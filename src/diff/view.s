@@ -343,6 +343,22 @@ FN diff_overlay
     call diff_stale
     test eax, eax
     jnz .Lstale
+    mov dword ptr [rsp + SB_SIZE + 48], 0
+    mov dword ptr [rsp + SB_SIZE + 52], 0
+    mov eax, [r12 + DF_cursor]
+    test eax, eax
+    js .Lghost_prepared
+    cmp rax, [r12 + DF_results + VEC_len]
+    jae .Lghost_prepared
+    imul rax, DR_SIZE
+    add rax, [r12 + DF_results + VEC_ptr]
+    cmp dword ptr [rax + DR_type], 0
+    jne .Lghost_prepared
+    cmp dword ptr [rax + DR_base], 0
+    jne .Lghost_prepared
+    mov eax, [rax + DR_target]
+    mov [rsp + SB_SIZE + 48], eax
+.Lghost_prepared:
     xor r13d, r13d
 .Loverlay_result:
     cmp r13, [r12 + DF_results + VEC_len]
@@ -371,11 +387,15 @@ FN diff_overlay
     jmp .Loverlay_box
 .Loverlay_ghost:
     # Rail shows one ghost at a time; navigation reveals any bounded ghost.
-    cmp dword ptr [r12 + DF_cursor], -1
-    je .Lghost_first
-    cmp [r12 + DF_cursor], r13d
+    mov eax, [rsp + SB_SIZE + 48]
+    test eax, eax
+    jz .Lghost_first
+    cmp [r14 + DR_target], eax
     jne .Loverlay_more
 .Lghost_first:
+    cmp dword ptr [rsp + SB_SIZE + 52], 0
+    jne .Loverlay_more
+    mov dword ptr [rsp + SB_SIZE + 52], 1
     mov rax, [r12 + DF_target]
     mov edx, [r14 + DR_target]
     dec edx
@@ -510,6 +530,23 @@ FN diff_overlay
     mov rsi, [rax + rsi*8]
     call sb_push_cstr
     mov rdi, rsp
+    lea rsi, [rip + .Lcounttext]
+    call sb_push_cstr
+    xor r14d, r14d
+.Lbanner_count:
+    test r14d, r14d
+    jz .Lbanner_count_value
+    mov rdi, rsp
+    mov esi, '/'
+    call sb_push_byte
+.Lbanner_count_value:
+    mov rdi, rsp
+    mov esi, [r12 + DF_counts + r14*4]
+    call sb_push_u64
+    inc r14d
+    cmp r14d, 5
+    jb .Lbanner_count
+    mov rdi, rsp
     lea rsi, [rip + .Lkeys]
     call sb_push_cstr
     mov eax, [r12 + DF_cursor]
@@ -581,7 +618,8 @@ diff_reason_names: .quad .Lreason0,.Lreason1,.Lreason2,.Lreason3,.Lreason4,.Lrea
 .Lstructure: .asciz "Structure"
 .Lclaims: .asciz "Structure + Claims"
 .Lfilters: .quad .Lstructure,.Lclaims
-.Lkeys: .asciz " | D/Shift+D: next/prev | palette: toggle/filter/export"
+.Lcounttext: .asciz " | M/G/C/O/?="
+.Lkeys: .asciz " | D/Shift+D: next/prev"
 .Lselected: .asciz " | "
 .Lstale_text: .asciz "Visual Diff STALE: source revision or snapshot changed; load claims for this source again."
 .text
@@ -689,13 +727,25 @@ FN diff_item_text
     mov rsi, [r13 + DN_address]
     call sb_push_cstr
     mov r14d, DN_kind
+    mov r15d, 1
 .Litem_property:
     mov rdi, rbx
     mov esi, ' '
     call sb_push_byte
+    cmp dword ptr [r13 + DN_known], 0
+    je .Litem_property_value
+    test [r13 + DN_known], r15d
+    jnz .Litem_property_value
+    mov rdi, rbx
+    mov esi, '?'
+    call sb_push_byte
+    jmp .Litem_property_more
+.Litem_property_value:
     mov rdi, rbx
     movsxd rsi, dword ptr [r13 + r14]
     call canvas_dump_int
+.Litem_property_more:
+    shl r15d, 1
     add r14d, 4
     cmp r14d, DN_state
     jbe .Litem_property

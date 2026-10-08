@@ -4,6 +4,7 @@
 # DF, base index, target index, type, status, reason -> result.
 FN diff_result_add
     PROLOGUE 24
+    mov rbx, rdi
     mov [rsp], esi
     mov [rsp + 4], edx
     mov [rsp + 8], ecx
@@ -16,6 +17,8 @@ FN diff_result_add
     mov rsi, rsp
     mov edx, DR_SIZE
     call memcpy
+    mov ecx, [rsp + 12]
+    inc dword ptr [rbx + DF_counts + rcx*4]
     EPILOGUE
 # Graph*, edge* -> exact typed edge 1-based index.
 FN diff_edge_index

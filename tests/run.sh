@@ -95,4 +95,7 @@ for memory_test in contract view graph fold adapter review chat-request; do
     python3 "tests/memory-$memory_test.py" || fail=1
 done
 build/memory_model_test || fail=1
+python3 tests/visual-diff.py || fail=1
+python3 tests/visual-diff-chat.py || fail=1
+build/diff_model_test || fail=1
 exit $fail
