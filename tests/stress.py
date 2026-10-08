@@ -99,8 +99,9 @@ class Stress(unittest.TestCase):
         for _ in range(100):
             actions += ['cmd quick_open', 'type stable', 'key Escape', 'cmd command_palette',
                         'type undo', 'key Escape', 'cmd settings', 'cmd close_tab']
-        # Let config-watch notifications and hover timers settle before measuring idle.
-        actions += ['print-state', 'print-doc', 'move 500 500', 'wait 1500',
+        # Settle deferred UI work (including the 2200 ms toast expiry) before
+        # measuring idle. The measured window must still contain zero frames.
+        actions += ['print-state', 'print-doc', 'move 500 500', 'wait 3000',
                     'print-frames', 'wait 1100', 'print-frames']
         output = self.run_editor('100-palette-and-settings-cycles', actions, file)
         self.assertIn('tabs=1 active=stable.txt ', output)

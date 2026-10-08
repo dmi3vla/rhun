@@ -362,7 +362,7 @@ FN diff_overlay
     xor r13d, r13d
 .Loverlay_result:
     cmp r13, [r12 + DF_results + VEC_len]
-    jae .Linspector
+    jae .Lpriority_start
     imul r14, r13, DR_SIZE
     add r14, [r12 + DF_results + VEC_ptr]
     mov rdi, r12
@@ -434,6 +434,11 @@ FN diff_overlay
     mov r8d, r15d
     call diff_hatch
 .Lframe_done:
+    cmp dword ptr [r14 + DR_base], 0
+    je .Lpaint_label
+    cmp [r12 + DF_cursor], r13d
+    jne .Loverlay_more
+.Lpaint_label:
     mov eax, [r14 + DR_status]
     lea rcx, [rip + diff_status_names]
     mov r8, [rcx + rax*8]
@@ -441,7 +446,13 @@ FN diff_overlay
     mov esi, [rsp + SB_SIZE]
     add esi, 8
     mov edx, [rsp + SB_SIZE + 4]
+    cmp dword ptr [r14 + DR_base], 0
+    jne .Lsource_label_above
+    add edx, 4
+    jmp .Llabel_positioned
+.Lsource_label_above:
     sub edx, 22
+.Llabel_positioned:
     mov ecx, 24
     mov r9d, r15d
     call ui_text_c
@@ -458,7 +469,7 @@ FN diff_overlay
     mov esi, [rsp + SB_SIZE]
     add esi, 10
     mov edx, [rsp + SB_SIZE + 4]
-    add edx, 20
+    add edx, 38
     mov ecx, 24
     mov rax, [rsp + SB_SIZE + 40]
     mov r8, [rax + DN_label]
@@ -513,6 +524,41 @@ FN diff_overlay
     call diff_arrow
 .Loverlay_more: inc r13
     jmp .Loverlay_result
+# Repaint visible source contradictions last, so a folded summary cannot hide
+# red evidence under a later omitted/unknown source outline. Captions are only
+# for the selected source item; multiple folded members never overprint text.
+.Lpriority_start:
+    xor r13d, r13d
+.Lpriority:
+    cmp r13, [r12 + DF_results + VEC_len]
+    jae .Linspector
+    imul r14, r13, DR_SIZE
+    add r14, [r12 + DF_results + VEC_ptr]
+    cmp dword ptr [r14 + DR_type], 0
+    jne .Lpriority_more
+    cmp dword ptr [r14 + DR_status], 2
+    jne .Lpriority_more
+    mov rdi, r12
+    mov rsi, r14
+    call diff_result_visible
+    test eax, eax
+    jz .Lpriority_more
+    mov rdi, rbx
+    mov rsi, r12
+    mov edx, [r14 + DR_base]
+    lea rcx, [rsp + SB_SIZE]
+    call diff_base_point
+    test eax, eax
+    jz .Lpriority_more
+    mov edi, [rsp + SB_SIZE]
+    mov esi, [rsp + SB_SIZE + 4]
+    mov edx, [rsp + SB_SIZE + 8]
+    mov ecx, [rsp + SB_SIZE + 12]
+    mov r8d, 0xffff6b6b
+    call diff_frame
+.Lpriority_more:
+    inc r13
+    jmp .Lpriority
 .Lstale:
     lea r8, [rip + .Lstale_text]
     jmp .Lbanner_text

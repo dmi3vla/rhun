@@ -62,6 +62,7 @@ are available in the local Linux build; platform and interchange limits are docu
 
 [Пошаговый практикум: анализ бинарника rhun, 2D/3D, стек/куча и ревью](docs/rhun-radare2-walkthrough-ru.md)
 includes prepared-scene launch instructions and a reproducible acceptance driver.
+[Native Visual Diff: source-bound agent claims, 2D/3D overlays and review](docs/radare2-visual-diff.md).
 
 ## Contribute
 

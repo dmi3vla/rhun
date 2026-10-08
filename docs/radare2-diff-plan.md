@@ -50,3 +50,24 @@ Statuses: 0 structural match, 1 unsupported/ghost, 2 contradiction, 3 omitted in
 complete scoped answer, 4 insufficient evidence. Unknown edges and indirect targets
 are not automatically classified as proven model hallucinations. No semantic
 assembly equivalence or automatic Markdown-to-proof extraction is promised.
+
+## Implementation acceptance
+
+Phases 0–5 are committed as a1bac12, 76aa40e, 1f0cf1d, 39d07a2,
+c242800 and d653124. Phase 6 adds the supplied-ELF workshop, reproducible
+synthetic claims, native screenshots and the Russian control guide.
+
+The demonstration checks the original ELF SHA256 and leaves it and source
+scenes unchanged. CFG main reports [41,1,2,5,1]; static mem_alloc Memory reports
+[12,1,2,4,1]. Correct structured answers match the supplied graph. Live
+Wayland/X11 checks cover both profiles, navigation, hiding, Memory 3D and
+folding without changed result identities. Twelve structural tests, two ACP
+chat tests and 100 allocation-lifecycle cycles cover the native implementation.
+
+The expanded palette inventory is tested in bounded batches without dropping
+commands. The idle stress assertion still requires zero frames over 1100 ms,
+after 3000 ms of settling deferred UI work. ARM64 translation passes; macOS
+and Windows runtime acceptance remains outstanding.
+
+The complete `sh tests/run.sh` regression suite passed on Linux x86-64 after
+these acceptance adjustments (platform-specific skips are reported by the suite).

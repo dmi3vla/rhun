@@ -1,0 +1,78 @@
+{
+  "type": "rhun-agent-claims",
+  "version": 1,
+  "base": "d569bccb7c72fee4",
+  "profile": 0,
+  "snapshot": "",
+  "complete": 1,
+  "scope": [
+    "2",
+    "4",
+    "6",
+    "8"
+  ],
+  "nodes": [
+    {
+      "id": "2",
+      "address": "0x1000",
+      "label": "0x1000",
+      "kind": 0,
+      "size": -1,
+      "capacity": -1,
+      "state": -1,
+      "confidence": -1
+    },
+    {
+      "id": "4",
+      "address": "0x1008",
+      "label": "0x1008",
+      "kind": 0,
+      "size": -1,
+      "capacity": -1,
+      "state": -1,
+      "confidence": -1
+    },
+    {
+      "id": "6",
+      "address": "0x1010",
+      "label": "0x1010",
+      "kind": 0,
+      "size": -1,
+      "capacity": -1,
+      "state": -1,
+      "confidence": -1
+    },
+    {
+      "id": "8",
+      "address": "0x1018",
+      "label": "0x1018",
+      "kind": 0,
+      "size": -1,
+      "capacity": -1,
+      "state": -1,
+      "confidence": -1
+    }
+  ],
+  "links": [
+    {
+      "from": "2",
+      "to": "6",
+      "kind": 0
+    },
+    {
+      "from": "2",
+      "to": "4",
+      "kind": 1
+    },
+    {
+      "from": "4",
+      "to": "8",
+      "kind": 0
+    },
+    {
+      "from": "6",
+      "to": "8",
+      "kind": 0
+    }
+  ]
+}

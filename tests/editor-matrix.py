@@ -51,11 +51,15 @@ class EditorMatrix(unittest.TestCase):
 
     def test_palette_contains_every_registered_command(self):
         self.assertEqual(len(COMMANDS), len(set(name for name, _ in COMMANDS)))
-        actions = []
-        for name, title in COMMANDS:
-            actions += ['echo command=' + name, 'cmd command_palette', 'type ' + title,
-                        'print-palette', 'key Escape']
-        sections = self.run_editor(actions).split('command=')[1:]
+        # Keep the full inventory, but bound each render-heavy subprocess as the
+        # command set grows. A single all-commands script can exceed 30 seconds.
+        sections = []
+        for start in range(0, len(COMMANDS), 48):
+            actions = []
+            for name, title in COMMANDS[start:start + 48]:
+                actions += ['echo command=' + name, 'cmd command_palette', 'type ' + title,
+                            'print-palette', 'key Escape']
+            sections.extend(self.run_editor(actions).split('command=')[1:])
         self.assertEqual(len(sections), len(COMMANDS))
         for section, (name, title) in zip(sections, COMMANDS):
             titles = [line[2:] for line in section.splitlines() if line[:2] in ('  ', '> ')]

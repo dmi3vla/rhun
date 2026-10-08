@@ -145,6 +145,14 @@ class VisualDiff(m.CanvasEdit):
         self.assertIn('Base:',text)
         self.assertIn('AI:',text)
 
+    def test_committed_branch_examples_are_bound_and_reproducible(self):
+        directory=Path(__file__).resolve().parents[1]/'examples/diff'
+        good=json.loads((directory/'branch-correct.claims.json').read_text())
+        bad=json.loads((directory/'branch-incorrect.claims.json').read_text())
+        self.assertEqual(good,self.context())
+        self.assertTrue(all(r['status']==0 for r in self.compare(good)['results']))
+        self.assertEqual(self.compare(bad)['counts'],[2,1,2,4,1])
+
     def test_bad_input_is_atomic(self):
         original = self.context();good = self.work / 'good.json';good.write_text(json.dumps(original))
         for change in [dict(base='wrong'), dict(profile=1), dict(snapshot='other'), dict(scope=['missing']),

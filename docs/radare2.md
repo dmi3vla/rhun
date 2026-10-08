@@ -11,6 +11,8 @@ Radare2 console, debugger or decompiler.
 
 ![Native Radare2 CFG and imported address coverage](radare2-native.png)
 
+[Visual Diff: compare structured agent claims against the supplied graph](radare2-visual-diff.md).
+
 ## Start with the demo
 
 Build with `./build.sh`, launch `build/rhun .`, open the command palette
