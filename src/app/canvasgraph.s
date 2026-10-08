@@ -1,11 +1,20 @@
 .include "rhun.inc"
 .include "canvas/canvas.inc"
 .include "canvas/graph.inc"
+.include "memory/memory.inc"
 .text
 FN canvas_graph_active
     call canvas_active
     test rax, rax
     jz 9f
+    mov rcx, [rax + SC_memory]
+    test rcx, rcx
+    jz .Lgraph_active_regular
+    cmp byte ptr [rcx], 0
+    je .Lgraph_active_regular
+    mov rdi, rax
+    jmp memory_graph_for_scene
+.Lgraph_active_regular:
     mov rax, [rax + SC_graph_view]
 9:  ret
 FN cmd_canvas_graph_mode
@@ -342,6 +351,22 @@ canvas_graph_node:
     mov r12, rsi
     mov r13d, 10
     mov r14d, 0xff8992a3
+    cmp dword ptr [rbx + GR_profile], 1
+    jne .Lnode_regular
+    mov eax, [r12 + VP_id]
+    dec eax
+    cmp rax, [rbx + GR_nodes + VEC_len]
+    jae 4f
+    imul rax, GN_SIZE
+    add rax, [rbx + GR_nodes + VEC_ptr]
+    mov ecx, [rax + GN_memory_kind]
+    lea rdx, [rip + .Lmemory_node_colors]
+    mov r14d, [rdx + rcx*4]
+    cmp dword ptr [rax + GN_memory_state], 1
+    jne 4f
+    mov r14d, 0xffe18b83
+    jmp 4f
+.Lnode_regular:
     cmp dword ptr [r12 + VP_kind], 2
     jne 1f
     mov r14d, 0xff8da4ff
@@ -422,7 +447,14 @@ canvas_graph_arrow:
     cmp dword ptr [r12 + VE_kind], 1
     jne 1f
     mov r15d, 0xff8d79b8
-1:  mov rdi, rbx
+1:  cmp dword ptr [rbx + GR_profile], 1
+    jne .Larrow_regular_active
+    mov eax, [r12 + VE_kind]
+    lea rcx, [rip + .Lmemory_link_colors]
+    mov r15d, [rcx + rax*4]
+    jmp 101f
+.Larrow_regular_active:
+    mov rdi, rbx
     mov rsi, r12
     call canvas_graph_link_active
     test eax, eax
@@ -531,6 +563,13 @@ canvas_graph_inspector:
     xor esi, esi
     mov edx, SB_SIZE
     call memset
+    cmp dword ptr [r12 + GR_profile], 1
+    jne .Linspector_regular_schema
+    mov rdi, rsp
+    mov rsi, [r13 + GN_object]
+    call sb_push_cstr
+    jmp 1f
+.Linspector_regular_schema:
     mov rdi, rsp
     lea rsi, [rip + .Lschema_label]
     call sb_push_cstr
@@ -679,6 +718,10 @@ canvas_graph_timeline:
     mov edx, [rbx + SC_w]
     sub edx, 16
     lea rcx, [rip + .Lcontrols]
+    cmp dword ptr [r12 + GR_profile], 1
+    jne .Ltimeline_regular_controls
+    lea rcx, [rip + .Lmemory_controls]
+.Ltimeline_regular_controls:
     mov r8d, 1
     mov r9d, 0xff8992a3
     call canvas_graph_text
@@ -696,6 +739,8 @@ canvas_graph_timeline:
     mov r8d, 1
     mov r9d, 0xffd8dee9
     call canvas_graph_text
+    cmp dword ptr [r12 + GR_profile], 1
+    je 9f
     xor r13d, r13d
 1:  cmp r13, [r12 + GR_events + VEC_len]
     jae 9f
@@ -820,3 +865,9 @@ canvas_graph_link_active:
 .p2align 3
 .Lgraph_labels: .quad .Lmode_button,.Lfold_button,.Lprev_button,.Lnext_button
 .Lgraph_actions: .quad cmd_canvas_graph_mode,cmd_canvas_graph_fold,cmd_canvas_graph_prev_event,cmd_canvas_graph_next_event
+
+.section .rodata
+.Lmemory_controls: .asciz "Memory snapshot | V: 2D/3D | F: fold | [ ]: snapshots | middle-drag: orbit"
+.p2align 2
+.Lmemory_node_colors: .long 0xff8da4ff,0xffffbc66,0xff78c88d,0xff78c88d,0xffffbc66
+.Lmemory_link_colors: .long 0xff8da4ff,0xff78c88d,0xffffbc66,0xffe18b83,0xff8da4ff

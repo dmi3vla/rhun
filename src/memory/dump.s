@@ -77,6 +77,12 @@ FN memory_dump
     mov esi, [r12 + MM_mode]
     call sb_push_u64
     mov rdi, rbx
+    lea rsi, [rip + .Lselected]
+    call sb_push_cstr
+    mov rdi, rbx
+    mov esi, [r12 + MM_selected]
+    call sb_push_u64
+    mov rdi, rbx
     lea rsi, [rip + .Lprovenance]
     call sb_push_cstr
     mov rdi, rbx
@@ -173,3 +179,5 @@ FN memory_dump
 .Llinks: .asciz "],\"links\":["
 .Lend: .asciz "]}\n"
 .Lnull: .asciz "null\n"
+
+.Lselected: .asciz ",\"selected\":"

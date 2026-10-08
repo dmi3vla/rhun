@@ -492,6 +492,8 @@ g_commands:
     COMMAND memory_import, "Radare2: Import Memory Snapshots", cmd_memory_import, ""
     COMMAND memory_next, "Radare2 Memory: Next Snapshot", cmd_memory_next, ""
     COMMAND memory_prev, "Radare2 Memory: Previous Snapshot", cmd_memory_prev, ""
+    COMMAND memory_select_next, "Radare2 Memory: Select Next Object", cmd_memory_select_next, ""
+    COMMAND memory_fold, "Radare2 Memory: Fold Selected Segment", cmd_memory_fold, ""
     COMMAND memory_mode, "Radare2 Memory: Toggle 2D 3D", cmd_memory_mode, ""
     COMMAND memory_entry, "Radare2 Memory: Focus Entry", cmd_memory_entry, ""
     COMMAND radare_demo, "Radare2: Open CFG Demo", cmd_radare_demo, ""

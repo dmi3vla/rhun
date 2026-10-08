@@ -8,6 +8,8 @@ F GN_kind, 4
 F GN_realm, 4
 F GN_schema, 4
 F GN_position, 12
+F GN_memory_kind, 4
+F GN_memory_state, 4
 ENDSTRUCT GN_SIZE
 STRUCT
 F GE_id, 8
@@ -49,6 +51,7 @@ F VE_kind, 4
 F VE_sources, VEC_SIZE
 ENDSTRUCT VE_SIZE
 STRUCT
+F GR_profile, 4
 F GR_nodes, VEC_SIZE
 F GR_edges, VEC_SIZE
 F GR_segments, VEC_SIZE

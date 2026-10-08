@@ -44,6 +44,12 @@ F MM_snapshots, VEC_SIZE
 F MM_cursor, 4
 F MM_mode, 4
 F MM_selected, 4
+F MM_camera_zoom, 4
+F MM_camera_x, 4
+F MM_camera_y, 4
+F MM_graph_yaw, 4
+F MM_graph_pitch, 4
+F MM_graph_zoom, 4
 F MM_revision, 8
 F MM_scene, 8
 F MM_graph, 8

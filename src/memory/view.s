@@ -1,6 +1,7 @@
 .include "rhun.inc"
 .include "canvas/canvas.inc"
 .include "memory/memory.inc"
+.include "canvas/graph.inc"
 .text
 FN memory_prepare
     PROLOGUE
@@ -66,6 +67,26 @@ memory_step:
     cmp rax, [rbx + MM_snapshots + VEC_len]
     jae .Lstep_done
     mov [rbx + MM_cursor], eax
+    mov rcx, [rbx + MM_scene]
+    test rcx, rcx
+    jz .Lstep_camera_graph
+    mov edx, [rcx + SC_zoom]
+    mov [rbx + MM_camera_zoom], edx
+    mov edx, [rcx + SC_pan_x]
+    mov [rbx + MM_camera_x], edx
+    mov edx, [rcx + SC_pan_y]
+    mov [rbx + MM_camera_y], edx
+.Lstep_camera_graph:
+    mov rcx, [rbx + MM_graph]
+    test rcx, rcx
+    jz .Lstep_camera_done
+    mov edx, [rcx + GR_zoom]
+    mov [rbx + MM_graph_zoom], edx
+    mov edx, [rcx + GR_yaw]
+    mov [rbx + MM_graph_yaw], edx
+    mov edx, [rcx + GR_pitch]
+    mov [rbx + MM_graph_pitch], edx
+.Lstep_camera_done:
     mov dword ptr [rbx + MM_selected], 0
     mov rdi, [rbx + MM_scene]
     call scene_free
@@ -153,6 +174,15 @@ FN memory_build_scene
     mov r12, rax
     mov [rbx + MM_scene], rax
     mov dword ptr [rax + SC_zoom], 49152
+    cmp dword ptr [rbx + MM_camera_zoom], 0
+    je .Lbuild_camera_done
+    mov ecx, [rbx + MM_camera_zoom]
+    mov [rax + SC_zoom], ecx
+    mov ecx, [rbx + MM_camera_x]
+    mov [rax + SC_pan_x], ecx
+    mov ecx, [rbx + MM_camera_y]
+    mov [rax + SC_pan_y], ecx
+.Lbuild_camera_done:
     mov rdi, rbx
     call memory_snapshot
     mov r13, rax
@@ -334,6 +364,25 @@ FN memory_draw
     mov rdi, rax
     call memory_build_scene
     mov r13, [r12 + MM_scene]
+    cmp dword ptr [r12 + MM_mode], 0
+    jne .Ldraw_graph
+    mov eax, [r12 + MM_selected]
+    test eax, eax
+    jz .Ldraw_no_saved_selection
+    dec eax
+    mov r14d, eax
+    mov rdi, r12
+    call memory_snapshot
+    cmp r14, [rax + MS_nodes + VEC_len]
+    jae .Ldraw_no_saved_selection
+    imul rcx, r14, MN_SIZE
+    add rcx, [rax + MS_nodes + VEC_ptr]
+    mov rsi, [rcx + MN_viewid]
+    mov [r13 + SC_selected], rsi
+    mov rdi, r13
+    call scene_find
+    or dword ptr [rax + CE_flags], 1
+.Ldraw_no_saved_selection:
     # Copy live viewport, preserving the derived scene's own camera.
     mov eax, [rbx + SC_x]
     mov [r13 + SC_x], eax
@@ -371,6 +420,21 @@ FN memory_draw
     test rax, rax
     jz .Ldraw_paint_start
     or dword ptr [rax + CE_flags], 1
+    mov rdi, r12
+    call memory_snapshot
+    xor ecx, ecx
+.Ldraw_find_selected:
+    cmp rcx, [rax + MS_nodes + VEC_len]
+    jae .Ldraw_paint_start
+    imul rdx, rcx, MN_SIZE
+    add rdx, [rax + MS_nodes + VEC_ptr]
+    mov rsi, [r13 + SC_selected]
+    cmp [rdx + MN_viewid], rsi
+    je .Ldraw_store_selected
+    inc ecx
+    jmp .Ldraw_find_selected
+.Ldraw_store_selected: inc ecx
+    mov [r12 + MM_selected], ecx
 .Ldraw_paint_start: xor r14d, r14d
 .Ldraw_paint:
     cmp r14, [r13 + SC_elements + VEC_len]
@@ -382,6 +446,19 @@ FN memory_draw
     call canvas_paint_element
     inc r14
     jmp .Ldraw_paint
+    jmp .Ldraw_done
+.Ldraw_graph:
+    mov rdi, r12
+    call memory_build_graph
+    mov r13, [r12 + MM_graph]
+    mov eax, [r12 + MM_selected]
+    mov [r13 + GR_selected], eax
+    mov [rbx + SC_graph_view], r13
+    mov rdi, rbx
+    call canvas_graph_draw
+    mov qword ptr [rbx + SC_graph_view], 0
+    mov eax, [r13 + GR_selected]
+    mov [r12 + MM_selected], eax
 .Ldraw_done: EPILOGUE
 FN memory_key
     test edx, MOD_CTRL | MOD_ALT | MOD_SUPER
@@ -390,6 +467,8 @@ FN memory_key
     je .Lkey_next
     cmp esi, '['
     je .Lkey_prev
+    cmp esi, 'f'
+    je .Lkey_fold
     cmp esi, 'v'
     je .Lkey_mode
     cmp esi, 'n'
@@ -403,6 +482,11 @@ FN memory_key
     ret
 .Lkey_prev: push rbx
     call cmd_memory_prev
+    pop rbx
+    mov eax, 1
+    ret
+.Lkey_fold: push rbx
+    call cmd_memory_fold
     pop rbx
     mov eax, 1
     ret

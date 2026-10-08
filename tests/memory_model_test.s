@@ -15,6 +15,12 @@ FN main
     cmp qword ptr [rax + MM_snapshots + VEC_len], 9
     jne .Lfail
     mov rdi, rbx
+    call memory_build_scene
+    mov rdi, rbx
+    call memory_build_graph
+    mov rdi, [rbx + MM_graph]
+    call canvas_graph_projection
+    mov rdi, rbx
     call memory_free
     call scene_new
     mov rbx, rax

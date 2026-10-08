@@ -44,3 +44,11 @@ not change saved evidence. Teaching provenance is visible. Palette import/demo,
 raw .rhun-memory open, native save/reopen and print-memory are available.
 6 memory view checks, 4 viewport checks and owned model lifecycle passed.
 Screenshot /tmp/rhun-memory-2d.png inspected. 3D rendering follows in phase 3.
+
+Phase 3 acceptance: shared source IDs map to native 2D cards and 3D nodes;
+selection survives mode switches. 3D code/stack/memory segments fold with retained
+boundary edge source IDs. Typed colors and inspector addresses replace replica
+versions. Camera survives snapshot changes; navigation never edits evidence.
+3 memory graph, 6 existing graph and 6 memory view checks passed; 100 lifecycle
+cycles now include derived scene, graph and projection with zero allocation growth.
+Native screenshot /tmp/rhun-memory-3d.png inspected. F folds in the 3D view.

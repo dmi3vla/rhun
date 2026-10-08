@@ -30,6 +30,8 @@ FN canvas_graph_dump
 2:  mov rdi, r12
     lea rsi, [rip + .Lversions]
     call sb_push_cstr
+    cmp dword ptr [rbx + GR_profile], 1
+    je .Ldump_memory_versions
     mov eax, [rbx + GR_event]
     imul r13, rax, EV_SIZE
     add r13, [rbx + GR_events + VEC_ptr]
@@ -45,6 +47,7 @@ FN canvas_graph_dump
     inc r14d
     cmp r14d, 4
     jb 3b
+.Ldump_memory_versions:
     mov rdi, r12
     lea rsi, [rip + .Lnodes]
     call sb_push_cstr
