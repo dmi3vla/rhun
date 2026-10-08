@@ -88,6 +88,17 @@ FN scene_clone
     call mem_dup
     mov [r12 + SC_analysis], rax
 .Lclone_analysis_done:
+    mov rdi, [rbx + SC_memory]
+    test rdi, rdi
+    jz .Lclone_memory_done
+    call strlen
+    lea rcx, [rax + 1]
+    add [r12 + SC_bytes], rcx
+    mov rsi, rax
+    mov rdi, [rbx + SC_memory]
+    call mem_dup
+    mov [r12 + SC_memory], rax
+.Lclone_memory_done:
     xor r13d, r13d
 1:  cmp r13, [rbx + SC_elements + VEC_len]
     jae 9f
@@ -251,6 +262,14 @@ FN scene_commit
     mov rax, [r12 + SC_analysis]
     mov [rbx + SC_analysis], rax
     mov qword ptr [r12 + SC_analysis], 0
+    mov rdi, [rbx + SC_memory]
+    call mem_free
+    mov rax, [r12 + SC_memory]
+    mov [rbx + SC_memory], rax
+    mov qword ptr [r12 + SC_memory], 0
+    mov rdi, [rbx + SC_memory_view]
+    call memory_free
+    mov qword ptr [rbx + SC_memory_view], 0
     mov dword ptr [rbx + SC_trace_cursor], 0
     mov rdi, rbx
     call canvas_graph_validate
@@ -321,6 +340,14 @@ scene_history_restore:
     mov rax, [r14 + SC_analysis]
     mov [rbx + SC_analysis], rax
     mov qword ptr [r14 + SC_analysis], 0
+    mov rdi, [rbx + SC_memory]
+    call mem_free
+    mov rax, [r14 + SC_memory]
+    mov [rbx + SC_memory], rax
+    mov qword ptr [r14 + SC_memory], 0
+    mov rdi, [rbx + SC_memory_view]
+    call memory_free
+    mov qword ptr [rbx + SC_memory_view], 0
     mov dword ptr [rbx + SC_trace_cursor], 0
     mov rdi, r14
     call scene_free

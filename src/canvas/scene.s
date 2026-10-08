@@ -27,6 +27,10 @@ FN scene_free
     call canvas_graph_free
     mov rdi, [rbx + SC_trace_view]
     call radare_trace_free
+    mov rdi, [rbx + SC_memory]
+    call mem_free
+    mov rdi, [rbx + SC_memory_view]
+    call memory_free
     mov rdi, [rbx + SC_analysis]
     call mem_free
     mov rdi, [rbx + SC_generated]

@@ -26,7 +26,7 @@ class RadareFrames(m.CanvasEdit):
         self.assertTrue(all(pixel(x,y)==background for y in range(403,420) for x in range(536,576)))
     def test_save_reopen_retains_analysis_and_source(self):
         path=self.work/'review.rhun-canvas';self.run_editor(['cmd radare_demo']+self.save(path))
-        stored=json.loads(path.read_text());self.assertEqual(stored['version'],6)
+        stored=json.loads(path.read_text());self.assertEqual(stored['version'],7)
         self.assertEqual(self.scene([],path=path),stored)
         self.assertEqual(json.loads(stored['analysis'])['trace'],[])
     def test_invalid_inputs_keep_existing_scene(self):

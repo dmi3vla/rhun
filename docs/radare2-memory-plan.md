@@ -25,3 +25,13 @@ explicit provenance; addresses are 64-bit hex strings in the memory contract.
 Each phase ends with checks and a separate commit. Live debugger recording,
 arbitrary-architecture unwinding and recovered original source AST are outside
 this implementation; imported evidence is the supported runtime boundary.
+
+Phase 1 acceptance: native v7 owns a memory JSON field and reads v1–v6. Closed
+rhun-memory v1 supports 64 snapshots, 256 nodes/snapshot (4096 total), exact
+64-bit hex addresses, typed links and allocation generations. Source, observed,
+and demo provenance is explicit. Cycles/dangling IDs, wrong thread frames,
+range overflow and live pointers to freed allocations are rejected. Rhun slot
+capacity matches the allocator's header/classes/page rounding. Native analysis
+and memory profiles cannot be mixed; Excalidraw export refuses metadata loss.
+7 contract checks, 100 owned lifecycle cycles, 6 Radare frame checks and 7 canvas
+exchange checks passed after ./build.sh test. Imported memory has no live debugger.

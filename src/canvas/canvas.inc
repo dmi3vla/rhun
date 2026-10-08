@@ -36,6 +36,8 @@ F SC_exchange, 8
 F SC_ui, 8
 F SC_graph, 8
 F SC_graph_view, 8
+F SC_memory, 8
+F SC_memory_view, 8
 F SC_analysis, 8
 F SC_trace_view, 8
 F SC_trace_cursor, 4

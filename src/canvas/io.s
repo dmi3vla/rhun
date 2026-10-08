@@ -71,6 +71,19 @@ FN scene_serialize
 .Lserialize_analysis: mov rdi, r12
     call chat_json_quote
     mov rdi, r12
+    lea rsi, [rip + .Lmemory_key]
+    call sb_push_cstr
+    mov rsi, [rbx + SC_memory]
+    xor edx, edx
+    test rsi, rsi
+    jz .Lserialize_memory
+    mov rdi, rsi
+    call strlen
+    mov rdx, rax
+    mov rsi, [rbx + SC_memory]
+.Lserialize_memory: mov rdi, r12
+    call chat_json_quote
+    mov rdi, r12
     lea rsi, [rip + .Lscene_elements]
     call sb_push_cstr
     xor r13d, r13d
@@ -256,6 +269,8 @@ FN scene_parse
     cmp dword ptr [r12 + 4], 8
     je 101f
     cmp dword ptr [r12 + 4], 9
+    je 101f
+    cmp dword ptr [r12 + 4], 10
     jne .Lparse_null
 101:
     mov rdi, r12
@@ -284,6 +299,8 @@ FN scene_parse
     cmp rax, 5
     je 102f
     cmp rax, 6
+    je 102f
+    cmp rax, 7
     jne .Lparse_null
 102: mov [rsp + 32], eax
     cmp eax, 3
@@ -378,6 +395,18 @@ FN scene_parse
     jz .Lparse_bad
     mov [rbx + SC_analysis], rax
 .Lparse_analysis_done:
+    cmp dword ptr [rsp + 32], 7
+    jb .Lparse_memory_done
+    mov rdi, [rsp + 48]
+    lea rsi, [rip + .Lmemory]
+    call json_get
+    mov rdi, rax
+    mov esi, 3 << 20
+    call scene_owned_json_string
+    test rax, rax
+    jz .Lparse_bad
+    mov [rbx + SC_memory], rax
+.Lparse_memory_done:
     cmp dword ptr [rsp + 32], 2
     jb 104f
     mov rdi, [rsp + 40]
@@ -667,6 +696,10 @@ FN scene_parse
     call radare_analysis_valid
     test eax, eax
     jz .Lparse_bad
+    mov rdi, rbx
+    call memory_scene_valid
+    test eax, eax
+    jz .Lparse_bad
     mov rax, rbx
     EPILOGUE
 .Lparse_bad:
@@ -697,6 +730,11 @@ FN scene_load
     mov rdi, rbx
     mov rsi, r13
     call canvas_graph_import
+    test rax, rax
+    jnz 1f
+    mov rdi, rbx
+    mov rsi, r13
+    call memory_import
 1:  mov r12, rax
     mov rdi, rbx
     call mem_free
@@ -753,6 +791,11 @@ FN canvas_path
     call strcmp_eq
     test eax, eax
     jnz 9f
+    lea rdi, [rbx + r12 - 12]
+    lea rsi, [rip + .Lmemory_suffix]
+    call strcmp_eq
+    test eax, eax
+    jnz 9f
 1:  cmp r12, 11
     jb 8f
     lea rdi, [rbx + r12 - 11]
@@ -768,7 +811,7 @@ FN canvas_path
 9:  EPILOGUE
 .section .rodata
 .Lgraph_suffix: .asciz ".rhun-graph"
-.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":6,\"next\":"
+.Lscene_header: .asciz "{\"type\":\"rhun-canvas\",\"version\":7,\"next\":"
 .Lscene_elements: .asciz ",\"elements\":["
 .Lscene_end: .asciz "]}\n"
 .Ltext_key: .asciz "\"text\":"
@@ -875,3 +918,8 @@ FN scene_owned_json_string
 .section .rodata
 .Lanalysis: .asciz "analysis"
 .Lanalysis_key: .asciz ",\"analysis\":"
+
+.Lmemory: .asciz "memory"
+.Lmemory_key: .asciz ",\"memory\":"
+
+.Lmemory_suffix: .asciz ".rhun-memory"

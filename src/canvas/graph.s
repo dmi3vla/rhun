@@ -26,6 +26,7 @@ FN canvas_graph_id
 9:  lea eax, [r14 + 1]
     EPILOGUE
 # Borrowed JSON fields -> owned record according to closed table.
+.globl canvas_graph_fields
 canvas_graph_fields:
     PROLOGUE 16
     mov rbx, rdi

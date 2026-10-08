@@ -1,0 +1,743 @@
+{
+  "type": "rhun-memory",
+  "version": 1,
+  "binary": "demo:rhun-memory",
+  "provenance": 2,
+  "allocator": "rhun-v1",
+  "entrypoints": [
+    {
+      "id": "_start",
+      "address": "0x401020",
+      "kind": 0
+    },
+    {
+      "id": "main",
+      "address": "0x401040",
+      "kind": 2
+    },
+    {
+      "id": "app_init",
+      "address": "0x401060",
+      "kind": 1
+    }
+  ],
+  "snapshots": [
+    {
+      "id": "s0",
+      "thread": "T1",
+      "pc": "0x401000",
+      "sp": "0x7fffffffdf80",
+      "bp": "0x0",
+      "label": "ELF loading (teaching model)",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "ELF loading (teaching model)",
+          "address": "0x401000",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x401000",
+          "certainty": 3
+        },
+        {
+          "id": "initial",
+          "kind": 1,
+          "label": "Initial stack: argc / argv / envp / auxv",
+          "address": "0x7fffffffe000",
+          "size": 64,
+          "capacity": 64,
+          "state": 0,
+          "parent": "",
+          "thread": "T1",
+          "source": "0x0",
+          "certainty": 3
+        }
+      ],
+      "links": []
+    },
+    {
+      "id": "s1",
+      "thread": "T1",
+      "pc": "0x401020",
+      "sp": "0x7fffffffdf80",
+      "bp": "0x0",
+      "label": "_start / sys_init",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "_start / sys_init",
+          "address": "0x401020",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x401020",
+          "certainty": 3
+        },
+        {
+          "id": "initial",
+          "kind": 1,
+          "label": "Initial stack: argc / argv / envp / auxv",
+          "address": "0x7fffffffe000",
+          "size": 64,
+          "capacity": 64,
+          "state": 0,
+          "parent": "",
+          "thread": "T1",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "main#1",
+          "kind": 1,
+          "label": "sys_init",
+          "address": "0x7fffffffdf80",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "initial",
+          "thread": "T1",
+          "source": "0x401020",
+          "certainty": 3
+        }
+      ],
+      "links": [
+        {
+          "from": "code",
+          "to": "main#1",
+          "kind": 4
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "thread": "T1",
+      "pc": "0x401040",
+      "sp": "0x7fffffffdf00",
+      "bp": "0x0",
+      "label": "main / app_init",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "main / app_init",
+          "address": "0x401040",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x401040",
+          "certainty": 3
+        },
+        {
+          "id": "initial",
+          "kind": 1,
+          "label": "Initial stack: argc / argv / envp / auxv",
+          "address": "0x7fffffffe000",
+          "size": 64,
+          "capacity": 64,
+          "state": 0,
+          "parent": "",
+          "thread": "T1",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "main#1",
+          "kind": 1,
+          "label": "main: frame instance #1",
+          "address": "0x7fffffffdf80",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "initial",
+          "thread": "T1",
+          "source": "0x401020",
+          "certainty": 3
+        },
+        {
+          "id": "init#1",
+          "kind": 1,
+          "label": "app_init: frame instance #1",
+          "address": "0x7fffffffdf00",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "main#1",
+          "thread": "T1",
+          "source": "0x401040",
+          "certainty": 3
+        }
+      ],
+      "links": [
+        {
+          "from": "code",
+          "to": "main#1",
+          "kind": 4
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "thread": "T1",
+      "pc": "0x401060",
+      "sp": "0x7fffffffdf80",
+      "bp": "0x0",
+      "label": "Main event loop",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "Main event loop",
+          "address": "0x401060",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x401060",
+          "certainty": 3
+        },
+        {
+          "id": "initial",
+          "kind": 1,
+          "label": "Initial stack: argc / argv / envp / auxv",
+          "address": "0x7fffffffe000",
+          "size": 64,
+          "capacity": 64,
+          "state": 0,
+          "parent": "",
+          "thread": "T1",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "main#1",
+          "kind": 1,
+          "label": "main: frame instance #1",
+          "address": "0x7fffffffdf80",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "initial",
+          "thread": "T1",
+          "source": "0x401020",
+          "certainty": 3
+        }
+      ],
+      "links": [
+        {
+          "from": "code",
+          "to": "main#1",
+          "kind": 4
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "thread": "T1",
+      "pc": "0x401080",
+      "sp": "0x7fffffffdf80",
+      "bp": "0x0",
+      "label": "mem_alloc(64): H1 live",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "mem_alloc(64): H1 live",
+          "address": "0x401080",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x401080",
+          "certainty": 3
+        },
+        {
+          "id": "initial",
+          "kind": 1,
+          "label": "Initial stack: argc / argv / envp / auxv",
+          "address": "0x7fffffffe000",
+          "size": 64,
+          "capacity": 64,
+          "state": 0,
+          "parent": "",
+          "thread": "T1",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "main#1",
+          "kind": 1,
+          "label": "main: frame instance #1",
+          "address": "0x7fffffffdf80",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "initial",
+          "thread": "T1",
+          "source": "0x401020",
+          "certainty": 3
+        },
+        {
+          "id": "arena",
+          "kind": 2,
+          "label": "rhun mmap chunk: 1 MiB",
+          "address": "0x7f1000000000",
+          "size": 1048576,
+          "capacity": 1048576,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "H1",
+          "kind": 3,
+          "label": "H1: requested 64 / slot 128",
+          "address": "0x7f1000000010",
+          "size": 64,
+          "capacity": 128,
+          "state": 0,
+          "parent": "arena",
+          "thread": "",
+          "source": "0x401080",
+          "certainty": 3
+        },
+        {
+          "id": "buf",
+          "kind": 4,
+          "label": "buf: pointer value in main",
+          "address": "0x7fffffffdf88",
+          "size": 8,
+          "capacity": 8,
+          "state": 0,
+          "parent": "main#1",
+          "thread": "T1",
+          "source": "0x401080",
+          "certainty": 3
+        }
+      ],
+      "links": [
+        {
+          "from": "code",
+          "to": "main#1",
+          "kind": 4
+        },
+        {
+          "from": "buf",
+          "to": "H1",
+          "kind": 1
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "thread": "T1",
+      "pc": "0x4010a0",
+      "sp": "0x7fffffffdf00",
+      "bp": "0x0",
+      "label": "work(buf): additional call frame",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "work(buf): additional call frame",
+          "address": "0x4010a0",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x4010a0",
+          "certainty": 3
+        },
+        {
+          "id": "initial",
+          "kind": 1,
+          "label": "Initial stack: argc / argv / envp / auxv",
+          "address": "0x7fffffffe000",
+          "size": 64,
+          "capacity": 64,
+          "state": 0,
+          "parent": "",
+          "thread": "T1",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "main#1",
+          "kind": 1,
+          "label": "main: frame instance #1",
+          "address": "0x7fffffffdf80",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "initial",
+          "thread": "T1",
+          "source": "0x401020",
+          "certainty": 3
+        },
+        {
+          "id": "work#1",
+          "kind": 1,
+          "label": "work: frame instance #1",
+          "address": "0x7fffffffdf00",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "main#1",
+          "thread": "T1",
+          "source": "0x4010a0",
+          "certainty": 3
+        },
+        {
+          "id": "arena",
+          "kind": 2,
+          "label": "rhun mmap chunk: 1 MiB",
+          "address": "0x7f1000000000",
+          "size": 1048576,
+          "capacity": 1048576,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "H1",
+          "kind": 3,
+          "label": "H1: requested 64 / slot 128",
+          "address": "0x7f1000000010",
+          "size": 64,
+          "capacity": 128,
+          "state": 0,
+          "parent": "arena",
+          "thread": "",
+          "source": "0x401080",
+          "certainty": 3
+        },
+        {
+          "id": "buf",
+          "kind": 4,
+          "label": "buf: pointer value in main",
+          "address": "0x7fffffffdf88",
+          "size": 8,
+          "capacity": 8,
+          "state": 0,
+          "parent": "main#1",
+          "thread": "T1",
+          "source": "0x401080",
+          "certainty": 3
+        },
+        {
+          "id": "p",
+          "kind": 4,
+          "label": "p: argument (location unknown)",
+          "address": "0x0",
+          "size": 8,
+          "capacity": 8,
+          "state": 0,
+          "parent": "work#1",
+          "thread": "T1",
+          "source": "0x4010a0",
+          "certainty": 3
+        }
+      ],
+      "links": [
+        {
+          "from": "code",
+          "to": "main#1",
+          "kind": 4
+        },
+        {
+          "from": "main#1",
+          "to": "work#1",
+          "kind": 4
+        },
+        {
+          "from": "buf",
+          "to": "H1",
+          "kind": 1
+        },
+        {
+          "from": "p",
+          "to": "H1",
+          "kind": 1
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "thread": "T1",
+      "pc": "0x4010c0",
+      "sp": "0x7fffffffdf80",
+      "bp": "0x0",
+      "label": "mem_free(H1): dangling buf",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "mem_free(H1): dangling buf",
+          "address": "0x4010c0",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x4010c0",
+          "certainty": 3
+        },
+        {
+          "id": "initial",
+          "kind": 1,
+          "label": "Initial stack: argc / argv / envp / auxv",
+          "address": "0x7fffffffe000",
+          "size": 64,
+          "capacity": 64,
+          "state": 0,
+          "parent": "",
+          "thread": "T1",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "main#1",
+          "kind": 1,
+          "label": "main: frame instance #1",
+          "address": "0x7fffffffdf80",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "initial",
+          "thread": "T1",
+          "source": "0x401020",
+          "certainty": 3
+        },
+        {
+          "id": "arena",
+          "kind": 2,
+          "label": "rhun mmap chunk: 1 MiB",
+          "address": "0x7f1000000000",
+          "size": 1048576,
+          "capacity": 1048576,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "H1",
+          "kind": 3,
+          "label": "H1: requested 64 / slot 128",
+          "address": "0x7f1000000010",
+          "size": 64,
+          "capacity": 128,
+          "state": 1,
+          "parent": "arena",
+          "thread": "",
+          "source": "0x401080",
+          "certainty": 3
+        },
+        {
+          "id": "buf",
+          "kind": 4,
+          "label": "buf: pointer value in main",
+          "address": "0x7fffffffdf88",
+          "size": 8,
+          "capacity": 8,
+          "state": 0,
+          "parent": "main#1",
+          "thread": "T1",
+          "source": "0x401080",
+          "certainty": 3
+        }
+      ],
+      "links": [
+        {
+          "from": "code",
+          "to": "main#1",
+          "kind": 4
+        },
+        {
+          "from": "buf",
+          "to": "H1",
+          "kind": 3
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "thread": "T1",
+      "pc": "0x4010e0",
+      "sp": "0x7fffffffdf80",
+      "bp": "0x0",
+      "label": "Address reused: new allocation H2",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "Address reused: new allocation H2",
+          "address": "0x4010e0",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x4010e0",
+          "certainty": 3
+        },
+        {
+          "id": "initial",
+          "kind": 1,
+          "label": "Initial stack: argc / argv / envp / auxv",
+          "address": "0x7fffffffe000",
+          "size": 64,
+          "capacity": 64,
+          "state": 0,
+          "parent": "",
+          "thread": "T1",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "main#1",
+          "kind": 1,
+          "label": "main: frame instance #1",
+          "address": "0x7fffffffdf80",
+          "size": 128,
+          "capacity": 128,
+          "state": 0,
+          "parent": "initial",
+          "thread": "T1",
+          "source": "0x401020",
+          "certainty": 3
+        },
+        {
+          "id": "arena",
+          "kind": 2,
+          "label": "rhun mmap chunk: 1 MiB",
+          "address": "0x7f1000000000",
+          "size": 1048576,
+          "capacity": 1048576,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "H1",
+          "kind": 3,
+          "label": "H1: requested 64 / slot 128",
+          "address": "0x7f1000000010",
+          "size": 64,
+          "capacity": 128,
+          "state": 1,
+          "parent": "arena",
+          "thread": "",
+          "source": "0x401080",
+          "certainty": 3
+        },
+        {
+          "id": "buf",
+          "kind": 4,
+          "label": "buf: pointer value in main",
+          "address": "0x7fffffffdf88",
+          "size": 8,
+          "capacity": 8,
+          "state": 0,
+          "parent": "main#1",
+          "thread": "T1",
+          "source": "0x401080",
+          "certainty": 3
+        },
+        {
+          "id": "H2",
+          "kind": 3,
+          "label": "H2: new lifetime, same address",
+          "address": "0x7f1000000010",
+          "size": 64,
+          "capacity": 128,
+          "state": 0,
+          "parent": "arena",
+          "thread": "",
+          "source": "0x4010e0",
+          "certainty": 3
+        }
+      ],
+      "links": [
+        {
+          "from": "code",
+          "to": "main#1",
+          "kind": 4
+        },
+        {
+          "from": "buf",
+          "to": "H2",
+          "kind": 1
+        }
+      ]
+    },
+    {
+      "id": "s8",
+      "thread": "T1",
+      "pc": "0x401100",
+      "sp": "0x0",
+      "bp": "0x0",
+      "label": "Normal process exit",
+      "nodes": [
+        {
+          "id": "code",
+          "kind": 0,
+          "label": "Normal process exit",
+          "address": "0x401100",
+          "size": 0,
+          "capacity": 0,
+          "state": 0,
+          "parent": "",
+          "thread": "",
+          "source": "0x401100",
+          "certainty": 3
+        },
+        {
+          "id": "H1",
+          "kind": 3,
+          "label": "H1: historical allocation",
+          "address": "0x7f1000000010",
+          "size": 64,
+          "capacity": 128,
+          "state": 1,
+          "parent": "",
+          "thread": "",
+          "source": "0x0",
+          "certainty": 3
+        },
+        {
+          "id": "H2",
+          "kind": 3,
+          "label": "H2: historical allocation",
+          "address": "0x7f1000000010",
+          "size": 64,
+          "capacity": 128,
+          "state": 1,
+          "parent": "",
+          "thread": "",
+          "source": "0x0",
+          "certainty": 3
+        }
+      ],
+      "links": []
+    }
+  ]
+}
