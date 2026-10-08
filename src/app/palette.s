@@ -844,6 +844,8 @@ FN prompt_open
 prompt_initial:
     PROLOGUE
     mov eax, [rip + pal_prompt]
+    cmp eax, 22
+    je 9f
     cmp eax, 14
     je 9f
     cmp eax, 16
@@ -2082,6 +2084,8 @@ palette_accept:
     call tf_text
     test rdx, rdx
     jz .Lpa_close
+    cmp dword ptr [rip + pal_prompt], 22
+    je .Lpa_raw_radare
     cmp dword ptr [rip + pal_prompt], 14
     je .Lpa_raw_radare
     cmp dword ptr [rip + pal_prompt], 16
@@ -2280,6 +2284,12 @@ prompt_done:
     PROLOGUE
     mov rbx, rdi
     mov r12d, esi
+    cmp r12d, 22
+    jne .Lprompt_after_diff_chat
+    mov rdi, rbx
+    call diff_chat_compare_number
+    jmp 9f
+.Lprompt_after_diff_chat:
     cmp r12d, 19
     jne .Lprompt_after_diff_context
     mov rdi, rbx

@@ -504,6 +504,8 @@ g_commands:
     COMMAND diff_next, "Radare2 Diff: Next Difference", cmd_diff_next, ""
     COMMAND diff_prev, "Radare2 Diff: Previous Difference", cmd_diff_prev, ""
     COMMAND diff_clear, "Radare2 Diff: Clear Comparison", cmd_diff_clear, ""
+    COMMAND diff_chat_send, "Radare2 Diff: Send Current Scope to Ready Chat", cmd_diff_chat_send, ""
+    COMMAND diff_chat_compare, "Radare2 Diff: Compare Selected Chat Response", cmd_diff_chat_compare, ""
     COMMAND diff_context, "Radare2 Diff: Export Agent Context", cmd_diff_context, ""
     COMMAND diff_load, "Radare2 Diff: Load Agent Claims", cmd_diff_load, ""
     COMMAND diff_export, "Radare2 Diff: Export JSON Markdown Report", cmd_diff_export, ""

@@ -3620,3 +3620,41 @@ FN agents_chat_clipboard_token
     mov rax, [rip + clipboard_epoch]
     inc rax
 1:  ret
+
+.text
+# Explicit one-based assistant response in the active chat, copied before any
+# subsequent parse/event. Refuse streaming/busy transcripts and tool/user text.
+FN agents_diff_response_copy
+    PROLOGUE 16
+    mov r12, rdi
+    test r12, r12
+    jz .Ldiff_response_none
+    call chat_busy
+    test eax, eax
+    jnz .Ldiff_response_none
+    xor r13d, r13d
+    xor r14d, r14d
+.Ldiff_response_scan:
+    cmp r13, [rip + chat_session + AS_msgs + VEC_len]
+    jae .Ldiff_response_none
+    imul rbx, r13, AM_SIZE
+    add rbx, [rip + chat_session + AS_msgs + VEC_ptr]
+    cmp dword ptr [rbx + AM_role], R_ASSIST
+    jne .Ldiff_response_more
+    inc r14
+    cmp r14, r12
+    jne .Ldiff_response_more
+    mov rsi, [rbx + AM_len]
+    cmp rsi, 1 << 20
+    ja .Ldiff_response_none
+    mov [rsp], rsi
+    mov rdi, [rbx + AM_text]
+    call mem_dup
+    mov rdx, [rsp]
+    EPILOGUE
+.Ldiff_response_more: inc r13
+    jmp .Ldiff_response_scan
+.Ldiff_response_none:
+    xor eax, eax
+    xor edx, edx
+    EPILOGUE
