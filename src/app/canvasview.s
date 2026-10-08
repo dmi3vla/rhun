@@ -30,6 +30,19 @@ FN canvas_key
     mov r12d, esi
     mov r13d, edx
     call canvas_active
+    mov rcx, [rax + SC_memory]
+    test rcx, rcx
+    jz .Lcanvas_key_no_memory
+    cmp byte ptr [rcx], 0
+    je .Lcanvas_key_no_memory
+    mov edi, ebx
+    mov esi, r12d
+    mov edx, r13d
+    pop r13
+    pop r12
+    pop rbx
+    jmp memory_key
+.Lcanvas_key_no_memory:
     mov rcx, [rax + SC_analysis]
     test rcx, rcx
     jz .Lcanvas_key_regular
@@ -98,6 +111,15 @@ FN canvas_draw
     mov edx, [rbx + SC_w]
     mov ecx, [rbx + SC_h]
     call gfx_clip_push
+    mov rax, [rbx + SC_memory]
+    test rax, rax
+    jz .Ldraw_no_memory
+    cmp byte ptr [rax], 0
+    je .Ldraw_no_memory
+    mov rdi, rbx
+    call memory_draw
+    jmp 103f
+.Ldraw_no_memory:
     cmp qword ptr [rbx + SC_graph_view], 0
     je 104f
     mov rdi, rbx
@@ -200,6 +222,7 @@ FN canvas_draw
 9:  EPILOGUE
 
 # Mid-button pan and pointer-anchored bounded zoom; never mutates scene content.
+.globl canvas_view_input
 canvas_view_input:
     PROLOGUE
     mov rbx, rdi

@@ -35,3 +35,12 @@ capacity matches the allocator's header/classes/page rounding. Native analysis
 and memory profiles cannot be mixed; Excalidraw export refuses metadata loss.
 7 contract checks, 100 owned lifecycle cycles, 6 Radare frame checks and 7 canvas
 exchange checks passed after ./build.sh test. Imported memory has no live debugger.
+
+Phase 2 acceptance: dedicated native Memory tab draws code/entry, thread stack,
+and mappings/allocations as derived frames. Typed colors separate pointer,
+candidate and dangling links; freed allocations retain historical identity.
+Previous/next and [ ] preserve ordered snapshots; model/camera navigation does
+not change saved evidence. Teaching provenance is visible. Palette import/demo,
+raw .rhun-memory open, native save/reopen and print-memory are available.
+6 memory view checks, 4 viewport checks and owned model lifecycle passed.
+Screenshot /tmp/rhun-memory-2d.png inspected. 3D rendering follows in phase 3.

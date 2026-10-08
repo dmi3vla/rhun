@@ -374,12 +374,16 @@ memory_rhun: .asciz "rhun-v1"
     .quad .Lprovenance, MM_provenance, 2, 0, 2
     .quad 0
 .p2align 3
+.globl memory_entry_fields
+memory_entry_fields:
 .Lentry_fields:
     .quad .Lid, ME_id, 1, 0, 0
     .quad .Laddress, ME_address, 1, 0, 0
     .quad .Lkind, ME_kind, 2, 0, 3
     .quad 0
 .p2align 3
+.globl memory_snapshot_fields
+memory_snapshot_fields:
 .Lsnapshot_fields:
     .quad .Lid, MS_id, 1, 0, 0
     .quad .Lthread, MS_thread, 1, 0, 0
@@ -389,6 +393,8 @@ memory_rhun: .asciz "rhun-v1"
     .quad .Llabel, MS_label, 1, 0, 0
     .quad 0
 .p2align 3
+.globl memory_node_fields
+memory_node_fields:
 .Lnode_fields:
     .quad .Lid, MN_id, 1, 0, 0
     .quad .Llabel, MN_label, 1, 0, 0
@@ -403,6 +409,8 @@ memory_rhun: .asciz "rhun-v1"
     .quad .Lcertainty, MN_certainty, 2, 0, 3
     .quad 0
 .p2align 3
+.globl memory_link_fields
+memory_link_fields:
 .Llink_fields:
     .quad .Lfrom, ML_from, 1, 0, 0
     .quad .Lto, ML_to, 1, 0, 0

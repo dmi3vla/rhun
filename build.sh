@@ -14,6 +14,7 @@ for s in $(find src -name "*.s" ! -path "src/mac/*" ! -path "src/win/*" | LC_ALL
     stale=
     [ "$s" = src/canvas/graph.s ] && [ -f "$o" ] && [ examples/canvas/distributed-state.rhun-graph -nt "$o" ] && stale=1
     [ "$s" = src/radare/app.s ] && [ -f "$o" ] && [ examples/radare2/branch-demo.agfj.json -nt "$o" ] && stale=1
+    [ "$s" = src/memory/app.s ] && [ -f "$o" ] && [ examples/memory/rhun-lifecycle.rhun-memory -nt "$o" ] && stale=1
     # assets.s only names the embedded files; their contents count too
     [ "$s" = build/assets.s ] && [ -f "$o" ] && [ -n "$(find runtime assets/fonts -newer "$o" -print -quit)" ] && stale=1
     if [ -n "$stale" ] || [ ! -f "$o" ] || [ "$s" -nt "$o" ] || [ -n "$(find src -name '*.inc' -newer "$o" -print -quit)" ]; then

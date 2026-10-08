@@ -16,6 +16,7 @@ F MN_size, 4
 F MN_capacity, 4
 F MN_state, 4
 F MN_certainty, 4
+F MN_viewid, 8
 ENDSTRUCT MN_SIZE
 STRUCT
 F ML_from, 8
@@ -42,6 +43,7 @@ F MM_entrypoints, VEC_SIZE
 F MM_snapshots, VEC_SIZE
 F MM_cursor, 4
 F MM_mode, 4
+F MM_selected, 4
 F MM_revision, 8
 F MM_scene, 8
 F MM_graph, 8

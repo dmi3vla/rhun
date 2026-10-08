@@ -2,6 +2,12 @@
 .include "canvas/canvas.inc"
 .text
 FN canvas_toolbar
+    mov rax, [rdi + SC_memory]
+    test rax, rax
+    jz .Ltoolbar_no_memory
+    cmp byte ptr [rax], 0
+    jne memory_toolbar
+.Ltoolbar_no_memory:
     mov rax, [rdi + SC_analysis]
     test rax, rax
     jz .Ltoolbar_no_radare

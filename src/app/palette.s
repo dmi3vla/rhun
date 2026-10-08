@@ -2280,6 +2280,12 @@ prompt_done:
     PROLOGUE
     mov rbx, rdi
     mov r12d, esi
+    cmp r12d, 18
+    jne .Lprompt_after_memory
+    mov rdi, rbx
+    call memory_import_file
+    jmp 9f
+.Lprompt_after_memory:
     cmp r12d, 15
     jne .Lprompt_after_r2_trace
     mov rdi, rbx
