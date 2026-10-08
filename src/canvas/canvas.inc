@@ -43,6 +43,7 @@ F SC_trace_view, 8
 F SC_trace_cursor, 4
 F SC_generated, 8
 F SC_mode, 4
+F SC_diff, 8
 F SC_proposal, 8
 F SC_proposal_selected, 8
 F SC_fold, VEC_SIZE

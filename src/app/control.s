@@ -629,6 +629,14 @@ c_print_trace:
     xor eax, eax
     ret
 
+c_print_diff:
+    PROLOGUE
+    call canvas_active
+    mov rdi, rax
+    lea rsi, [rip + out]
+    call diff_dump
+    xor eax, eax
+    EPILOGUE
 c_print_memory:
     PROLOGUE
     call canvas_active
@@ -1366,6 +1374,7 @@ on_client:
 .Lc_print_scm: .asciz "print-scm"
 .Lc_wait_ai: .asciz "wait-ai"
 .Lc_print_trace: .asciz "print-radare-trace"
+.Lc_print_diff: .asciz "print-diff"
 .Lc_print_memory: .asciz "print-memory"
 .Lc_print_radare: .asciz "print-radare"
 .Lc_print_ai: .asciz "print-ai"
@@ -1399,6 +1408,7 @@ ctl_table:
     .quad .Lc_print_graph, c_print_graph
     .quad .Lc_print_ui, c_print_ui
     .quad .Lc_print_trace, c_print_trace
+    .quad .Lc_print_diff, c_print_diff
     .quad .Lc_print_memory, c_print_memory
     .quad .Lc_print_radare, c_print_radare
     .quad .Lc_print_canvas, c_print_canvas

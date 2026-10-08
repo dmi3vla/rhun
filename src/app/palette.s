@@ -2280,6 +2280,24 @@ prompt_done:
     PROLOGUE
     mov rbx, rdi
     mov r12d, esi
+    cmp r12d, 19
+    jne .Lprompt_after_diff_context
+    mov rdi, rbx
+    call diff_context_write
+    jmp 9f
+.Lprompt_after_diff_context:
+    cmp r12d, 20
+    jne .Lprompt_after_diff_load
+    mov rdi, rbx
+    call diff_load_file
+    jmp 9f
+.Lprompt_after_diff_load:
+    cmp r12d, 21
+    jne .Lprompt_after_diff_export
+    mov rdi, rbx
+    call diff_report_write
+    jmp 9f
+.Lprompt_after_diff_export:
     cmp r12d, 18
     jne .Lprompt_after_memory
     mov rdi, rbx
