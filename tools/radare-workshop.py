@@ -10,8 +10,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import tempfile
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,8 +23,13 @@ def main():
     parser.add_argument('binary', nargs='?', type=Path, default=ROOT / 'rhun')
     parser.add_argument('--r2', default=os.environ.get('RHUN_RADARE2', 'r2'))
     parser.add_argument('--out', type=Path, default=ROOT / 'build/radare-workshop')
+    parser.add_argument('--native', action='store_true', help='also verify available Wayland/X11 windows')
     args = parser.parse_args()
     binary, out = args.binary.resolve(), args.out.resolve()
+    if not binary.is_file():
+        parser.error('input ELF missing: ' + str(binary))
+    if not (ROOT / 'build/rhun').is_file():
+        parser.error('viewer missing: run ./build.sh first')
     r2 = shutil.which(args.r2)
     if not r2:
         parser.error('r2 missing: set RHUN_RADARE2 or --r2; see docs/rhun-radare2-walkthrough-ru.md')
@@ -37,6 +44,9 @@ def main():
         fields = line.split()
         if len(fields) == 3:
             symbols[fields[2]] = int(fields[0], 16)
+    missing = set(['_start', 'sys_init', 'main', 'app_init', 'mem_alloc', 'mem_free']) - symbols.keys()
+    if missing:
+        parser.error('this rhun-specific workshop requires symbols: ' + ', '.join(sorted(missing)))
     manifest = dict(binary=str(binary), sha256=original,
                     r2=subprocess.check_output([r2, '-v'], env=env, text=True).splitlines()[0],
                     execution_recorded=False, functions=[], checks=[])
@@ -161,6 +171,62 @@ def main():
         node = record(text, 'rhun-memory-view')['nodes'][0]
         assert node['state'] == 2 and node['certainty'] == 1
         check('header fixture import retains unknown allocation liveness')
+        if args.native:
+            backends = [b for b, variable in [('wayland', 'WAYLAND_DISPLAY'), ('x11', 'DISPLAY')]
+                        if os.environ.get(variable)]
+            assert backends, '--native requires a display'
+            for backend in backends:
+                native_env = dict(env, RHUN_BACKEND=backend, SHELL='/nonexistent')
+                for variable in (['DISPLAY'] if backend == 'wayland' else ['WAYLAND_DISPLAY', 'WAYLAND_SOCKET']):
+                    native_env.pop(variable, None)
+                control = home / (backend + '.sock')
+                process = subprocess.Popen([ROOT / 'build/rhun', ROOT,
+                    out / 'mem_alloc-memory.rhun-canvas', '--wait', '--control', control],
+                    env=native_env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+                try:
+                    deadline = time.monotonic() + 8
+                    while not control.exists() and process.poll() is None and time.monotonic() < deadline:
+                        time.sleep(.02)
+                    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                        client.settimeout(8)
+                        client.connect(str(control))
+                        with client.makefile('r') as reader:
+                            def command(value):
+                                client.sendall((value + '\n').encode())
+                                lines = []
+                                while True:
+                                    line = reader.readline()
+                                    if line == 'ok\n':
+                                        time.sleep(.1)
+                                        return ''.join(lines)
+                                    assert line not in ('', 'error\n'), (backend, value)
+                                    lines.append(line)
+                            view = record(command('print-memory'), 'rhun-memory-view')
+                            assert len(view['nodes']) == 9
+                            command('cmd memory_select_next')
+                            command('key f')
+                            command('key v')
+                            graph = record(command('print-graph'), 'rhun-graph-view')
+                            assert len(graph['nodes']) == 1
+                            command('key f')
+                            before = record(command('print-graph'), 'rhun-graph-view')
+                            for action in ['move 450 300', 'down 2', 'move 530 340', 'up 2', 'scroll -1']:
+                                command(action)
+                            after = record(command('print-graph'), 'rhun-graph-view')
+                            assert (before['yaw'], before['pitch']) != (after['yaw'], after['pitch'])
+                            command('shot ' + str(out / (backend + '-mem_alloc-3d.ppm')))
+                            command('key n')
+                            command('key v')
+                            command('shot ' + str(out / (backend + '-mem_alloc-2d.ppm')))
+                            command('quit')
+                    assert process.wait(timeout=8) == 0
+                    assert process.stderr.read() == ''
+                    check(backend + ': native supplied-binary projection, fold, modes, orbit, zoom, reset')
+                finally:
+                    if process.poll() is None:
+                        process.terminate()
+                        process.wait(timeout=8)
+                    process.stderr.close()
     assert digest() == original, 'input binary changed'
     check('input SHA256 unchanged')
     (out / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')

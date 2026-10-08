@@ -1,5 +1,8 @@
 # Radare2 native analysis in rhun
 
+Russian click-by-click walkthrough on the supplied rhun ELF:
+[Практикум Radare2 / Memory](rhun-radare2-walkthrough-ru.md).
+
 The Radare2 tab projects a static control-flow graph into native function frames,
 block rectangles, assembly text and bound arrows. It uses rhun's ASM canvas and
 rasterizer; the external `r2` process supplies analysis JSON. Linux x86-64 is the

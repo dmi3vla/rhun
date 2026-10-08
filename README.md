@@ -60,6 +60,9 @@ Fast built-in terminal:
 and [native entry / stack / heap 2D–3D analysis](docs/radare2-memory.md)
 are available in the local Linux build; platform and interchange limits are documented there.
 
+[Пошаговый практикум: анализ бинарника rhun, 2D/3D, стек/куча и ревью](docs/rhun-radare2-walkthrough-ru.md)
+includes prepared-scene launch instructions and a reproducible acceptance driver.
+
 ## Contribute
 
 `rhun` welcomes new contributors. Pull requests are open to everyone: it doesn't matter whether a bug fix or a useful addition was created manually or using AI. Every fix matters.
