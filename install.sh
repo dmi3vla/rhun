@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs rhun from its GitHub releases, updates it and removes it; no root needed.
-#   curl -fsSL https://github.com/vshvedov/rhun/releases/latest/download/install.sh | sh
-#   wget -qO- https://github.com/vshvedov/rhun/releases/latest/download/install.sh | sh
+#   curl -fsSL https://github.com/dmi3vla/rhun/releases/latest/download/install.sh | sh
+#   wget -qO- https://github.com/dmi3vla/rhun/releases/latest/download/install.sh | sh
 #   ... | sh -s -- [options]
 #
 #   --version X             install X instead of the latest release
@@ -24,7 +24,7 @@
 
 set -eu
 
-RELEASES=https://github.com/vshvedov/rhun/releases
+RELEASES=https://github.com/dmi3vla/rhun/releases
 TEAM_ID=G29V3JRMJJ
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 

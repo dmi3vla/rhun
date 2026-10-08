@@ -1202,7 +1202,7 @@ ver_fields:
 9:  EPILOGUE
 
 .section .rodata
-.Lbase: .asciz "https://github.com/vshvedov/rhun/releases"
+.Lbase: .asciz "https://github.com/dmi3vla/rhun/releases"
 .Llatest_path: .asciz "/latest/download/VERSION"
 .Lenv_url: .asciz "RHUN_RELEASES_URL"
 .Lenv_target: .asciz "RHUN_UPDATE_TARGET"

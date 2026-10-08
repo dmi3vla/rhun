@@ -50,7 +50,7 @@ cfg_git: .long 1
 .globl cfg_chat_model, cfg_chat_effort, cfg_chat_cli, cfg_opencode_cli
 cfg_commit_ai: .long 0
 .globl cfg_update_check
-cfg_update_check: .long 1
+cfg_update_check: .long 0
 .p2align 3
 cfg_theme: .quad cfg_def_theme
 cfg_font: .quad .Lempty
@@ -729,7 +729,7 @@ g_settings:
     SETTING .Ls_git, commit_ai, ST_CHOICE, cfg_commit_ai, 0, 3, 1, 0, "Commit message AI", "Optional. Cloud providers use your subscription.", .Lai_opts, g_ai_provider_desc
     SETTING .Ls_git, commit_model, ST_STR, cfg_commit_model, 0, 0, 0, 0, "Local model", "Ollama model name. Default download: about 1 GB."
     SETTING_ACTION .Ls_git, ai_setup, cmd_ai_model_files, .Lai_setup, g_ai_local_desc
-    SETTING .Ls_updates, check, ST_BOOL, cfg_update_check, 0, 1, 1, 0, "Check for updates", "Look for a new version at startup and once a day."
+    SETTING .Ls_updates, check, ST_BOOL, cfg_update_check, 0, 1, 0, 0, "Check for updates", "Look for a new version at startup and once a day."
     SETTING_ACTION .Ls_updates, check_now, cmd_check_for_updates, g_version_text, g_update_desc
     .quad 0, 0, 0, 0, 0
     .long 0, 0, 0, 0, 0, 0

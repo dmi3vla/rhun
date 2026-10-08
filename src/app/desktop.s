@@ -125,7 +125,7 @@ FN desktop_failed
 
 .section .rodata
 .Lwebsite: .asciz "https://rhun.app"
-.Lfeedback: .asciz "https://github.com/vshvedov/rhun/issues"
+.Lfeedback: .asciz "https://github.com/dmi3vla/rhun/issues"
 .Ldiscord: .asciz "https://discord.gg/Aj4drpFbWf"
 .Lemail: .asciz "mailto:hi@rhun.app?subject=rhun%20feedback"
 .Lfailed: .asciz "Could not open the desktop application"
