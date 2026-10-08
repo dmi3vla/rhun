@@ -44,6 +44,7 @@ F MM_snapshots, VEC_SIZE
 F MM_cursor, 4
 F MM_mode, 4
 F MM_selected, 4
+F MM_fold_focus, 12
 F MM_camera_zoom, 4
 F MM_camera_x, 4
 F MM_camera_y, 4

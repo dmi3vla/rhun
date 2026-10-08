@@ -87,3 +87,30 @@ Update tests now explicitly cover default-off/no-background-state and opt-in;
 desktop link expectations use the fork Issues URL.
 Final `sh tests/run.sh` completed with exit 0 on the final Linux build. Actual-r2
 and live-display checks above were run separately because they are opt-in.
+
+6. Unified view folding. Share code/stack/memory segment folds between native
+   2D cards and 3D nodes, preserve boundary link source indices, aggregate parallel
+   boundary links by endpoints and kind, keep selection coherent, and rebuild
+   derived geometry without editing imported evidence. Verify clicks, mode
+   switches, empty segments, save/reopen, cameras and owned lifecycle. Commit
+   after phase checks; this does not expand the live-debugger boundary.
+
+Phase 6 acceptance: native 2D summaries and 3D segment nodes share fold bits and
+visual selection. Summary/header clicks select the segment; unfolding restores
+that segment's last focused source node. Keyboard selection visits visible nodes
+and summaries only. 2D arrows aggregate by directed endpoints and kind, retaining
+all zero-based snapshot link indices; hidden internal relations remain in the
+owned evidence. Geometry is camera-independent, with no dependence on 3D clipping.
+Common Canvas graph fold/mode/select/event commands delegate to Memory controls.
+Fold rebuilds preserve 2D pan/zoom and do not change the saved memory JSON.
+Snapshot navigation resets folds/local focus; save/reopen resets view state.
+`print-memory.view` exposes derived cards and links for inspection/comparison.
+10 new fold checks passed, including parallel typed links, multiple folds,
+empty segments, pointer boundary IDs, mode switching, focus, pixel-identical
+camera restoration and native save/reopen. All 35 memory checks passed including
+real Radare2 6.2.4 /bin/true analysis; 6 existing graph, 4 viewport, 6 Radare frames
+and 2 live Wayland/X11 checks passed (53 targeted checks total). 100 owned model
+cycles now rebuild folded/unfolded scenes with unchanged live allocation count.
+10 memory modules and 2 unit modules translate to ARM64. 2D/3D folded screenshots
+were inspected. Full unrelated editor regression suite was not repeated in this
+phase; phase 5 records the preceding full successful run.

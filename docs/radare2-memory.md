@@ -37,9 +37,18 @@ are candidates, red are dangling pointers to historical allocations.
 mouse pans 2D or rotates 3D; the wheel zooms. **Select Next Object** provides
 keyboard/palette selection. Click a card/node to select it; selection maps to the
 same source ID when switching views. Snapshot changes clear selection and retain
-camera. `N` / Entry restores default cameras. In **3D**, `F` / **Fold Selected
-Segment** folds code, stack or memory, retaining external links and their source
-IDs; unfolding restores original nodes. Folding is not a runtime event.
+camera; folds reset. `N` / Entry restores default cameras. In **2D and 3D**,
+`F` / **Fold Selected Segment** folds code, stack or memory. Select a node or
+click a 2D segment header/summary first. A collapsed 2D card shows its node count;
+external arrows bind to that card. Parallel links with the same directed endpoints
+and kind are aggregated while retaining every original source index; different
+link kinds remain separate. Internal links are hidden in the folded view and stay
+in the evidence. Folds and selected segments survive mode switches. Unfolding
+restores original geometry and the last node focused in that segment. Keyboard
+selection skips hidden cards and includes collapsed summaries. Empty summaries
+create no source nodes. The common Canvas graph commands delegate to these same
+Memory controls when this tab is active, including snapshot previous/next.
+Folding is not a runtime event.
 
 Save As `.rhun-canvas` persists the full evidence in native v7. Reopening resets
 view state (snapshot, camera, selection and folds), not evidence. Native v1–v6
@@ -127,7 +136,12 @@ The request asks for source-linked review prose distinguishing facts, candidates
 and missing evidence. `allowed` is empty; no memory mutation is accepted from a
 review response. Existing Radare2 CFG source-note workflows remain separate.
 
-Control/script diagnostics: `print-memory` exposes the current owned snapshot;
+Control/script diagnostics: `print-memory` exposes the current owned snapshot
+and its camera-independent logical 2D `view` (`fold`, card IDs/geometry, typed
+links and zero-based numeric `sourceIds`). Source link indices refer to the
+snapshot's original ordered `links` array. Individual visual IDs are 1-based
+snapshot node indices; segment summaries are 257 code, 258 stack, 259 memory.
+These derived IDs are not allocation addresses or persistent source node IDs;
 `print-graph` exposes projected nodes, typed edges and folded `sourceIds`.
 Memory graphs have an empty `versions` array: replica versions from the separate
 distributed-state demo have no memory-analysis meaning.

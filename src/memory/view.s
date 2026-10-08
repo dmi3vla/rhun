@@ -88,6 +88,8 @@ memory_step:
     mov [rbx + MM_graph_pitch], edx
 .Lstep_camera_done:
     mov dword ptr [rbx + MM_selected], 0
+    mov qword ptr [rbx + MM_fold_focus], 0
+    mov dword ptr [rbx + MM_fold_focus + 8], 0
     mov rdi, [rbx + MM_scene]
     call scene_free
     mov qword ptr [rbx + MM_scene], 0
@@ -168,14 +170,16 @@ FN memory_description
     EPILOGUE
 # Derived scene has no model/source edits. Positions depend only on lane and order.
 FN memory_build_scene
-    PROLOGUE SB_SIZE+64
+    PROLOGUE SB_SIZE+96
     mov rbx, rdi
     cmp qword ptr [rbx + MM_scene], 0
     jne .Lbuild_done
     mov rdi, rsp
     xor esi, esi
-    mov edx, SB_SIZE+64
+    mov edx, SB_SIZE+96
     call memset
+    mov rdi, rbx
+    call memory_build_graph
     call scene_new
     mov r12, rax
     mov [rbx + MM_scene], rax
@@ -204,6 +208,14 @@ FN memory_build_scene
     call scene_add
     mov rcx, [rax + CE_id]
     mov [rsp + SB_SIZE + r14*8], rcx
+    lea rcx, [r14 + 257]
+    mov [rax + CE_reserved], ecx
+    mov rdx, [rbx + MM_graph]
+    lea ecx, [r14 + 1]
+    bt dword ptr [rdx + GR_fold], ecx
+    jnc .Lbuild_frame_open
+    mov dword ptr [rax + CE_h], 180
+.Lbuild_frame_open:
     mov rdi, r12
     mov esi, CT_TEXT
     imul edx, r14d, 380
@@ -215,6 +227,7 @@ FN memory_build_scene
     mov r15, rax
     mov rcx, [rsp + SB_SIZE + r14*8]
     mov [rax + CE_frame], rcx
+    mov [rax + CE_group], rcx
     lea rax, [rip + .Llanes]
     mov rdi, [rax + r14*8]
     call strlen
@@ -223,6 +236,49 @@ FN memory_build_scene
     mov rdi, [rax + r14*8]
     call mem_dup
     mov [r15 + CE_text], rax
+    mov rax, [rbx + MM_graph]
+    lea ecx, [r14 + 1]
+    bt dword ptr [rax + GR_fold], ecx
+    jnc .Lbuild_frame_next
+    mov rdi, r12
+    mov esi, CT_RECT
+    imul edx, r14d, 380
+    add edx, 50
+    mov ecx, 108
+    mov r8d, 340
+    mov r9d, 96
+    call scene_add
+    mov rcx, [rax + CE_id]
+    mov [rsp + SB_SIZE + 64 + r14*8], rcx
+    lea rcx, [r14 + 257]
+    mov [rax + CE_reserved], ecx
+    mov rcx, [rsp + SB_SIZE + r14*8]
+    mov [rax + CE_frame], rcx
+    mov dword ptr [rax + CE_color], 0xff8da4ff
+    mov rdi, rsp
+    call sb_clear
+    mov rdi, rsp
+    mov rsi, rbx
+    lea edx, [r14 + 1]
+    call memory_fold_summary
+    mov rdi, r12
+    mov esi, CT_TEXT
+    imul edx, r14d, 380
+    add edx, 60
+    mov ecx, 116
+    mov r8d, 320
+    mov r9d, 80
+    call scene_add
+    mov r15, rax
+    mov rcx, [rsp + SB_SIZE + r14*8]
+    mov [rax + CE_frame], rcx
+    mov rcx, [rsp + SB_SIZE + 64 + r14*8]
+    mov [rax + CE_group], rcx
+    mov rdi, [rsp + SB_ptr]
+    mov rsi, [rsp + SB_len]
+    call mem_dup
+    mov [r15 + CE_text], rax
+.Lbuild_frame_next:
     inc r14d
     cmp r14d, 3
     jb .Lbuild_frame
@@ -244,6 +300,15 @@ FN memory_build_scene
 .Lbuild_stack: mov ecx, 1
 .Lbuild_lane:
     mov [rsp + SB_SIZE + 40], ecx
+    mov rax, [rbx + MM_graph]
+    lea edx, [rcx + 1]
+    bt dword ptr [rax + GR_fold], edx
+    jnc .Lbuild_node_open
+    mov rax, [rsp + SB_SIZE + 64 + rcx*8]
+    mov [r15 + MN_viewid], rax
+    inc r14d
+    jmp .Lbuild_node
+.Lbuild_node_open:
     mov edx, [rsp + SB_SIZE + 24 + rcx*4]
     inc dword ptr [rsp + SB_SIZE + 24 + rcx*4]
     imul edx, 180
@@ -268,6 +333,8 @@ FN memory_build_scene
     mov [rax + CE_color], edx
     mov rcx, [rax + CE_id]
     mov [r15 + MN_viewid], rcx
+    lea rcx, [r14 + 1]
+    mov [rax + CE_reserved], ecx
     mov ecx, [rsp + SB_SIZE + 40]
     mov rcx, [rsp + SB_SIZE + rcx*8]
     mov [rax + CE_frame], rcx
@@ -320,41 +387,22 @@ FN memory_build_scene
     add rax, [r13 + MS_nodes + VEC_ptr]
     mov rsi, [rax + MN_viewid]
     mov [rsp + SB_SIZE + 40], rsi
-    mov rdi, r12
-    call scene_find
-    mov edx, [rax + CE_x]
-    add edx, 170
-    mov ecx, [rax + CE_y]
-    add ecx, 80
-    mov [rsp + SB_SIZE + 48], edx
-    mov [rsp + SB_SIZE + 52], ecx
     mov eax, [r15 + ML_b]
     dec eax
     imul rax, MN_SIZE
     add rax, [r13 + MS_nodes + VEC_ptr]
-    mov rsi, [rax + MN_viewid]
-    mov [rsp + SB_SIZE + 56], rsi
+    mov rdx, [rax + MN_viewid]
+    cmp rdx, rsi
+    je .Lbuild_link_next
     mov rdi, r12
-    call scene_find
-    mov r8d, [rax + CE_x]
-    add r8d, 170
-    sub r8d, [rsp + SB_SIZE + 48]
-    mov r9d, [rax + CE_y]
-    add r9d, 80
-    sub r9d, [rsp + SB_SIZE + 52]
-    mov rdi, r12
-    mov esi, CT_ARROW
-    mov edx, [rsp + SB_SIZE + 48]
-    mov ecx, [rsp + SB_SIZE + 52]
-    call scene_add
-    mov rcx, [rsp + SB_SIZE + 40]
-    mov [rax + CE_from], rcx
-    mov rcx, [rsp + SB_SIZE + 56]
-    mov [rax + CE_to], rcx
+    mov ecx, [r15 + ML_kind]
+    mov r8, r14
+    call memory_view_link
     mov edx, [r15 + ML_kind]
     lea rcx, [rip + .Llink_colors]
     mov edx, [rcx + rdx*4]
     mov [rax + CE_color], edx
+.Lbuild_link_next:
     inc r14d
     jmp .Lbuild_link
 .Lbuild_free: mov rdi, rsp
@@ -377,18 +425,13 @@ FN memory_draw
     mov eax, [r12 + MM_selected]
     test eax, eax
     jz .Ldraw_no_saved_selection
-    dec eax
-    mov r14d, eax
-    mov rdi, r12
-    call memory_snapshot
-    cmp r14, [rax + MS_nodes + VEC_len]
-    jae .Ldraw_no_saved_selection
-    imul rcx, r14, MN_SIZE
-    add rcx, [rax + MS_nodes + VEC_ptr]
-    mov rsi, [rcx + MN_viewid]
-    mov [r13 + SC_selected], rsi
+    mov esi, eax
     mov rdi, r13
-    call scene_find
+    call memory_view_find
+    test rax, rax
+    jz .Ldraw_no_saved_selection
+    mov rcx, [rax + CE_id]
+    mov [r13 + SC_selected], rcx
     or dword ptr [rax + CE_flags], 1
 .Ldraw_no_saved_selection:
     # Copy live viewport, preserving the derived scene's own camera.
@@ -414,35 +457,31 @@ FN memory_draw
     test rax, rax
     jz .Ldraw_paint_start
     mov r14, rax
-    mov rdi, r13
-    call scene_deselect
     mov rax, [r14 + CE_group]
     test rax, rax
     jnz .Ldraw_select
     mov rax, [r14 + CE_id]
 .Ldraw_select:
-    mov [r13 + SC_selected], rax
     mov rdi, r13
     mov rsi, rax
     call scene_find
     test rax, rax
     jz .Ldraw_paint_start
-    or dword ptr [rax + CE_flags], 1
-    mov rdi, r12
-    call memory_snapshot
-    xor ecx, ecx
-.Ldraw_find_selected:
-    cmp rcx, [rax + MS_nodes + VEC_len]
-    jae .Ldraw_paint_start
-    imul rdx, rcx, MN_SIZE
-    add rdx, [rax + MS_nodes + VEC_ptr]
-    mov rsi, [r13 + SC_selected]
-    cmp [rdx + MN_viewid], rsi
-    je .Ldraw_store_selected
-    inc ecx
-    jmp .Ldraw_find_selected
-.Ldraw_store_selected: inc ecx
+    cmp dword ptr [rax + CE_kind], CT_RECT
+    je .Ldraw_select_card
+    cmp dword ptr [rax + CE_kind], CT_FRAME
+    jne .Ldraw_paint_start
+.Ldraw_select_card:
+    mov ecx, [rax + CE_reserved]
+    test rcx, rcx
+    jz .Ldraw_paint_start
     mov [r12 + MM_selected], ecx
+    mov r14, rax
+    mov rdi, r13
+    call scene_deselect
+    mov rax, [r14 + CE_id]
+    mov [r13 + SC_selected], rax
+    or dword ptr [r14 + CE_flags], 1
 .Ldraw_paint_start: xor r14d, r14d
 .Ldraw_paint:
     cmp r14, [r13 + SC_elements + VEC_len]

@@ -161,6 +161,12 @@ FN memory_dump
     mov rdi, rbx
     lea rsi, [rip + .Lend]
     call sb_push_cstr
+    mov rdi, r12
+    mov rsi, rbx
+    call memory_view_dump
+    mov rdi, rbx
+    lea rsi, [rip + .Lclose]
+    call sb_push_cstr
     EPILOGUE
 .Ldump_null:
     mov rdi, rbx
@@ -177,7 +183,8 @@ FN memory_dump
 .Lsnapshot: .asciz ",\"snapshot\":"
 .Lnodes: .asciz ",\"nodes\":["
 .Llinks: .asciz "],\"links\":["
-.Lend: .asciz "]}\n"
+.Lend: .asciz "],\"view\":"
+.Lclose: .asciz "}\n"
 .Lnull: .asciz "null\n"
 
 .Lselected: .asciz ",\"selected\":"

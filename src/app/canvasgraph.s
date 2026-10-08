@@ -22,6 +22,11 @@ FN cmd_canvas_graph_mode
     call canvas_graph_active
     test rax, rax
     jz 9f
+    cmp dword ptr [rax + GR_profile], 1
+    jne .Lmemory_mode_regular
+    call cmd_memory_mode
+    EPILOGUE
+.Lmemory_mode_regular:
     xor dword ptr [rax + GR_mode], 1
 9:  mov dword ptr [rip + g_dirty], 1
     EPILOGUE
@@ -31,6 +36,11 @@ FN cmd_canvas_graph_fold
     mov rbx, rax
     test rax, rax
     jz 9f
+    cmp dword ptr [rax + GR_profile], 1
+    jne .Lmemory_fold_regular
+    call cmd_memory_fold
+    EPILOGUE
+.Lmemory_fold_regular:
     mov esi, [rax + GR_selected]
     cmp esi, 256
     ja 1f
@@ -61,6 +71,16 @@ canvas_graph_event_step:
     call canvas_graph_active
     test rax, rax
     jz 9f
+    cmp dword ptr [rax + GR_profile], 1
+    jne .Lmemory_event_regular
+    test r12d, r12d
+    js .Lmemory_event_prev
+    call cmd_memory_next
+    EPILOGUE
+.Lmemory_event_prev:
+    call cmd_memory_prev
+    EPILOGUE
+.Lmemory_event_regular:
     mov ecx, [rax + GR_event]
     add ecx, r12d
     test ecx, ecx
@@ -75,6 +95,11 @@ FN cmd_canvas_graph_select_next
     call canvas_graph_active
     test rax, rax
     jz 9f
+    cmp dword ptr [rax + GR_profile], 1
+    jne .Lmemory_select_next_regular
+    call cmd_memory_select_next
+    EPILOGUE
+.Lmemory_select_next_regular:
     inc dword ptr [rax + GR_selected]
     mov ecx, [rax + GR_selected]
     cmp rcx, [rax + GR_nodes + VEC_len]

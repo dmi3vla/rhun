@@ -222,6 +222,22 @@ FN memory_graph_for_scene
     call memory_build_graph
     mov rax, [rbx + MM_graph]
 .Lgraph_scene_done: EPILOGUE
+FN memory_scene_invalidate
+    PROLOGUE
+    mov rbx, rdi
+    mov rcx, [rbx + MM_scene]
+    test rcx, rcx
+    jz .Linvalidate_done
+    mov eax, [rcx + SC_zoom]
+    mov [rbx + MM_camera_zoom], eax
+    mov eax, [rcx + SC_pan_x]
+    mov [rbx + MM_camera_x], eax
+    mov eax, [rcx + SC_pan_y]
+    mov [rbx + MM_camera_y], eax
+    mov rdi, rcx
+    call scene_free
+    mov qword ptr [rbx + MM_scene], 0
+.Linvalidate_done: EPILOGUE
 FN cmd_memory_fold
     PROLOGUE
     call memory_active
@@ -231,9 +247,10 @@ FN cmd_memory_fold
     mov rdi, rax
     call memory_build_graph
     mov r12, [rbx + MM_graph]
-    mov eax, [r12 + GR_selected]
+    mov eax, [rbx + MM_selected]
     test eax, eax
     jz .Lfold_done
+    mov r14d, eax
     cmp eax, 256
     ja .Lfold_segment
     dec eax
@@ -241,13 +258,51 @@ FN cmd_memory_fold
     jae .Lfold_done
     imul rax, GN_SIZE
     add rax, [r12 + GR_nodes + VEC_ptr]
-    mov ecx, [rax + GN_segment]
+    mov r13d, [rax + GN_segment]
+    jmp .Lfold_check
+.Lfold_segment: mov r13d, eax
+    sub r13d, 256
+.Lfold_check:
+    cmp r13d, 1
+    jb .Lfold_done
+    cmp r13d, 3
+    ja .Lfold_done
+    bt dword ptr [r12 + GR_fold], r13d
+    jc .Lfold_expand
+    cmp r14d, 256
+    ja .Lfold_collapse
+    mov [rbx + MM_fold_focus - 4 + r13*4], r14d
+.Lfold_collapse:
+    lea r14d, [r13 + 256]
     jmp .Lfold_toggle
-.Lfold_segment: lea ecx, [rax - 256]
+.Lfold_expand:
+    mov r14d, [rbx + MM_fold_focus - 4 + r13*4]
+    test r14d, r14d
+    jnz .Lfold_toggle
+    xor ecx, ecx
+.Lfold_first:
+    cmp rcx, [r12 + GR_nodes + VEC_len]
+    jae .Lfold_empty
+    imul rax, rcx, GN_SIZE
+    add rax, [r12 + GR_nodes + VEC_ptr]
+    cmp [rax + GN_segment], r13d
+    je .Lfold_found
+    inc ecx
+    jmp .Lfold_first
+.Lfold_found: lea r14d, [rcx + 1]
+    jmp .Lfold_toggle
+.Lfold_empty: lea r14d, [r13 + 256]
 .Lfold_toggle:
+    mov ecx, r13d
     mov eax, 1
     shl eax, cl
     xor dword ptr [r12 + GR_fold], eax
+    mov [rbx + MM_selected], r14d
+    mov [r12 + GR_selected], r14d
+    mov rdi, r12
+    call canvas_graph_projection_free
+    mov rdi, rbx
+    call memory_scene_invalidate
     mov dword ptr [rip + g_dirty], 1
 .Lfold_done: EPILOGUE
 FN cmd_memory_select_next
@@ -257,19 +312,40 @@ FN cmd_memory_select_next
     jz .Lselect_done
     mov rbx, rax
     mov rdi, rax
-    call memory_snapshot
-    mov ecx, [rbx + MM_selected]
-    inc ecx
-    cmp rcx, [rax + MS_nodes + VEC_len]
-    jbe .Lselect_store
-    mov ecx, 1
+    call memory_build_graph
+    mov r12, [rbx + MM_graph]
+    mov r13d, [rbx + MM_selected]
+    mov r14, [r12 + GR_nodes + VEC_len]
+    add r14, 3
+.Lselect_candidate:
+    inc r13d
+    cmp r13d, 256
+    ja .Lselect_segment
+    cmp r13, [r12 + GR_nodes + VEC_len]
+    jbe .Lselect_node
+    mov r13d, 257
+.Lselect_segment:
+    cmp r13d, 259
+    jbe .Lselect_folded_segment
+    mov r13d, 1
+.Lselect_node:
+    mov rdi, r12
+    mov esi, r13d
+    call canvas_graph_map
+    cmp eax, r13d
+    je .Lselect_store
+    jmp .Lselect_skip
+.Lselect_folded_segment:
+    lea ecx, [r13 - 256]
+    bt dword ptr [r12 + GR_fold], ecx
+    jc .Lselect_store
+.Lselect_skip:
+    dec r14
+    jnz .Lselect_candidate
+    jmp .Lselect_done
 .Lselect_store:
-    mov [rbx + MM_selected], ecx
-    mov rax, [rbx + MM_graph]
-    test rax, rax
-    jz .Lselect_dirty
-    mov [rax + GR_selected], ecx
-.Lselect_dirty:
+    mov [rbx + MM_selected], r13d
+    mov [r12 + GR_selected], r13d
     mov dword ptr [rip + g_dirty], 1
 .Lselect_done: EPILOGUE
 .section .rodata

@@ -1,6 +1,7 @@
 .include "rhun.inc"
 .include "canvas/canvas.inc"
 .include "memory/memory.inc"
+.include "canvas/graph.inc"
 .text
 FN main
     PROLOGUE
@@ -14,12 +15,25 @@ FN main
     mov rbx, rax
     cmp qword ptr [rax + MM_snapshots + VEC_len], 9
     jne .Lfail
+    mov dword ptr [rbx + MM_cursor], 5
     mov rdi, rbx
     call memory_build_scene
     mov rdi, rbx
     call memory_build_graph
     mov rdi, [rbx + MM_graph]
     call canvas_graph_projection
+    mov rax, [rbx + MM_graph]
+    mov dword ptr [rax + GR_fold], 12
+    mov rdi, rbx
+    call memory_scene_invalidate
+    mov rdi, rbx
+    call memory_build_scene
+    mov rax, [rbx + MM_graph]
+    mov dword ptr [rax + GR_fold], 0
+    mov rdi, rbx
+    call memory_scene_invalidate
+    mov rdi, rbx
+    call memory_build_scene
     mov rdi, rbx
     call memory_free
     call scene_new
