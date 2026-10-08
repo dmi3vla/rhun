@@ -44,6 +44,13 @@ FN main
     call scene_free
     mov rdi, rbx
     call scene_free
+    lea rdi, [rip + header]
+    mov esi, header_end-header
+    call memory_header_import
+    test rax, rax
+    jz .Lfail
+    mov rdi, rax
+    call scene_free
     lea rdi, [rip + reset]
     mov esi, 2
     call json_parse_complete
@@ -66,3 +73,5 @@ reset: .asciz "{}"
 ok: .asciz "Memory IR: 100 owned parse/clone/validate cycles, zero allocation growth\n"
 source: .incbin "examples/memory/rhun-lifecycle.rhun-memory"
 source_end: .byte 0
+header: .incbin "examples/memory/captured-header.json"
+header_end: .byte 0

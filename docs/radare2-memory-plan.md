@@ -52,3 +52,16 @@ versions. Camera survives snapshot changes; navigation never edits evidence.
 3 memory graph, 6 existing graph and 6 memory view checks passed; 100 lifecycle
 cycles now include derived scene, graph and projection with zero allocation growth.
 Native screenshot /tmp/rhun-memory-3d.png inspected. F folds in the 3D view.
+
+Phase 4 acceptance: Project CFG to Entry Stack Heap converts the current owned
+Radare2 function/block/branch records into static memory IR with exact hex source
+addresses, instruction text, function membership and original branch identities.
+Only Radare's explicit entry0 flag is classified as binary entry; function names
+are not treated as startup execution evidence. Static PC/SP/BP and stack/heap
+are unknown, never fabricated. Projection rejects excess limits atomically.
+Import Memory Snapshots also accepts a closed rhun-heap-header capture: exactly
+16 little-endian header bytes, validated class/page size and request capacity.
+The result always has unknown liveness, inferred layout and imported provenance.
+4 adapter checks passed including actual Radare2 6.2.4 /bin/true entry analysis
+(official release SHA256 checked, extracted under /tmp; no system installation).
+7 contract checks and 100 lifecycle cycles including header conversion passed.

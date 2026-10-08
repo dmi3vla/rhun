@@ -37,9 +37,16 @@ FN memory_import_file
     test rax, rax
     jz .Lfile_bad
     mov rbx, rax
+    mov r13, rdx
     mov rdi, rax
     mov rsi, rdx
     call memory_import
+    test rax, rax
+    jnz .Lfile_imported
+    mov rdi, rbx
+    mov rsi, r13
+    call memory_header_import
+.Lfile_imported:
     mov r12, rax
     mov rdi, rbx
     call mem_free
