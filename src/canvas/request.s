@@ -3,6 +3,13 @@
 .text
 # Only selected elements, up to 64 / 48 KiB. Never auto-sends a project.
 FN canvas_request_build
+    mov rax, [rdi + SC_memory]
+    test rax, rax
+    jz .Lrequest_regular
+    cmp byte ptr [rax], 0
+    je .Lrequest_regular
+    jmp memory_request_build
+.Lrequest_regular:
     PROLOGUE SB_SIZE
     mov rbx, rdi
     mov r12, rsi
@@ -177,7 +184,7 @@ FN cmd_canvas_request_chat
 .Lcontext: .asciz "],\"elements\":["
 .Lend: .asciz "],\"allowed\":[\"add\",\"replace\",\"delete\",\"ui\"],\"task\":\"Detail selected nodes or map a frame to rhun-ui. Return rhun-proposal v1 with the same revision, explanation, and operations. add/replace use complete native element records, delete uses id, ui uses value. Preserve external references. New IDs must exceed existing IDs. No executable code.\"}"
 .Lprompt: .asciz "Export selected canvas request JSON path"
-.Lready: .asciz "Selected context request exported; load agent result with Canvas: Load Model Proposal"
+.Lready: .asciz "Selected context request exported"
 .Lerror: .asciz "Request rejected: select 1-64 elements with total context under 48 KiB"
 .Lchat_error: .asciz "Start a chat and wait until ready, then send selected canvas context again"
 

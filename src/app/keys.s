@@ -488,6 +488,8 @@ g_commands:
     COMMAND radare_analyze, "Radare2: Analyze Binary Entry CFG", cmd_radare_analyze, ""
     COMMAND radare_address, "Radare2: Analyze Function Address", cmd_radare_address, ""
     COMMAND radare_cancel, "Radare2: Cancel Analysis", cmd_radare_cancel, ""
+    COMMAND memory_review_chat, "Radare2 Memory: Send Selected Evidence to Ready Chat", cmd_canvas_request_chat, ""
+    COMMAND memory_review_export, "Radare2 Memory: Export Selected Review JSON", cmd_canvas_request_export, ""
     COMMAND memory_project, "Radare2: Project CFG to Entry Stack Heap", cmd_memory_project, ""
     COMMAND memory_demo, "Radare2: Open Entry Stack Heap Demo", cmd_memory_demo, ""
     COMMAND memory_import, "Radare2: Import Memory Snapshots", cmd_memory_import, ""

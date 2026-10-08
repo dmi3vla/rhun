@@ -40,7 +40,8 @@ FN memory_unique
     mov esi, r12d
     mov rdx, r14
     call canvas_graph_id
-    lea ecx, [r13d + 1]
+    mov ecx, r13d
+    add ecx, 1
     cmp eax, ecx
     jne .Lmu_no
     inc r13d

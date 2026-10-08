@@ -91,4 +91,8 @@ for radare_test in frames analysis trace-review chat-request; do
     python3 "tests/radare-$radare_test.py" || fail=1
 done
 build/radare_model_test || fail=1
+for memory_test in contract view graph adapter review chat-request; do
+    python3 "tests/memory-$memory_test.py" || fail=1
+done
+build/memory_model_test || fail=1
 exit $fail

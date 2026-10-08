@@ -109,6 +109,72 @@ FN memory_project_is_node
     jmp strcmp_eq
 .Lpin_no: xor eax, eax
     ret
+# Canvas annotations must not become static branch facts. Check each arrow
+# against its source block's retained agfj jump/fail and same-function target.
+FN memory_project_branch_valid
+    PROLOGUE
+    mov rbx, rdi
+    mov r12, rsi
+    mov rsi, [r12 + CE_from]
+    call scene_find
+    test rax, rax
+    jz .Lbranch_no
+    mov r13, rax
+    mov rdi, rbx
+    mov rsi, [r12 + CE_to]
+    call scene_find
+    test rax, rax
+    jz .Lbranch_no
+    mov rcx, [r13 + CE_frame]
+    cmp [rax + CE_frame], rcx
+    jne .Lbranch_no
+    mov r14, [rax + CE_xid]
+    test r14, r14
+    jz .Lbranch_no
+    mov rdi, r14
+    call strlen
+    mov rsi, rax
+    mov rdi, r14
+    call parse_u64
+    mov r14, rax
+    mov rdi, [r13 + CE_raw]
+    test rdi, rdi
+    jz .Lbranch_no
+    call strlen
+    mov rsi, rax
+    mov rdi, [r13 + CE_raw]
+    call json_parse_complete
+    test rax, rax
+    jz .Lbranch_no
+    mov rdi, rax
+    lea rsi, [rip + .Lr2]
+    call json_get
+    test rax, rax
+    jz .Lbranch_no
+    mov r15, rax
+    mov rdi, rax
+    lea rsi, [rip + .Ljump]
+    call json_get
+    mov rdi, rax
+    call radare_number
+    test edx, edx
+    jz .Lbranch_fail
+    cmp rax, r14
+    je .Lbranch_yes
+.Lbranch_fail:
+    mov rdi, r15
+    lea rsi, [rip + .Lfail]
+    call json_get
+    mov rdi, rax
+    call radare_number
+    test edx, edx
+    jz .Lbranch_no
+    cmp rax, r14
+    jne .Lbranch_no
+.Lbranch_yes: mov eax, 1
+    EPILOGUE
+.Lbranch_no: xor eax, eax
+    EPILOGUE
 FN cmd_memory_project
     PROLOGUE SB_SIZE+32
     call canvas_active
@@ -280,6 +346,11 @@ FN cmd_memory_project
     call memory_project_is_node
     test eax, eax
     jz .Lproject_link_next
+    mov rdi, rbx
+    mov rsi, r14
+    call memory_project_branch_valid
+    test eax, eax
+    jz .Lproject_link_next
     test r15d, r15d
     jz .Lproject_link
     mov rdi, rsp
@@ -337,6 +408,9 @@ FN cmd_memory_project
     call app_toast
     EPILOGUE
 .section .rodata
+.Lr2: .asciz "r2"
+.Ljump: .asciz "jump"
+.Lfail: .asciz "fail"
 .Lroot: .asciz "{\"type\":\"rhun-memory\",\"version\":1,\"provenance\":0,\"allocator\":\"generic\",\"binary\":"
 .Lentries: .asciz ",\"entrypoints\":["
 .Lid: .asciz "{\"id\":"

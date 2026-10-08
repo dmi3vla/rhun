@@ -33,7 +33,7 @@ session; unnamed drafts need Save As. Undo/redo has 32 snapshots and a combined
 16 MiB budget. Redo is discarded by a new edit. Cancelled previews are not history.
 Viewport/selection changes do not dirty saved content.
 
-Native JSON v6 (with v1–v5 backward reads) validates IDs, references, integer geometry, strict UTF-8, schema
+Native JSON v7 (with v1–v6 backward reads) validates IDs, references, integer geometry, strict UTF-8, schema
 and limits before publishing owned content: 4,096 elements, 8,192 references,
 8,192 stroke points per element, 64 KiB text per element, 8 MiB serialized content.
 World coordinates and element extents are bounded to +/-1,000,000. Edits outside
@@ -120,3 +120,5 @@ Native image cache limits apply after decoding: 16 MiB per cached image / 64 MiB
 per scene. The existing decoder can allocate larger transient pixel buffers before
 that cache admission check. Performance samples measure basic rectangle painting,
 not whole UI frame latency or an FPS guarantee.
+
+Memory evidence uses a separate read-only native profile: see [entry/stack/heap projection](radare2-memory.md).

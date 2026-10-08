@@ -12,6 +12,15 @@ class MemoryAdapter(m.MemoryView):
         self.assertEqual(snap['sp'],'0x0');self.assertEqual(snap['nodes'][1]['address'],'0x1000')
         self.assertIn('cmp edi, 0',snap['nodes'][1]['label'])
         ids={n['id'] for n in snap['nodes']};self.assertTrue(all(e['from'] in ids and e['to'] in ids for e in snap['links']))
+    def test_drawn_arrows_do_not_become_static_branches(self):
+        d=self.scene(['cmd radare_demo'])
+        edge=next(e.copy() for e in d['elements'] if e['kind']==3)
+        blocks=[e for e in d['elements'] if e['gxid']=='r2:block']
+        edge.update(id=max(e['id'] for e in d['elements'])+1,**{'from':blocks[-1]['id'],'to':blocks[0]['id']})
+        d['next']=edge['id']+1
+        d['elements'].append(edge);p=self.work/'annotated.rhun-canvas';p.write_text(json.dumps(d))
+        projected=json.loads(self.scene(['cmd memory_project'],path=p)['memory'])
+        self.assertEqual(len(projected['snapshots'][0]['links']),4)
     @unittest.skipUnless(os.environ.get('RHUN_REAL_RADARE2'),'requires actual r2')
     def test_real_binary_static_projection(self):
         self.env['RHUN_RADARE2']=os.environ['RHUN_REAL_RADARE2']

@@ -127,13 +127,15 @@ FN memory_build_graph
     xor esi, esi
     mov edx, GS_SIZE
     call memset
-    lea eax, [r14d + 1]
+    mov eax, r14d
+    add eax, 1
     mov [r15 + GS_id], eax
     lea rax, [rip + .Llanes]
     mov rdi, [rax + r14*8]
     call memory_strdup
     mov [r15 + GS_name], rax
-    lea edx, [r14d - 1]
+    mov edx, r14d
+    sub edx, 1
     imul eax, edx, 320
     mov [r15 + GS_center], eax
     imul eax, edx, 140
@@ -243,7 +245,9 @@ FN cmd_memory_fold
     jmp .Lfold_toggle
 .Lfold_segment: lea ecx, [rax - 256]
 .Lfold_toggle:
-    btc dword ptr [r12 + GR_fold], ecx
+    mov eax, 1
+    shl eax, cl
+    xor dword ptr [r12 + GR_fold], eax
     mov dword ptr [rip + g_dirty], 1
 .Lfold_done: EPILOGUE
 FN cmd_memory_select_next

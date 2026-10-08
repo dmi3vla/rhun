@@ -29,6 +29,10 @@ run() {
     shift 5
     rm -rf "$w/home" "$w/state" "$w/config" "$w/stub.log" "$w/restart.log"
     mkdir -p "$w/home" "$w/state/rhun" "$w/config"
+    if [ -n "${autocheck:-}" ]; then
+        mkdir -p "$w/config/rhun"
+        printf '[updates]\ncheck = %s\n' "$autocheck" > "$w/config/rhun/config"
+    fi
     if [ -n "$reply" ]; then printf '%s\n' "$reply" > "$w/rel/latest/download/VERSION"; else rm -f "$w/rel/latest/download/VERSION"; fi
     [ -n "$seed" ] && printf '%s\n' "$seed" > "$w/state/rhun/update"
     printf '%s\n' "$@" > "$w/$c.rsc"
@@ -50,7 +54,12 @@ run garbage '<html>' '' "$w/target" '' "$check" wait-update print-update
 expect garbage "state=idle current=$cur latest= error=unexpected reply"
 run missing '' '' "$w/target" '' "$check" wait-update print-update
 expect missing "state=idle current=$cur latest= error=download failed"
-# every start asks again, however recent the saved answer: a release may have come out since
+# Fork builds default to no automatic requests, even with an update target.
+run default-off 99.0.0 '' "$w/target" '' 'wait 5500' wait-update print-update
+expect default-off "state=idle current=$cur latest= error="
+if [ ! -f "$w/state/rhun/update" ]; then echo "ok   update/default-no-state"; else echo "FAIL update/default-no-state"; fail=1; fi
+# Explicit opt-in checks on startup, even with a recent saved answer.
+autocheck=true
 run fresh 99.0.0 "checked=$now
 latest=$cur" "$w/target" '' 'wait 5500' wait-update print-update
 expect fresh "state=available current=$cur latest=99.0.0 error="
@@ -58,6 +67,7 @@ run stale 99.0.0 "checked=1
 latest=98.0.0" "$w/target" '' 'wait 5500' wait-update print-update
 expect stale "state=available current=$cur latest=99.0.0 error="
 if grep -qx 'latest=99.0.0' "$w/state/rhun/update"; then echo "ok   update/saved"; else echo "FAIL update/saved"; fail=1; fi
+autocheck=
 # a build from source reports what it finds, never checks by itself, never installs
 run source 99.0.0 '' '' '' "$check" wait-update 'cmd install_update' wait-update print-update
 expect source "state=idle current=$cur latest=99.0.0 error="

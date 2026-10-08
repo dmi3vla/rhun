@@ -158,7 +158,7 @@ with tempfile.TemporaryDirectory(prefix='rhun-desktop-') as temporary:
                               'cmd feedback', 'wait 200',
                               'cmd reveal_file', 'wait 200', 'quit'])
         expected = ['https://rhun.app', 'mailto:hi@rhun.app?subject=rhun%20feedback',
-                    'https://github.com/vshvedov/rhun/issues']
+                    'https://github.com/dmi3vla/rhun/issues']
         expected += ['-R', file.as_posix()] if sys.platform == 'darwin' else [project.as_posix()]
         assert log.read_text().splitlines() == expected, log.read_text()
         print('ok   desktop/links-and-literal-file-path')
@@ -171,7 +171,7 @@ with tempfile.TemporaryDirectory(prefix='rhun-desktop-') as temporary:
                         'click 695 202', 'wait 200', 'quit'])
         assert log.read_text().splitlines() == [
             'https://rhun.app', 'mailto:hi@rhun.app?subject=rhun%20feedback',
-            'https://github.com/vshvedov/rhun/issues',
+            'https://github.com/dmi3vla/rhun/issues',
             'https://discord.gg/Aj4drpFbWf'], log.read_text()
         print('ok   desktop/settings-links')
 

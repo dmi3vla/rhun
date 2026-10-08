@@ -116,6 +116,12 @@ FN cmd_memory_entry
     mov dword ptr [rax + SC_pan_x], 0
     mov dword ptr [rax + SC_pan_y], 0
     mov dword ptr [rax + SC_zoom], 49152
+    mov rdi, rbx
+    call memory_build_graph
+    mov rax, [rbx + MM_graph]
+    mov dword ptr [rax + GR_zoom], 65536
+    mov dword ptr [rax + GR_yaw], -22
+    mov dword ptr [rax + GR_pitch], 14
     mov dword ptr [rip + g_dirty], 1
 .Lentry_done: EPILOGUE
 # SB, node -> owned-source description (no raw memory is treated as markup).
@@ -123,12 +129,6 @@ FN memory_description
     PROLOGUE
     mov rbx, rdi
     mov r12, rsi
-    mov rsi, [r12 + MN_label]
-    call sb_push_cstr
-    mov rdi, rbx
-    mov esi, 10
-    call sb_push_byte
-    mov rdi, rbx
     mov rsi, [r12 + MN_address]
     call sb_push_cstr
     mov rdi, rbx
@@ -158,6 +158,12 @@ FN memory_description
     lea rcx, [rip + .Lcertainties]
     mov rsi, [rcx + rax*8]
     mov rdi, rbx
+    call sb_push_cstr
+    mov rdi, rbx
+    mov esi, 10
+    call sb_push_byte
+    mov rdi, rbx
+    mov rsi, [r12 + MN_label]
     call sb_push_cstr
     EPILOGUE
 # Derived scene has no model/source edits. Positions depend only on lane and order.
@@ -366,6 +372,8 @@ FN memory_draw
     mov r13, [r12 + MM_scene]
     cmp dword ptr [r12 + MM_mode], 0
     jne .Ldraw_graph
+    mov rdi, r13
+    call scene_deselect
     mov eax, [r12 + MM_selected]
     test eax, eax
     jz .Ldraw_no_saved_selection
@@ -441,9 +449,34 @@ FN memory_draw
     jae .Ldraw_done
     imul r15, r14, CE_SIZE
     add r15, [r13 + SC_elements + VEC_ptr]
+    cmp dword ptr [r15 + CE_kind], CT_TEXT
+    jne .Ldraw_unclipped
+    mov rdi, r13
+    mov esi, [r15 + CE_x]
+    mov edx, [r15 + CE_y]
+    call scene_to_screen
+    mov edi, eax
+    mov esi, edx
+    movsxd rax, dword ptr [r15 + CE_w]
+    mov ecx, [r13 + SC_zoom]
+    imul rax, rcx
+    sar rax, 16
+    mov edx, eax
+    movsxd rax, dword ptr [r15 + CE_h]
+    imul rax, rcx
+    sar rax, 16
+    mov ecx, eax
+    call gfx_clip_push
     mov rdi, r13
     mov rsi, r15
     call canvas_paint_element
+    call gfx_clip_pop
+    jmp .Ldraw_painted
+.Ldraw_unclipped:
+    mov rdi, r13
+    mov rsi, r15
+    call canvas_paint_element
+.Ldraw_painted:
     inc r14
     jmp .Ldraw_paint
     jmp .Ldraw_done
@@ -580,8 +613,8 @@ FN memory_toolbar
     call sb_free
 .Ltoolbar_done: EPILOGUE
 .section .rodata
-.Lsize: .asciz "\nrequested: "
-.Lcapacity: .asciz " / slot: "
+.Lsize: .asciz "\nsize: "
+.Lcapacity: .asciz " / capacity: "
 .Lcertainty: .asciz " | "
 .Llive: .asciz "live"
 .Lfreed: .asciz "freed / historical"

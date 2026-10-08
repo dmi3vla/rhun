@@ -6,7 +6,7 @@ memory evidence. Static facts, imported snapshots, and teaching examples carry
 explicit provenance; addresses are 64-bit hex strings in the memory contract.
 
 0. Fork updates and contracts. Disable automatic checks by default; point all
-   built-in release/install/feedback paths at dmi3vla/rhun. Document phases.
+   built-in release/install/Issues paths at dmi3vla/rhun. Document phases.
 1. Owned memory IR. Strict bounded import with source, entrypoints, snapshots,
    per-thread frames, memory regions, allocations and pointer evidence; native
    persistence and lifecycle validation. Rejected input is atomic.
@@ -55,7 +55,7 @@ Native screenshot /tmp/rhun-memory-3d.png inspected. F folds in the 3D view.
 
 Phase 4 acceptance: Project CFG to Entry Stack Heap converts the current owned
 Radare2 function/block/branch records into static memory IR with exact hex source
-addresses, instruction text, function membership and original branch identities.
+addresses, instruction text, function membership and original branch endpoints.
 Only Radare's explicit entry0 flag is classified as binary entry; function names
 are not treated as startup execution evidence. Static PC/SP/BP and stack/heap
 are unknown, never fabricated. Projection rejects excess limits atomically.
@@ -65,3 +65,25 @@ The result always has unknown liveness, inferred layout and imported provenance.
 4 adapter checks passed including actual Radare2 6.2.4 /bin/true entry analysis
 (official release SHA256 checked, extracted under /tmp; no system installation).
 7 contract checks and 100 lifecycle cycles including header conversion passed.
+
+Phase 5 acceptance: selected-node review JSON and ready-chat ACP transport carry
+source addresses, snapshot registers, provenance, allocator, directly connected
+nodes and incident typed links. Read-only prose review is requested with no
+allowed scene operations. No selection, >64 context nodes or >48 KiB fails without
+sending or replacing an existing export. Static projection checks retained agfj
+jump/fail evidence so drawn annotation arrows do not become branch facts.
+Card text is clipped; addresses/state precede potentially long instruction text.
+Entry resets both cameras. Documentation covers exact contracts, unknown states,
+allocation generations, reset-on-reopen view state, source limits and runtime
+capture boundaries. The synthetic header fixture is explicitly not a live capture.
+25 memory checks including actual Radare2 /bin/true passed; 100 lifecycle cycles
+include scene/graph projection, native clone/validation and header conversion
+with zero allocation growth. Live Wayland and X11 smoke passed; final native
+2D/3D screenshots inspected. All 9 memory modules and 2 unit modules translate to
+ARM64 after equivalent-instruction fixes. Existing canvas still has 5 translator
+blockers; macOS/Windows runtime acceptance is not claimed. Windows LLVM tools are
+unavailable on this host. Build dependency tracking includes memory headers/demo.
+Update tests now explicitly cover default-off/no-background-state and opt-in;
+desktop link expectations use the fork Issues URL.
+Final `sh tests/run.sh` completed with exit 0 on the final Linux build. Actual-r2
+and live-display checks above were run separately because they are opt-in.

@@ -57,6 +57,7 @@ Fast built-in terminal:
 [Native drafts, UI export, proposals and distributed-state canvas](docs/native-canvas.md)
 
 [Radare2 native CFG, imported trace and source-linked review](docs/radare2.md)
+and [native entry / stack / heap 2D–3D analysis](docs/radare2-memory.md)
 are available in the local Linux build; platform and interchange limits are documented there.
 
 ## Contribute

@@ -97,7 +97,7 @@ the entire binary or full trace automatically. Proposed scene changes use the
 existing preview/accept workflow; responses are not applied automatically.
 
 Save As with the `.rhun-canvas` suffix preserves assembly metadata, notes, arrows
-and trace in native v6; older v1–v5 documents remain readable. Excalidraw export of
+and trace in native v7; older v1–v6 documents remain readable. Excalidraw export of
 analysis scenes is refused because that format would lose analysis metadata and
 cannot retain the source address identity contract.
 
@@ -120,3 +120,5 @@ Opt-in native Wayland/X11 checks include demo trace navigation:
 `RHUN_CANVAS_NATIVE_SMOKE=1 python3 tests/canvas-native-smoke.py`.
 macOS ARM64 canvas translation has existing blockers; Windows runtime/toolchain
 verification is unavailable here. Neither platform is claimed to pass Radare2.
+
+For linked native 2D/3D code, stack and allocation snapshots, see [Memory analysis](radare2-memory.md).
