@@ -87,6 +87,22 @@ class VisualDiff(m.CanvasEdit):
         actual=json.loads(next(l for l in output.splitlines() if l.startswith('{"type":"rhun-canvas"')))
         self.assertEqual(actual,self.scene(['cmd radare_demo']))
 
+    def test_memory_overlay_modes_folds_and_navigation_keep_evidence(self):
+        actions=['cmd memory_demo']+['key ]']*5
+        target=self.context(actions)
+        next(n for n in target['nodes'] if n['id']=='H1')['address']='0x1000100'
+        target['nodes'].append(dict(target['nodes'][0],id='phantom',label='AI-only object'))
+        path=self.work/'memory-claims.json';path.write_text(json.dumps(target))
+        load=actions+self.prompt('diff_load',path)
+        before=self.scene(actions)
+        a,b,c=self.work/'memory-2d.ppm',self.work/'memory-3d.ppm',self.work/'memory-fold.ppm'
+        tail=['key d','shot '+str(a),'key v','shot '+str(b),'key f','shot '+str(c),'print-diff']
+        result=self.scene(load+tail)
+        self.assertEqual(result,before)
+        self.assertNotEqual(a.read_bytes(),b.read_bytes())
+        self.assertNotEqual(b.read_bytes(),c.read_bytes())
+        self.assertEqual(self.compare(target,actions=actions,tail=['key d','key v','key f'])['stale'],0)
+
     def test_bad_input_is_atomic(self):
         original = self.context();good = self.work / 'good.json';good.write_text(json.dumps(original))
         for change in [dict(base='wrong'), dict(profile=1), dict(snapshot='other'), dict(scope=['missing']),

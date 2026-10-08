@@ -99,15 +99,35 @@ FN diff_navigate
     jmp .Lnav_scan
 .Lnav_focus:
     mov [r12 + DF_cursor], r13d
-    mov rax, [r12 + DF_base]
-    cmp dword ptr [rax + DG_profile], 0
-    jne .Lnav_done
-    cmp dword ptr [r15 + DR_type], 0
-    jne .Lnav_done
     mov eax, [r15 + DR_base]
+    cmp dword ptr [r15 + DR_type], 0
+    je .Lnav_source_index
+    mov rcx, [r12 + DF_base]
+    test eax, eax
+    jnz .Lnav_edge_source
+    mov eax, [r15 + DR_target]
+    mov rcx, [r12 + DF_target]
+.Lnav_edge_source:
+    test eax, eax
+    jz .Lnav_done
+    dec eax
+    imul rax, DE_SIZE
+    add rax, [rcx + DG_links + VEC_ptr]
+    mov rsi, [rax + DE_from]
+    mov rax, [r12 + DF_base]
+    lea rdi, [rax + DG_nodes]
+    call diff_node_id
+.Lnav_source_index:
     test eax, eax
     jz .Lnav_done
     mov rcx, [r12 + DF_base]
+    cmp dword ptr [rcx + DG_profile], 0
+    je .Lnav_cfg_source
+    mov rdi, rbx
+    mov esi, eax
+    call diff_memory_focus
+    jmp .Lnav_done
+.Lnav_cfg_source:
     dec eax
     imul rax, DN_SIZE
     add rax, [rcx + DG_nodes + VEC_ptr]
@@ -168,7 +188,13 @@ FN diff_base_point
     mov r13, rcx
     mov rax, [r12 + DF_base]
     cmp dword ptr [rax + DG_profile], 0
-    jne .Lpoint_no
+    je .Lpoint_cfg
+    mov rdi, rbx
+    mov rsi, r12
+    mov rcx, r13
+    call diff_memory_point
+    EPILOGUE
+.Lpoint_cfg:
     test edx, edx
     jz .Lpoint_no
     dec edx
@@ -317,9 +343,6 @@ FN diff_overlay
     call diff_stale
     test eax, eax
     jnz .Lstale
-    mov rax, [r12 + DF_base]
-    cmp dword ptr [rax + DG_profile], 0
-    jne .Loverlay_done
     xor r13d, r13d
 .Loverlay_result:
     cmp r13, [r12 + DF_results + VEC_len]
